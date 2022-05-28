@@ -1,6 +1,8 @@
 use geo_types::{LineString, MultiLineString, Point, Polygon};
 
+#[derive(Clone)]
 pub struct Turtle {
+    stack: Vec<Turtle>,
     lines: Vec<Vec<Point<f64>>>,
     position: Point<f64>,
     start: Option<Point<f64>>,
@@ -21,6 +23,8 @@ pub trait TurtleTrait {
     fn pen_up(self) -> Self;
     fn pen_down(self) -> Self;
     fn close(self) -> Self;
+    fn push(self) -> Self;
+    fn pop(self) -> Self;
     fn to_multiline(&mut self) -> MultiLineString<f64>;
     fn to_polygon(&mut self) -> Result<Polygon<f64>, geo_types::Error>;
     // fn to_multipolygon(self) -> Result<MultiPolygon<f64>, geo_types::Error>;
@@ -30,6 +34,7 @@ pub trait TurtleTrait {
 impl TurtleTrait for Turtle {
     fn new() -> Self {
         Turtle {
+            stack: vec![],
             lines: vec![],
             position: Point::new(0.0f64, 0.0f64),
             start: None,
@@ -91,6 +96,18 @@ impl TurtleTrait for Turtle {
         }
     }
 
+    fn push(mut self) -> Self {
+        self.stack.push(self.clone());
+        self
+    }
+
+    fn pop(mut self) -> Self {
+        match self.stack.pop(){
+            Some(t) => t,
+            None => self
+        }
+    }
+
     fn to_multiline(&mut self) -> MultiLineString<f64> {
         // MultiLineString::new(vec![])
         self.lines.iter().map(|line| {
@@ -118,6 +135,17 @@ mod tests {
     use crate::geo_types::PointDistance;
     use geo_types::Point;
     use super::{Turtle, TurtleTrait, degrees};
+
+    #[test]
+    fn test_stack(){
+        let t = Turtle::new();
+        let result = t.push()
+            .fwd(100.0)
+            .right(degrees(90.0))
+            .fwd(100.0)
+            .pop();
+        assert!(result.position == Point::new(0.0f64, 0.0f64));
+    }
 
     #[test]
     fn test_pendown() {
