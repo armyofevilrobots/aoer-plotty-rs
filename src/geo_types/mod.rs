@@ -1,6 +1,8 @@
 use geo_types::{Point, CoordNum};
 use num_traits::real::Real;
 
+pub mod nannou;
+
 pub trait PointDistance<T: CoordNum> {
     fn distance(&self, other: &Point<T>) -> T;
     fn length(&self) -> T;
@@ -20,7 +22,6 @@ impl<T> PointDistance<T> for Point<T>
 }
 
 #[cfg(test)]
-
 mod tests{
     use super::PointDistance;
     use geo_types::Point;

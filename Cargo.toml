@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 geo-types = "0.7.3"
 num-traits = "0.2.15"
+nannou = "0.18"
+num = "0.4"

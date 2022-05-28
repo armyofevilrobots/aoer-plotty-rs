@@ -1,4 +1,4 @@
-use geo_types::{LineString, MultiLineString, Point, Polygon, MultiPolygon};
+use geo_types::{LineString, MultiLineString, Point, Polygon};
 
 pub struct Turtle {
     lines: Vec<Vec<Point<f64>>>,
@@ -15,12 +15,12 @@ pub fn degrees(deg: f64) -> f64 {
 
 pub trait TurtleTrait {
     fn new() -> Turtle;
-    fn fwd(&mut self, distance: f64) -> &Self;
-    fn left(&mut self, angle: f64) -> &Self;
-    fn right(&mut self, angle: f64) -> &Self;
-    fn pen_up(&mut self) -> &Self;
-    fn pen_down(&mut self) -> &Self;
-    fn close(&mut self) -> &Self;
+    fn fwd(self, distance: f64) -> Self;
+    fn left(self, angle: f64) -> Self;
+    fn right(self, angle: f64) -> Self;
+    fn pen_up(self) -> Self;
+    fn pen_down(self) -> Self;
+    fn close(self) -> Self;
     fn to_multiline(&mut self) -> MultiLineString<f64>;
     fn to_polygon(&mut self) -> Result<Polygon<f64>, geo_types::Error>;
     // fn to_multipolygon(self) -> Result<MultiPolygon<f64>, geo_types::Error>;
@@ -38,7 +38,7 @@ impl TurtleTrait for Turtle {
         }
     }
 
-    fn fwd(&mut self, distance: f64) -> &Self {
+    fn fwd(mut self, distance: f64) -> Self {
         let pos = self.position + Point::new(distance * self.heading.cos(),
                                              distance * self.heading.sin());
         if self.pen {
@@ -51,25 +51,24 @@ impl TurtleTrait for Turtle {
         self
     }
 
-    fn left(&mut self, angle: f64) -> &Self {
-        self.heading = (self.heading + angle);// % (2.0*std::f64::consts::PI);
+    fn left(mut self, angle: f64) -> Self {
+        self.heading = self.heading + angle;
         self
     }
 
-    fn right(&mut self, angle: f64) -> &Self {
-        self.heading = (self.heading - angle);// % (2.0*std::f64::consts::PI);
+    fn right(mut self, angle: f64) -> Self {
+        self.heading = self.heading - angle;
         self
     }
 
-    fn pen_up(&mut self) -> &Self {
+    fn pen_up(mut self) -> Self {
         self.pen = false;
         self.start = None;
         self
     }
 
-    fn pen_down(&mut self) -> &Self {
-        if self.pen { self }
-        else {
+    fn pen_down(mut self) -> Self {
+        if self.pen { self } else {
             self.pen = true;
             self.start = Some(self.position.clone());
             self.lines.push(vec![self.position.clone()]);
@@ -77,7 +76,7 @@ impl TurtleTrait for Turtle {
         }
     }
 
-    fn close(&mut self) -> &Self {
+    fn close(mut self) -> Self {
         match self.start {
             Some(start) => {
                 if self.pen {
@@ -100,11 +99,12 @@ impl TurtleTrait for Turtle {
     }
 
     fn to_polygon(&mut self) -> Result<Polygon<f64>, geo_types::Error> {
-        match self.lines.len(){
+        match self.lines.len() {
             1 => Ok(Polygon::new(LineString::from(self.lines[0].clone()), vec![])),
             _ => Err(geo_types::Error::MismatchedGeometry {
                 expected: "Single linestring",
-                found: "Multiple or zero linestrings" })
+                found: "Multiple or zero linestrings",
+            })
         }
     }
 
@@ -115,8 +115,9 @@ impl TurtleTrait for Turtle {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::geo_types::PointDistance;
+    use geo_types::Point;
+    use super::{Turtle, TurtleTrait, degrees};
 
     #[test]
     fn test_pendown() {
