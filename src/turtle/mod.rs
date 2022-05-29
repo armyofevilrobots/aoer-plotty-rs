@@ -1,4 +1,5 @@
 use geo_types::{LineString, MultiLineString, Point, Polygon};
+
 /// # Turtle Module
 ///
 /// This provides logo-style turtle features, which are useful for things like
@@ -58,7 +59,6 @@ pub trait TurtleTrait {
 
 
 impl TurtleTrait for Turtle {
-
     fn new() -> Self {
         Turtle {
             stack: vec![],
@@ -129,8 +129,11 @@ impl TurtleTrait for Turtle {
     }
 
     fn pop(mut self) -> Self {
-        match self.stack.pop(){
-            Some(t) => t,
+        match self.stack.pop() {
+            Some(t) => Turtle {
+                lines: self.lines,
+                ..t
+            },
             None => self
         }
     }
@@ -156,8 +159,8 @@ impl TurtleTrait for Turtle {
     //
     // }
 
-    fn walk_lpath(mut self, lpath: &String, angle: f64, distance: f64) -> Self{
-        for c in lpath.chars(){
+    fn walk_lpath(mut self, lpath: &String, angle: f64, distance: f64) -> Self {
+        for c in lpath.chars() {
             self = match c {
                 '[' => self.push(),
                 ']' => self.pop(),
@@ -173,19 +176,22 @@ impl TurtleTrait for Turtle {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use crate::geo_types::PointDistance;
+
     use geo_types::Point;
+
+    use crate::geo_types::PointDistance;
     use crate::l_system::LSystem;
-    use super::{Turtle, TurtleTrait, degrees};
+
+    use super::{degrees, Turtle, TurtleTrait};
 
     #[test]
-    fn test_walk_lsystem(){
+    fn test_walk_lsystem() {
         let t = Turtle::new().pen_down();
         let system = LSystem {
             axiom: "A".to_string(),
             rules: HashMap::from([
                 ('A', "A-B".to_string()),
-                ('B', "A". to_string())]),
+                ('B', "A".to_string())]),
         };
         let expanded = system.expand(2);
         let t = t.walk_lpath(&expanded, degrees(90.0), 10.0);
@@ -195,7 +201,7 @@ mod tests {
     }
 
     #[test]
-    fn test_stack(){
+    fn test_stack() {
         let t = Turtle::new();
         let result = t.push()
             .fwd(100.0)
