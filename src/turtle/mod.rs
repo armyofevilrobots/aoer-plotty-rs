@@ -41,18 +41,69 @@ pub fn degrees(deg: f64) -> f64 {
 ///     .right(degrees(90.0))
 ///     .to_multiline();
 /// ```
+
+
 pub trait TurtleTrait {
     fn new() -> Turtle;
+
+    /// #fwd
+    ///
+    /// Move forward @distance units (negative values are allowed)
     fn fwd(self, distance: f64) -> Self;
+
+    /// #left
+    ///
+    /// Turn left @angle radians
     fn left(self, angle: f64) -> Self;
+
+    /// #right
+    ///
+    /// Turn right @angle radians
     fn right(self, angle: f64) -> Self;
+
+    /// #pen_up
+    ///
+    /// Lift the pen and discard the closing state
     fn pen_up(self) -> Self;
+
+    /// #pen_down
+    ///
+    /// Put the pen down so that we start drawing, and store the "start position" state
+    /// for later closing the drawing.
     fn pen_down(self) -> Self;
+
+    /// #close
+    ///
+    /// Automatically close the current line. Great for automagically closing Polygons.
     fn close(self) -> Self;
+
+    /// #push
+    ///
+    /// Pushes the current state onto the stack, including heading, position.
     fn push(self) -> Self;
+
+    /// #pop
+    ///
+    /// Pops the state back to the previously [`crate::turtle::TurtleTrait::push`]'d state, but retains the line state
+    /// so that we can backtrack and continue drawing.
     fn pop(self) -> Self;
+
+    /// # walk_lpath (Walk L-system Path)
+    ///
+    /// Used to take an existing expanded l-system path (see [`crate::l_system::LSystem`]) for more
+    /// information on the expansion syntax. Walks the L-system, performing movements, stack
+    /// push/pop, and turns.
     fn walk_lpath(self, lpath: &String, angle: f64, distance: f64) -> Self;
+
+    /// # to_multiline
+    ///
+    /// Takes the lines recorded in the Turtle state and returns a [`geo_types::MultiLineString`]
     fn to_multiline(&mut self) -> MultiLineString<f64>;
+
+    /// # to_polygon
+    ///
+    /// Returns a [`geo_types::Polygon`] from the Turtle state. May return an error for turtles
+    /// which have self-intersecting lines, or zero-volume polygons.
     fn to_polygon(&mut self) -> Result<Polygon<f64>, geo_types::Error>;
     // fn to_multipolygon(self) -> Result<MultiPolygon<f64>, geo_types::Error>;
 }
@@ -158,7 +209,6 @@ impl TurtleTrait for Turtle {
     // fn to_multipolygon(self) -> Result<MultiPolygon<f64>, geo_types::Error> {
     //
     // }
-
     fn walk_lpath(mut self, lpath: &String, angle: f64, distance: f64) -> Self {
         for c in lpath.chars() {
             self = match c {

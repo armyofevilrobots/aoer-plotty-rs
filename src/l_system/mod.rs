@@ -1,11 +1,9 @@
-use crate::turtle::*;
 use std::collections::HashMap;
 
 /// # LSystem
 ///
 /// What it says on the box; a simple L-system implementation for use with plotter
 /// based fractal art.
-///
 #[derive(Clone, Debug)]
 pub struct LSystem{
     pub axiom: String,
@@ -28,6 +26,11 @@ impl LSystem{
         }
     }
 
+    /// #expand
+    ///
+    /// Expands the L-system by the requested "order" of iterations. Returns a string
+    /// representing the state of the L-system. Useful with
+    /// [`crate::turtle::TurtleTrait::walk_lpath`]
     pub fn expand(&self, order: u32) -> String{
         self.recur(self.axiom.clone(), order)
     }
