@@ -12,8 +12,22 @@
 //! [`shapely`]: https://github.com/shapely/shapely
 //! [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 
-
+/// Extensions/Traits for geo_types geometry. Also includes some helper functions
+/// for working with Nannou and geo_types.
 pub mod geo_types;
+
+/// Turtle graphics implementation, including integration with L-systems
 pub mod turtle;
+
+/// L-system implementation, with expansion/recursion
 pub mod l_system;
 
+/// Make your life easy! Just import prelude::* and ignore all the warnings!
+/// One stop shopping at the expense of a slightly more complex dependency graph.
+pub mod prelude{
+
+    pub use crate::geo_types::PointDistance;
+    pub use crate::geo_types::nannou::NannouDrawer;
+    pub use crate::l_system::LSystem;
+    pub use crate::turtle::{Turtle, TurtleTrait};
+}
