@@ -1,5 +1,8 @@
 use geo_types::{LineString, MultiLineString, Point, Polygon};
-
+/// # Turtle Module
+///
+/// This provides logo-style turtle features, which are useful for things like
+/// lindemeyer systems, etc.
 #[derive(Clone)]
 pub struct Turtle {
     stack: Vec<Turtle>,
@@ -10,11 +13,33 @@ pub struct Turtle {
     pen: bool,
 }
 
+/// Helper function to convert degrees to radians
 pub fn degrees(deg: f64) -> f64 {
     std::f64::consts::PI * (deg / 180.0)
 }
 
-
+/// TurtleTrait provides turtle related functions for the Turtle struct.
+///
+/// Provides 2D turtle actions, and a stack-based history for drawing
+/// 2D graphics.
+///
+/// # Example
+///
+/// ```
+/// use geo_types::MultiLineString;
+/// use aoer_plotty_rs::turtle::{Turtle, TurtleTrait, degrees};
+/// let mline_string: MultiLineString<f64> = Turtle::new()
+///     .pen_down()
+///     .fwd(100.0)
+///     .right(degrees(90.0))
+///     .fwd(100.0)
+///     .right(degrees(90.0))
+///     .fwd(100.0)
+///     .right(degrees(90.0))
+///     .fwd(100.0)
+///     .right(degrees(90.0))
+///     .to_multiline();
+/// ```
 pub trait TurtleTrait {
     fn new() -> Turtle;
     fn fwd(self, distance: f64) -> Self;
@@ -25,6 +50,7 @@ pub trait TurtleTrait {
     fn close(self) -> Self;
     fn push(self) -> Self;
     fn pop(self) -> Self;
+    fn walk_lpath(self, lpath: &String, angle: f64, distance: f64) -> Self;
     fn to_multiline(&mut self) -> MultiLineString<f64>;
     fn to_polygon(&mut self) -> Result<Polygon<f64>, geo_types::Error>;
     // fn to_multipolygon(self) -> Result<MultiPolygon<f64>, geo_types::Error>;
@@ -32,6 +58,7 @@ pub trait TurtleTrait {
 
 
 impl TurtleTrait for Turtle {
+
     fn new() -> Self {
         Turtle {
             stack: vec![],
@@ -128,13 +155,44 @@ impl TurtleTrait for Turtle {
     // fn to_multipolygon(self) -> Result<MultiPolygon<f64>, geo_types::Error> {
     //
     // }
+
+    fn walk_lpath(mut self, lpath: &String, angle: f64, distance: f64) -> Self{
+        for c in lpath.chars(){
+            self = match c {
+                '[' => self.push(),
+                ']' => self.pop(),
+                '-' => self.left(angle),
+                '+' => self.right(angle),
+                _ => self.fwd(distance)
+            }
+        }
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use crate::geo_types::PointDistance;
     use geo_types::Point;
+    use crate::l_system::LSystem;
     use super::{Turtle, TurtleTrait, degrees};
+
+    #[test]
+    fn test_walk_lsystem(){
+        let t = Turtle::new().pen_down();
+        let system = LSystem {
+            axiom: "A".to_string(),
+            rules: HashMap::from([
+                ('A', "A-B".to_string()),
+                ('B', "A". to_string())]),
+        };
+        let expanded = system.expand(2);
+        let t = t.walk_lpath(&expanded, degrees(90.0), 10.0);
+        let last_point = t.lines.last().unwrap().last().unwrap();
+        assert!(last_point.x().abs() <= 0.0001f64);
+        assert!((&last_point.y() - 10.0f64).abs() <= 0.0001);
+    }
 
     #[test]
     fn test_stack(){
