@@ -4,6 +4,8 @@ description = "A variety of utilities for creating pen-plotter based artwork."
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+homepage = "https://github.com/armyofevilrobots/aoer-plotty-rs"
+repository = "https://github.com/armyofevilrobots/aoer-plotty-rs"
 
 [dependencies]
 geo-types = "0.7.3"
