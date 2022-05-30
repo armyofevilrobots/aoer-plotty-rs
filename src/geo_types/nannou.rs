@@ -26,6 +26,9 @@ use num_traits::real::Real;
 ///     .polyline_from_linestring(line)
 ///     .color(nannou::color::NAVY);
 /// ```
+///
+
+
 pub trait NannouDrawer<'a, T> {
     fn polyline_from_linestring(self, line: LineString<T>) -> Drawing<'a, Path>
         where T: CoordNum, T: Real;
