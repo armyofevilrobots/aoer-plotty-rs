@@ -1,7 +1,7 @@
 [package]
 name = "aoer-plotty-rs"
 description = "A variety of utilities for creating pen-plotter based artwork."
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 homepage = "https://github.com/armyofevilrobots/aoer-plotty-rs"
@@ -12,3 +12,4 @@ geo-types = "0.7.3"
 num-traits = "0.2.15"
 nannou = "0.18"
 num = "0.4"
+embed-doc-image = "0.1.4"

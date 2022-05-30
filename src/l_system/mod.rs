@@ -1,9 +1,45 @@
 use std::collections::HashMap;
+use embed_doc_image::embed_doc_image;
 
 /// # LSystem
 ///
 /// What it says on the box; a simple L-system implementation for use with plotter
 /// based fractal art.
+///
+/// # Example
+///
+/// ```rust
+/// use aoer_plotty_rs::turtle::{TurtleTrait, Turtle, degrees};
+/// use aoer_plotty_rs::l_system::LSystem;
+/// use aoer_plotty_rs::geo_types::nannou::NannouDrawer;
+/// use std::collections::HashMap;
+/// use nannou::lyon::tessellation::{LineCap, LineJoin};
+/// use nannou::Draw;
+///
+/// let draw = Draw::new();
+/// let gosper = LSystem{
+///     axiom: "A".to_string(),
+///     rules: HashMap::from([
+///         ('A', "A-B--B+A++AA+B-".to_string()),
+///         ('B', "+A-BB--B-A++A+B". to_string())])
+///     };
+///
+/// let tlines = Turtle::new()
+///     .pen_down()
+///     .walk_lpath(&gosper.expand(4), degrees(60.0), 8.0)
+///     .to_multiline();
+/// for line in tlines {
+///     draw.polyline()
+///         .stroke_weight(3.0)
+///         .caps(LineCap::Round)
+///         .join(LineJoin::Round)
+///         .polyline_from_linestring(line)
+///         .color(nannou::color::NAVY);
+/// }
+/// ```
+/// ![gosper-4][gosper-4]
+#[embed_doc_image("gosper-4", "images/gosper-4.png")]
+
 #[derive(Clone, Debug)]
 pub struct LSystem{
     pub axiom: String,
