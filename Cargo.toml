@@ -13,3 +13,5 @@ num-traits = "0.2.15"
 nannou = "0.18"
 num = "0.4"
 embed-doc-image = "0.1.4"
+tera = "1"
+svg2polylines = { version = "0.6.0", features = ["serde"] }
