@@ -1,17 +1,16 @@
 //! Module which provides Line->GCode post-processing
 // use svg2polylines::{Polyline};
-use geo_types::{Coordinate, CoordNum, MultiLineString, Point};
+use geo_types::{CoordNum, MultiLineString};
 use tera::{Context, Tera};
 use std::error::Error;
-use std::io::Seek;
 use num_traits::real::Real;
-use num_traits::ToPrimitive;
 
 /// #AoerPostMachines
 ///
 /// List of all available machines as an Enum
 pub enum AoerPostMachines {
     BAPv1,
+    CustomMachine(Tera),
 }
 
 #[derive(Debug)]
@@ -21,9 +20,12 @@ pub enum PostTemplateError {
 }
 
 /// # AoerPostMachines
-///
-/// Getter for machine templates for the gcode processor.
 impl AoerPostMachines {
+    /// # get_machine
+    ///
+    /// Getter for machine templates for the gcode processor. You'll need one of these
+    /// templates to generate gcode, and these are the lookups tables for the various
+    /// commands the post-processor needs.
     pub fn get_machine(machine: AoerPostMachines) -> Result<Tera, PostTemplateError> {
         let mut bap_post_template = Tera::default();
         match machine {
@@ -44,7 +46,11 @@ impl AoerPostMachines {
 }
 
 
+/// #post
+///
 /// Given a set of lines, gcode-process and generate GCode
+/// Returns either a list of gcode lines, or a box'd dyn error
+/// for what went wrong.
 pub fn post<T>(lines: &MultiLineString<T>, post_template: &Tera)
                -> Result<Vec<String>, Box<dyn Error>>
     where T: CoordNum, T: Real {
@@ -67,9 +73,6 @@ pub fn post<T>(lines: &MultiLineString<T>, post_template: &Tera)
         program.extend(post_template.render("pendown", &Context::new())?
             .split("\n")
             .map(|s| s.to_string()));
-        // let line_iter = &line.into_iter()
-        //     .map(|coord|coord)
-        //     .collect::<Vec<Coordinate<T>>>()[1..];//.collect();
         for point in line.points().skip(1) {
             let mut context = Context::new();
             context.insert("xmm", &point.x().to_f64().unwrap());
@@ -88,9 +91,8 @@ pub fn post<T>(lines: &MultiLineString<T>, post_template: &Tera)
 
 #[cfg(test)]
 mod test {
-    use std::iter::{Repeat, zip};
+    use std::iter::zip;
     use geo_types::{coord, LineString, MultiLineString};
-    use svg2polylines::{CoordinatePair, Polyline};
     use crate::gcode::{AoerPostMachines, post};
 
     #[test]
