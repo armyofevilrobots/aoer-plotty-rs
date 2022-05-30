@@ -5,8 +5,6 @@ use tera::{Context, Tera};
 use std::error::Error;
 use num_traits::real::Real;
 
-/// #AoerPostMachines
-///
 /// List of all available machines as an Enum
 pub enum AoerPostMachines {
     BAPv1,
@@ -19,10 +17,15 @@ pub enum PostTemplateError {
     TemplateStructureError,
 }
 
+#[derive(Debug,Clone)]
+pub enum PostGeometrySource<T>
+    where T: CoordNum, T: Real{
+    MultiLineString(MultiLineString<T>),
+}
+
+
 /// # AoerPostMachines
 impl AoerPostMachines {
-    /// # get_machine
-    ///
     /// Getter for machine templates for the gcode processor. You'll need one of these
     /// templates to generate gcode, and these are the lookups tables for the various
     /// commands the post-processor needs.
@@ -46,15 +49,19 @@ impl AoerPostMachines {
 }
 
 
-/// #post
-///
 /// Given a set of lines, gcode-process and generate GCode
 /// Returns either a list of gcode lines, or a box'd dyn error
 /// for what went wrong.
-pub fn post<T>(lines: &MultiLineString<T>, post_template: &Tera)
+pub fn post<T>(lines: &PostGeometrySource<T>, post_template: &Tera)
                -> Result<Vec<String>, Box<dyn Error>>
     where T: CoordNum, T: Real {
     let mut program: Vec<String> = Vec::new();
+    // This currently only allows for a single enum subtype, but that's all we have
+    // for now. Eventually we'll expand this to include a variety of subtypes, like
+    // svg2polyline lines, and even multi-layers with separate tools.
+    let lines = match lines{
+        PostGeometrySource::MultiLineString(lines) => lines
+    };
     program.extend(
         post_template.render("prelude", &Context::new())?
             .split("\n").map(|s| s.to_string()));
@@ -93,7 +100,7 @@ pub fn post<T>(lines: &MultiLineString<T>, post_template: &Tera)
 mod test {
     use std::iter::zip;
     use geo_types::{coord, LineString, MultiLineString};
-    use crate::gcode::{AoerPostMachines, post};
+    use crate::gcode::{AoerPostMachines, post, PostGeometrySource};
 
     #[test]
     fn test_post() {
@@ -102,7 +109,8 @@ mod test {
         let lines = MultiLineString::new(vec![LineString::new(vec![
             coord! {x: 0.0, y: 0.0},
             coord! {x: 10.0, y: 0.0}])]);
-        let program = post(&lines, &post_template).unwrap();
+        let program = post(&PostGeometrySource::MultiLineString(lines), &post_template)
+            .unwrap();
         let pairs: Vec<(String, String)> = zip(program, vec!["M280 S5", "G4 P150", "G28 X Y",
                                                              "G90", " G92 X0 Y0 ; HOME", "M400",
                                                              "M280 S9", "G4 P150", "M400",
