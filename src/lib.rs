@@ -22,12 +22,15 @@ pub mod turtle;
 /// L-system implementation, with expansion/recursion
 pub mod l_system;
 
+/// gcode module provides a simple post-processor for line-based art to be converted
+/// into GCode
+pub mod gcode;
+
 /// Make your life easy! Just import prelude::* and ignore all the warnings!
 /// One stop shopping at the expense of a slightly more complex dependency graph.
-pub mod prelude{
-
-    pub use crate::geo_types::PointDistance;
+pub mod prelude {
     pub use crate::geo_types::nannou::NannouDrawer;
+    pub use crate::geo_types::PointDistance;
     pub use crate::l_system::LSystem;
     pub use crate::turtle::{Turtle, TurtleTrait};
 }
