@@ -5,8 +5,6 @@ use tera::{Context, Tera};
 use std::error::Error;
 use num_traits::real::Real;
 
-/// #AoerPostMachines
-///
 /// List of all available machines as an Enum
 pub enum AoerPostMachines {
     BAPv1,
@@ -21,8 +19,6 @@ pub enum PostTemplateError {
 
 /// # AoerPostMachines
 impl AoerPostMachines {
-    /// # get_machine
-    ///
     /// Getter for machine templates for the gcode processor. You'll need one of these
     /// templates to generate gcode, and these are the lookups tables for the various
     /// commands the post-processor needs.
@@ -46,8 +42,6 @@ impl AoerPostMachines {
 }
 
 
-/// #post
-///
 /// Given a set of lines, gcode-process and generate GCode
 /// Returns either a list of gcode lines, or a box'd dyn error
 /// for what went wrong.

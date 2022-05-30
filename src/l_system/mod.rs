@@ -1,3 +1,7 @@
+//! The l_system module provides a simple Lindenmeyer fractal generator for use with
+//! plotted line-art. Take a look at the [`crate::l_system::LSystem`] struct for
+//! more details, and examples.
+
 use std::collections::HashMap;
 use embed_doc_image::embed_doc_image;
 
