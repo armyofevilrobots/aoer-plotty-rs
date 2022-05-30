@@ -13,3 +13,5 @@ my days off. May spontaneously explode, might take your plotter with it.*
 
 [`shapely`]: https://github.com/shapely/shapely
 [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
+
+License: MIT
