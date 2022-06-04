@@ -4,6 +4,7 @@ use num_traits::real::Real;
 /// Helper module for converting geo-types geometry into something useful
 /// in Nannou.
 pub mod nannou;
+pub mod hatch;
 
 /// Trait that implements a distance function between two [`geo_types::Point`] structs.
 /// Also includes a length function which returns the length of a [`geo_types::Point`]
