@@ -8,7 +8,9 @@ homepage = "https://github.com/armyofevilrobots/aoer-plotty-rs"
 repository = "https://github.com/armyofevilrobots/aoer-plotty-rs"
 
 [dependencies]
-geo-types = "0.7.3"
+geo-types = "0.7"
+geo = "0.20"
+geo-clipper = "0.7"
 num-traits = "0.2.15"
 nannou = "0.18"
 num = "0.4"
