@@ -4,6 +4,9 @@ use num_traits::real::Real;
 /// Helper module for converting geo-types geometry into something useful
 /// in Nannou.
 pub mod nannou;
+
+/// Crosshatching! You can fill your polys with lines, which is really useful
+/// for plotters, because all you can draw is lines (or dots if you're a *monster*).
 pub mod hatch;
 
 /// Trait that implements a distance function between two [`geo_types::Point`] structs.
