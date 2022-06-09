@@ -1,5 +1,4 @@
 //! Module which provides Line->GCode post-processing
-// use svg2polylines::{Polyline};
 use geo_types::{CoordNum, MultiLineString};
 use tera::{Context, Tera};
 use std::error::Error;
