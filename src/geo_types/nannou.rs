@@ -23,20 +23,20 @@ use num_traits::real::Real;
 ///     .stroke_weight(3.0)
 ///     .caps(LineCap::Round)
 ///     .join(LineJoin::Round)
-///     .polyline_from_linestring(line)
+///     .polyline_from_linestring(&line)
 ///     .color(nannou::color::NAVY);
 /// ```
 ///
 
 
 pub trait NannouDrawer<'a, T> {
-    fn polyline_from_linestring(self, line: LineString<T>) -> Drawing<'a, Path>
+    fn polyline_from_linestring(self, line: &LineString<T>) -> Drawing<'a, Path>
         where T: CoordNum, T: Real;
 }
 
 impl<'a, T> NannouDrawer<'a, T> for Drawing<'a, PathStroke>
 {
-    fn polyline_from_linestring(self, line: LineString<T>) -> Drawing<'a, Path>
+    fn polyline_from_linestring(self, line: &LineString<T>) -> Drawing<'a, Path>
         where T: CoordNum {
         self.points(
             line.coords()
