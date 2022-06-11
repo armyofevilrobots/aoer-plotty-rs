@@ -37,7 +37,7 @@ use embed_doc_image::embed_doc_image;
 ///         .stroke_weight(3.0)
 ///         .caps(LineCap::Round)
 ///         .join(LineJoin::Round)
-///         .polyline_from_linestring(line)
+///         .polyline_from_linestring(&line)
 ///         .color(nannou::color::NAVY);
 /// }
 /// ```

@@ -64,8 +64,12 @@ pub trait HatchPattern<T>
 /// ```rust
 ///
 /// use geo_types::Polygon;
-/// use aoer_plotty_rs::geo_types::hatch::LineHatch;
-/// let geoms = Polygon::<f64>::try_from_wkt_str("POLYGON ((350 100, 450 450, 150 400, 100 200, 350 100), (200 300, 350 350, 300 200, 200 300))")
+/// use wkt::{TryFromWkt, Wkt, geo_types_from_wkt} ;
+/// use aoer_plotty_rs::geo_types::hatch::{LineHatch, Hatch};
+/// use std::str::FromStr;
+/// let geoms: Polygon::<f64> = Polygon::try_from(
+///     Wkt::<f64>::from_str("POLYGON ((350 100, 450 450, 150 400, 100 200, 350 100), (200 300, 350 350, 300 200, 200 300))")
+///         .expect("Failed to load WKT"))
 ///     .expect("Failed to load box");
 /// let hatch = geoms.hatch(LineHatch{}, 45.0, 5.0, 2.5).expect("Got some hatches in here failin'");
 /// ```
@@ -207,6 +211,8 @@ mod test {
     use std::f64::consts::PI;
     use geos::Geometry;
     use super::*;
+    use super::Hatch;
+
 
     #[test]
     fn test_box_hatch() {
