@@ -1,5 +1,7 @@
 //! # AOER-PLOTTY-RS : ArmyOfEvilRobots pen-plotter art related tools and libraries
 //!
+//! [![Package][package-img]][package-url] [![Documentation][documentation-img]][documentation-url]
+//!
 //! This library contains a variety of tools used to make pen-plotter based art.
 //! While it focuses on a combination of nannou and geo/geo_types for now, it
 //! will likely expand into other areas as I find the need for my own creations.
@@ -24,7 +26,10 @@
 //!          Also changed the Turtle/TurtleTrait to just be mutable.
 //! * 0.1.0. Initial commit
 //!
-//!
+//! [documentation-img]: https://docs.rs/aoer-plotty-rs/badge.svg
+//! [documentation-url]: https://docs.rs/aoer-plotty-rs
+//! [package-img]: https://img.shields.io/crates/v/aoer-plotty-rs.svg
+//! [package-url]: https://crates.io/crates/aoer-plotty-rs
 
 /// Extensions/Traits for geo_types geometry. Also includes some helper functions
 /// for working with Nannou and geo_types.
