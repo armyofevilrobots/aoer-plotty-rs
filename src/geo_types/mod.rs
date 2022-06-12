@@ -9,6 +9,9 @@ pub mod nannou;
 /// for plotters, because all you can draw is lines (or dots if you're a *monster*).
 pub mod hatch;
 
+/// Trait to convert geometry into an SVG object (or specifically, SVG components)
+pub mod svg;
+
 /// Trait that implements a distance function between two [`geo_types::Point`] structs.
 /// Also includes a length function which returns the length of a [`geo_types::Point`]
 /// as if it were a Vector.
