@@ -16,8 +16,8 @@ pub enum Arrangement<T>
     where T: Real,
           T: CoordNum,
           T: RealField {
-    Center(Rect<T>),
-    FitCenter(Rect<T>),
+    Center(Rect<T>, bool),
+    FitCenter(Rect<T>, bool),
     Transform(Affine2<T>),
 }
 
@@ -31,7 +31,7 @@ pub trait ToSvg<T>
 
     /// Utility function returns a viewbox tuple for the geometry.
     /// Should be used AFTER calling arrange on the geo.
-    fn viewbox(&self) -> (T, T, T, T);
+    fn viewbox(&self) -> Option<(T, T, T, T)>;
 
     /// Convert the Geometry into an SVG Path
     fn to_path(&self) -> Path;
@@ -44,35 +44,52 @@ impl<T> ToSvg<T> for MultiLineString<T>
           T: Float,
           T: AsPrimitive<T> {
     fn arrange(self, arrangement: Arrangement<T>) -> Self {
-
         let gbox = self.bounding_rect()
             .expect("Arranging geometry with no dimensions.");
         let transformation = match arrangement {
             Arrangement::Transform(affine) => affine,
-            Arrangement::Center(bounds) => {
+            Arrangement::Center(bounds, invert) => {
                 let bcenter = bounds.min() + (bounds.max() - bounds.min()).div(T::from(2.0).unwrap()); // / (2.0 as T);
                 let gcenter = gbox.min() + (gbox.max() - gbox.min()).div(T::from(2.0).unwrap());
                 let delta = bcenter - gcenter;
-                Affine2::from_matrix_unchecked(
+                let tx = Affine2::from_matrix_unchecked(
                     Matrix3::<T>::new(
                         T::from(1.0).unwrap() , T::zero(), delta.x as T,
                         T::zero(), T::one(), delta.y as T,
                         T::zero(), T::zero(), T::one(),
                     )
-                )
+                );
+                if invert{
+                    Affine2::from_matrix_unchecked(Matrix3::<T>::new(
+                        T::from(1.0).unwrap() , T::zero(), T::zero(),
+                        T::zero(), -T::one(),  bounds.height(),
+                        T::zero(), T::zero(), T::one(),
+                    )) * tx
+                }else{
+                    tx
+                }
             }
-            Arrangement::FitCenter(bounds) => {
+            Arrangement::FitCenter(bounds, invert) => {
                 let scale = <T as Real>::min((bounds.width()/gbox.width()), (bounds.height()/gbox.height()));
                 let bcenter = bounds.min() + (bounds.max() - bounds.min()).div(T::from(2.0).unwrap()); // / (2.0 as T);
                 let gcenter = gbox.center() * scale; // This is post scaling now.
                 let delta = bcenter - gcenter;
-                Affine2::from_matrix_unchecked(
+                let tx = Affine2::from_matrix_unchecked(
                     Matrix3::new(
                         scale, T::zero(), delta.x,
                         T::zero(), scale, delta.y,
                         T::zero(), T::zero(), T::one(),
                     )
-                )
+                );
+                if invert{
+                    Affine2::from_matrix_unchecked(Matrix3::<T>::new(
+                        T::from(1.0).unwrap() , T::zero(), T::zero(),
+                        T::zero(), -T::one(),  bounds.height(),
+                        T::zero(), T::zero(), T::one(),
+                    )) * tx
+                }else{
+                    tx
+                }
             }
         };
         let linestrings: Vec<LineString<T>> = self.iter().map(|linestring| {
@@ -85,8 +102,9 @@ impl<T> ToSvg<T> for MultiLineString<T>
         MultiLineString::<T>::new(linestrings)
     }
 
-    fn viewbox(&self) -> (T, T, T, T) {
-        todo!()
+    fn viewbox(&self) -> Option<(T, T, T, T)> {
+        let bounds = self.bounding_rect()?;
+        Some((bounds.min().x, bounds.min().y, bounds.max().x, bounds.max().y))
     }
 
     fn to_path(&self) -> Path {
@@ -123,7 +141,9 @@ pub mod test {
                     coord! {x: 0.0f64, y: 0.0f64},
                 ])]);
         let txmls = mls.arrange(
-            Arrangement::Center(Rect::new(coord!{x:0f64, y:0f64}, coord!{x:400f64, y:400f64})));
+            Arrangement::Center(
+                Rect::new(coord!{x:0f64, y:0f64}, coord!{x:400f64, y:400f64}),
+                false));
         println!("TXMLS when centered is: {:?}", txmls);
         assert_eq!(txmls.bounding_rect()
             .expect("Should have been able to get brect")
@@ -131,11 +151,13 @@ pub mod test {
         coord!{x: 200.0f64, y:200.0f64});
         assert_eq!(txmls.bounding_rect()
             .expect("Should have been able to get brect for mlines")
-            .width(), 400.0f64);
+            .width(), 100.0f64);
         assert_eq!(txmls.bounding_rect()
                        .expect("Should have been able to get brect for mlines")
-                       .height(), 400.0f64);
-
+                       .height(), 100.0f64);
+        assert_eq!(txmls.bounding_rect()
+            .expect("Couldn't get bounding rect on second attempt?")
+            .center(), coord!{x: 200.0, y:200.0});
     }
 
     #[test]
@@ -150,13 +172,70 @@ pub mod test {
                     coord! {x: 0.0f64, y: 0.0f64},
                 ])]);
         let txmls = mls.arrange(
-            Arrangement::FitCenter(Rect::new(coord!{x:0f64, y:0f64}, coord!{x:400f64, y:400f64})));
+            Arrangement::FitCenter(
+                Rect::new(coord!{x:0f64, y:0f64}, coord!{x:400f64, y:400f64}),
+                false));
         println!("TXMLS when centered is: {:?}", txmls);
         assert_eq!(txmls.bounding_rect()
                        .expect("Should have been able to get brect")
                        .center(),
                    coord!{x: 200.0f64, y:200.0f64});
     }
+
+    #[test]
+    fn test_arrange_fit_center_invert(){
+        let mls = MultiLineString::new(
+            vec![LineString::new(
+                vec![
+                    coord! {x: 0.0f64, y: 0.0f64},
+                    coord! {x: 0.0f64, y: 100.0f64},
+                    coord! {x: 100.0f64, y: 100.0f64},
+                    coord! {x: 100.0f64, y: 0.0f64},
+                    coord! {x: 0.0f64, y: 0.0f64},
+                ])]);
+        let txmls = mls.arrange(
+            Arrangement::FitCenter(
+                Rect::new(coord!{x:0f64, y:0f64}, coord!{x:400f64, y:400f64}),
+                true));
+        println!("TXMLS when centered is: {:?}", txmls);
+        assert_eq!(txmls.bounding_rect()
+                       .expect("Should have been able to get brect")
+                       .center(),
+                   coord!{x: 200.0f64, y:200.0f64});
+    }
+
+    #[test]
+    fn test_arrange_fit_center_invert_2(){
+        let mls = MultiLineString::new(
+            vec![LineString::new(
+                vec![
+                    coord! {x: 0.0f64, y: 0.0f64},
+                    coord! {x: 0.0f64, y: 10.0f64},
+                    coord! {x: 10.0f64, y: 10.0f64},
+                    coord! {x: 10.0f64, y: 0.0f64},
+                    coord! {x: 0.0f64, y: 0.0f64},
+                ]), LineString::new(
+                vec![
+                    coord! {x: 370.0f64, y: 380.0f64},
+                    coord! {x: 380.0f64, y: 380.0f64},
+                    coord! {x: 380.0f64, y: 370.0f64},
+                    coord! {x: 370.0f64, y: 370.0f64},
+                    coord! {x: 380.0f64, y: 380.0f64},
+                ]
+            )]);
+        let txmls = mls.arrange(
+            Arrangement::FitCenter(
+                Rect::new(coord!{x:0f64, y:0f64}, coord!{x:400f64, y:400f64}),
+                true));
+        println!("TXMLS fitcenter2 when centered is: {:?}", txmls);
+        assert_eq!(txmls.bounding_rect()
+                       .expect("Should have been able to get brect")
+                       .center(),
+                   coord!{x: 200.0f64, y:200.0f64});
+        assert_eq!(txmls.bounding_rect().unwrap().width(), 400_f64);
+        assert_eq!(txmls.bounding_rect().unwrap().height(), 400_f64);
+    }
+
 
     #[test]
     fn test_arrange_mls_arbitrary() {
