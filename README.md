@@ -17,7 +17,7 @@ my days off. May spontaneously explode, might take your plotter with it.*
 [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 
 ## Changelog
-* 0.1.x. Add SVG generation features. In progress
+* 0.1.5. Add SVG generation features.
 * 0.1.4. Add the [`geo_types::hatch::Hatch`]ing submodule.
 * 0.1.3. Breaking change to GCode POST again; use an enum to define the
          the input geometry so that we can add new geometry source types,
