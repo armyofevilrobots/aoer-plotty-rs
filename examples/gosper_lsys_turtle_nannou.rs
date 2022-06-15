@@ -1,15 +1,12 @@
 extern crate geos;
 
 use std::collections::HashMap;
-use aoer_plotty_rs::geo_types::hatch::{Hatch, LineHatch};
 use aoer_plotty_rs::geo_types::nannou::NannouDrawer;
-use geo_types::{MultiLineString, Point, Polygon};
+use geo_types::MultiLineString;
 use nannou::prelude::*;
-// use wkt::TryFromWkt;
-use aoer_plotty_rs::geo_types::PointDistance;
 use aoer_plotty_rs::turtle::{Turtle, TurtleTrait, degrees};
 use aoer_plotty_rs::l_system::LSystem;
-use geo::prelude::{BoundingRect, EuclideanDistance, HasDimensions, Translate};
+use geo::prelude::{BoundingRect, Translate};
 use nannou::color;
 use nannou::lyon::lyon_tessellation::LineJoin;
 use nannou::lyon::tessellation::LineCap;
