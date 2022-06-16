@@ -12,6 +12,10 @@ pub mod hatch;
 /// Trait to convert geometry into an SVG object (or specifically, SVG components)
 pub mod svg;
 
+/// Trait to clip geometry by another geometry. Useful for clipping lines behind
+/// another object to emulate 3D without the... 3D?
+pub mod clip;
+
 /// Trait that implements a distance function between two [`geo_types::Point`] structs.
 /// Also includes a length function which returns the length of a [`geo_types::Point`]
 /// as if it were a Vector.

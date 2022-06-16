@@ -52,4 +52,6 @@ pub mod prelude {
     pub use crate::geo_types::PointDistance;
     pub use crate::l_system::LSystem;
     pub use crate::turtle::{Turtle, TurtleTrait};
+    pub use crate::geo_types::hatch::*;
+    pub use crate::geo_types::svg::*;
 }

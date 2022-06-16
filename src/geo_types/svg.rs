@@ -166,7 +166,7 @@ impl<T> ToSvg<T> for MultiLineString<T>
 }
 
 #[cfg(test)]
-pub mod test {
+mod test {
     use std::str::FromStr;
     use geo_types::{coord, LineString, MultiLineString, Polygon};
     use nalgebra::{Affine2, Matrix3};
