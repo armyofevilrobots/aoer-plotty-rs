@@ -31,6 +31,11 @@ fn main() {
 
     // Create a mutable empty MultiLineString, which can contain any number of lines.
     let mut lines = MultiLineString::<f64>::new(vec![]);
+
+    // Alright, the meat of it. We'll iterate over "each line, starting from step
+    // (skipping the top line) and upto but not including size (the bottom line).
+    // Then we do the same horizontally but generating the "height" of each line
+    // point.
     let spoints: Vec<Vec<(f64, f64)>> = (step..size).step_by(step).map(|y| {
         (step..size).step_by(step).map(|x| {
             let r: f64 = rand::random::<f64>();// * f64::from(step as i32);
@@ -40,16 +45,21 @@ fn main() {
         }).collect::<Vec<(f64, f64)>>()
     }).collect();
 
+    // Now we have the line points, we re-imagine them as splines.
+    // First the spline options
     let spline_opts = SplineOpts::new()
         .num_of_segments(step as u32)
         .tension(0.5);
+    // Then the data gets iterated for each separate line...
     for spline_data in spoints {
-        println!("Line!");
+        // Turn those points into a spline
         let points = <CSPoints as cubic_spline::TryFrom<&Vec<(f64, f64)>>>::try_from(&spline_data).expect("Invalid spline points.");
-        // let spline = points.calc_spline(&spline_opts).expect("Could not calculate spline.");
+        // Then interpolate with the spline tools
         let fine_points = points.calc_spline(&spline_opts)
             .expect("Could not generate interpolated points.");
+        // Iterate them back into a vec of coordinates
         let mpts: Vec<Coordinate<f64>> = fine_points.get_ref().iter().map(|spt| { coord! {x: spt.x, y: spt.y} }).collect();
+        // Finally, push a new line into the lines, by turning those coords into a LineString
         lines.0.push(LineString::new(mpts));
     }
 
