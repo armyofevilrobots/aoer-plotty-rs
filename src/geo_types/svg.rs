@@ -23,6 +23,7 @@ pub enum Arrangement<T>
           T: RealField {
     Center(Rect<T>, bool),
     FitCenter(Rect<T>, bool),
+    FitCenterMargin(T, Rect<T>, bool),
     Transform(Affine2<T>),
 }
 
@@ -45,6 +46,15 @@ impl<T: RealField + Float> Arrangement<T> {
             Arrangement::FitCenter(viewbox, _invert) => Ok(Document::new()
                 .set("viewBox", (f64::from(viewbox.min().x.into()), f64::from(viewbox.min().y.into()),
                                  f64::from(viewbox.max().x.into()), f64::from(viewbox.max().y.into())))
+                .set("width", format!("{}mm", viewbox.width()))
+                .set("height", format!("{}mm", viewbox.height()))
+            ),
+            Arrangement::FitCenterMargin(margin, viewbox, _invert) => Ok(Document::new()
+                .set("viewBox", (
+                    f64::from(viewbox.min().x.into()),
+                    f64::from(viewbox.min().y.into()),
+                    f64::from(viewbox.max().x.into()),
+                    f64::from(viewbox.max().y.into())))
                 .set("width", format!("{}mm", viewbox.width()))
                 .set("height", format!("{}mm", viewbox.height()))
             ),
@@ -109,6 +119,32 @@ impl<T> ToSvg<T> for MultiLineString<T>
             Arrangement::FitCenter(bounds, invert) => {
                 let scale = <T as Real>::min(bounds.width() / gbox.width(), bounds.height() / gbox.height());
                 let bcenter = bounds.min() + (bounds.max() - bounds.min()).div(T::from(2.0).unwrap()); // / (2.0 as T);
+                let gcenter = gbox.center() * scale; // This is post scaling now.
+                let delta = bcenter - gcenter;
+                let tx = Affine2::from_matrix_unchecked(
+                    Matrix3::new(
+                        scale, T::zero(), delta.x,
+                        T::zero(), scale, delta.y,
+                        T::zero(), T::zero(), T::one(),
+                    )
+                );
+                if *invert {
+                    Affine2::from_matrix_unchecked(Matrix3::<T>::new(
+                        T::from(1.0).unwrap(), T::zero(), T::zero(),
+                        T::zero(), -T::one(), bounds.height(),
+                        T::zero(), T::zero(), T::one(),
+                    )) * tx
+                } else {
+                    tx
+                }
+            }
+            Arrangement::FitCenterMargin(margin, bounds, invert) => {
+                let scale = <T as Real>::min(
+                    (bounds.width() - T::from(2.0).unwrap() * *margin) / gbox.width(),
+                    (bounds.height() - T::from(2.0).unwrap() * *margin) / gbox.height());
+                let bcenter = bounds.min() +
+                    (bounds.max() - bounds.min())
+                        .div(T::from(2.0).unwrap()); // / (2.0 as T);
                 let gcenter = gbox.center() * scale; // This is post scaling now.
                 let delta = bcenter - gcenter;
                 let tx = Affine2::from_matrix_unchecked(
