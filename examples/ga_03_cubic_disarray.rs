@@ -1,11 +1,8 @@
-use std::f64::consts::PI;
 use std::path::Path;
 use geo::centroid::Centroid;
 use geo::rotate::RotatePoint;
 use geo::translate::Translate;
 use geo_types::{coord, LineString, MultiLineString, Polygon, Rect};
-use rand::{random, Rng};
-use wkt::types::Coord;
 use aoer_plotty_rs::prelude::{Arrangement, ToSvg};
 
 
@@ -48,11 +45,9 @@ fn main() {
         }
     }
 
-    // println!("Boxes: {:?}", boxes);
-    // let boxes: Vec<Polygon<f64>> = boxes.iter().map(|b| { b.to_polygon()}).collect();
+    // Get the outlines for those boxes as a MultiLineString
     let box_lines: Vec<LineString<f64>> = boxes.iter().map(|b| b.exterior().clone()).collect();
     let box_lines = MultiLineString::new(box_lines);
-
 
     // The arrangement chooses the way we "arrange" the SVG on the page.
     // In this case, fit it, center it, and then DON'T flip the coordinate
