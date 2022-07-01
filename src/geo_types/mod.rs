@@ -16,6 +16,10 @@ pub mod svg;
 /// another object to emulate 3D without the... 3D?
 pub mod clip;
 
+/// Trait to buffer various geo_types geometries. Basically a helper built on
+/// the geo utilities
+pub mod buffer;
+
 /// Trait that implements a distance function between two [`geo_types::Point`] structs.
 /// Also includes a length function which returns the length of a [`geo_types::Point`]
 /// as if it were a Vector.
