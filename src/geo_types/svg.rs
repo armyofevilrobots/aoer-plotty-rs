@@ -6,8 +6,6 @@ use num_traits::{AsPrimitive, Float, FromPrimitive, ToPrimitive};
 use num_traits::real::Real;
 use svg::Document;
 use svg::node::element::Path;
-// use svg::Document;
-// use svg::node::element::Path;
 use svg::node::element::path::Data;
 
 /// Generic error
@@ -24,7 +22,7 @@ pub enum Arrangement<T>
     Center(Rect<T>, bool),
     FitCenter(Rect<T>, bool),
     FitCenterMargin(T, Rect<T>, bool),
-    Transform(Affine2<T>),
+    Transform(Rect<T>, Affine2<T>),
 }
 
 impl<T: RealField + Float> Arrangement<T> {
@@ -36,7 +34,12 @@ impl<T: RealField + Float> Arrangement<T> {
               T: FromPrimitive,
               f64: From<T> {
         match self {
-            Arrangement::Transform(_affine) => Err(SvgCreationError::UndefinedViewBox),
+            Arrangement::Transform(viewbox, _affine) => Ok(Document::new()
+                .set("viewBox", (f64::from(viewbox.min().x.into()), f64::from(viewbox.min().y.into()),
+                                 f64::from(viewbox.max().x.into()), f64::from(viewbox.max().y.into())))
+                .set("width", format!("{}mm", viewbox.width()))
+                .set("height", format!("{}mm", viewbox.height()))
+            ),// Err(SvgCreationError::UndefinedViewBox),
             Arrangement::Center(viewbox, _invert) => Ok(Document::new()
                 .set("viewBox", (f64::from(viewbox.min().x.into()), f64::from(viewbox.min().y.into()),
                                  f64::from(viewbox.max().x.into()), f64::from(viewbox.max().y.into())))
@@ -49,7 +52,7 @@ impl<T: RealField + Float> Arrangement<T> {
                 .set("width", format!("{}mm", viewbox.width()))
                 .set("height", format!("{}mm", viewbox.height()))
             ),
-            Arrangement::FitCenterMargin(margin, viewbox, _invert) => Ok(Document::new()
+            Arrangement::FitCenterMargin(_margin, viewbox, _invert) => Ok(Document::new()
                 .set("viewBox", (
                     f64::from(viewbox.min().x.into()),
                     f64::from(viewbox.min().y.into()),
@@ -94,7 +97,7 @@ impl<T> ToSvg<T> for MultiLineString<T>
         let gbox = self.bounding_rect()
             .expect("Arranging geometry with no dimensions.");
         let transformation = match arrangement {
-            Arrangement::Transform(affine) => affine.clone(),
+            Arrangement::Transform(_viewbox, affine) => affine.clone(),
             Arrangement::Center(bounds, invert) => {
                 let bcenter = bounds.min() + (bounds.max() - bounds.min()).div(T::from(2.0).unwrap()); // / (2.0 as T);
                 let gcenter = gbox.min() + (gbox.max() - gbox.min()).div(T::from(2.0).unwrap());
@@ -337,13 +340,15 @@ mod test {
                     coord! {x: 0.0f64, y: 0.0f64},
                 ])]);
         let txmls = mls.arrange(
-            &Arrangement::Transform(Affine2::from_matrix_unchecked(
-                Matrix3::<f64>::new(
-                    1.0, 0.0, 300.0,
-                    0.0, 1.0, 0.0,
-                    0.0, 0.0, 1.0,
-                )
-            )));
+            &Arrangement::Transform(
+                Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
+                Affine2::from_matrix_unchecked(
+                    Matrix3::<f64>::new(
+                        1.0, 0.0, 300.0,
+                        0.0, 1.0, 0.0,
+                        0.0, 0.0, 1.0,
+                    )
+                )));
         println!("TXMLS IS {:?}", txmls);
         assert_eq!(
             txmls.0[0].coords()
