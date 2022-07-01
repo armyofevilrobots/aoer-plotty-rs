@@ -3,12 +3,14 @@ use std::path::Path;
 use geo::centroid::Centroid;
 use geo::rotate::RotatePoint;
 use geo::translate::Translate;
-use geo_types::{coord, Coordinate, LineString, MultiLineString, Polygon, MultiPolygon, Rect, point};
+use geo_types::{coord, Coordinate, LineString, MultiLineString, Polygon, MultiPolygon, Rect, point, Geometry};
+use geos::Geom;
 use nalgebra::{Affine2, Matrix3};
 use nannou::prelude::PI_F64;
 use rand::{random, Rng};
 use wkt::types::Coord;
 use aoer_plotty_rs::prelude::{Arrangement, Hatch, LineHatch, ToSvg};
+use aoer_plotty_rs::geo_types::buffer::Buffer;
 
 fn draw(line_positions: Vec<f64>, size: f64, xc: f64, yc: f64, rotation: f64) -> MultiLineString<f64> {
     let mut lines: Vec<LineString<f64>> = vec![];
@@ -59,6 +61,7 @@ fn main() {
     let mut line_positions: Vec<f64> = vec![];
     for yc in 0..steps{
         for xc in 0..steps{
+            let rot_angle = random::<f64>()*180.0;
             if yc < steps/3 {
                 line_positions = vec![0.5]
             }else if yc < ((2*steps)/3) {
@@ -66,11 +69,30 @@ fn main() {
             }else{
                 line_positions = vec![0.1, 0.5, 0.9]
             }
-            lines_list.push(draw(line_positions,
+            let line_draw = draw(line_positions,
                                  f64::from(step),
                                  f64::from(xc*step),
                                  f64::from(yc*step),
-                                 rand::random::<f64>()*180.0));
+                                 rot_angle);
+            // let outline = geos::Geometry::try_from(line_draw).unwrap()
+            //     .buffer(stroke_mm/2.0, 8).unwrap();
+            // match outline {
+            //     Geo
+            // }
+            let outline_polys = Geometry::MultiLineString(line_draw.clone())
+                .buffer(stroke_mm/2.0)
+                .unwrap();
+            let outline: MultiLineString<f64> = MultiLineString::new(
+                outline_polys
+                    .0.iter().map(|p| p.exterior().clone()).collect());
+
+            // lines_list.append(&mut vec![geo::MultiLineString(outline.clone())]);
+            lines_list.push(outline.clone());
+
+            let hatch = outline_polys
+                .hatch(LineHatch{}, 90.0+rot_angle, 1.5*pen_width, pen_width/2.0).unwrap();
+
+            lines_list.push(hatch);
         }
     }
     let mut all_lines: MultiLineString<f64> = MultiLineString::new(vec![]);
@@ -89,7 +111,7 @@ fn main() {
         .add(all_lines.to_path(&arrangement)
             .set("fill", "none")
             .set("stroke", "red")
-            .set("stroke-width", stroke_mm)
+            .set("stroke-width", pen_width)
             .set("stroke-linejoin", "round")
             .set("stroke-linecap", "round"));
 
