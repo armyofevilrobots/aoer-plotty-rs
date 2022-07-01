@@ -1,12 +1,8 @@
-use std::borrow::Borrow;
-use geo_types::{coord, Coordinate, LineString, MultiLineString, Rect, Point, Geometry};
+use geo_types::{coord, Coordinate, LineString, MultiLineString, Rect, Geometry};
 use aoer_plotty_rs::geo_types::svg::{Arrangement, ToSvg};
+use aoer_plotty_rs::geo_types::clip::LineClip;
 use std::path::Path;
 use cubic_spline::{Points as CSPoints, Point as CSPoint, SplineOpts, TryFrom};
-use num_traits::Float;
-use rand::{random, Rng};
-use wkt::types::Coord;
-use aoer_plotty_rs::geo_types::clip::LineClip;
 
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/joy-division/
@@ -27,7 +23,7 @@ fn main() {
     // In this case, fit it, center it, and then DON'T flip the coordinate
     // system upside down (SVG has top left as 0,0, whereas mathematically
     // 0,0 is the center, and on a CNC machine, 0,0 is bottom left... usually).
-    let arrangement = Arrangement::FitCenter(viewbox, false);
+    let arrangement = Arrangement::FitCenterMargin(20.0, viewbox, false);
 
     // Create a mutable empty MultiLineString, which can contain any number of lines.
     let mut lines = MultiLineString::<f64>::new(vec![]);
@@ -37,6 +33,7 @@ fn main() {
     // Then we do the same horizontally but generating the "height" of each line
     // point.
     let spoints: Vec<Vec<(f64, f64)>> = (step..size).step_by(step).map(|y| {
+        // (step..size).step_by(step).map(|x| {
         (step..size).step_by(step).map(|x| {
             let r: f64 = rand::random::<f64>();// * f64::from(step as i32);
             let dts: f64 = ((x as i32 - (size as i32 / 2)) as f64).abs();
@@ -90,12 +87,12 @@ fn main() {
 
     // Use a shortcut to create an SVG scaffold from our arrangement.
     let svg = arrangement.create_svg_document().unwrap()
-        .add(newlines.to_path(&arrangement))
+        .add(newlines.to_path(&arrangement)
         .set("fill", "none")
         .set("stroke", "black")
         .set("stroke-width", 2)
         .set("stroke-linejoin", "round")
-        .set("stroke-linecap", "round");
+        .set("stroke-linecap", "round"));
 
     // Write it to the images folder, so we can use it as an example!
     // Write it out to /images/$THIS_EXAMPLE_FILE.svg
