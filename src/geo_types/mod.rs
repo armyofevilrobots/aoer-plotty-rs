@@ -20,6 +20,9 @@ pub mod clip;
 /// the geo utilities
 pub mod buffer;
 
+/// Helper to flatten all the polygons from a Geometry into a MultiPolygon
+pub mod flatten;
+
 /// Trait that implements a distance function between two [`geo_types::Point`] structs.
 /// Also includes a length function which returns the length of a [`geo_types::Point`]
 /// as if it were a Vector.

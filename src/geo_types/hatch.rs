@@ -1,4 +1,4 @@
-use geo_types::{CoordNum, Polygon, MultiPolygon, MultiLineString, Rect, coord};
+use geo_types::{CoordNum, Polygon, MultiPolygon, MultiLineString, Rect, coord, LineString};
 use geo::bounding_rect::BoundingRect;
 // use geo::GeoFloat;
 use geo::rotate::Rotate;
@@ -11,7 +11,47 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 use geo_offset::Offset;
 use embed_doc_image::embed_doc_image;
+use crate::geo_types::buffer::Buffer;
 
+
+/// Useful for converting a line into a polygon as if it were stroked. Only supports
+/// round caps and joins for now.
+pub trait OutlineStroke {
+    fn outline_stroke(&self, stroke_weight: f64) -> Result<MultiPolygon<f64>, Box<dyn Error>>;
+}
+
+impl OutlineStroke for MultiLineString<f64> {
+    fn outline_stroke(&self, stroke_weight: f64) -> Result<MultiPolygon<f64>, Box<dyn Error>> {
+        geo_types::Geometry::MultiLineString(self.clone()).buffer(stroke_weight / 2.0)
+    }
+}
+
+impl OutlineStroke for LineString<f64> {
+    fn outline_stroke(&self, stroke_weight: f64) -> Result<MultiPolygon<f64>, Box<dyn Error>> {
+        geo_types::Geometry::LineString(self.clone()).buffer(stroke_weight / 2.0)
+    }
+}
+/// Turns out that one of the most common things we do to a polygon is to turn it into a
+/// series of outline LineStrings, which are in turn filled with a hatch. This trait
+/// combines those into a simple single operation.
+pub trait OutlineFillStroke {
+    fn outline_fill_stroke_with_hatch(&self, stroke_weight: f64, pen_width: f64, pattern: Box<dyn HatchPattern<f64>>, angle: f64)
+                                      -> Result<MultiLineString<f64>, Box<dyn Error>>;
+}
+
+impl OutlineFillStroke for MultiLineString<f64> {
+    fn outline_fill_stroke_with_hatch(&self, stroke_weight: f64, pen_width: f64, pattern: Box<dyn HatchPattern<f64>>, angle: f64)
+                                      -> Result<MultiLineString<f64>, Box<dyn Error>> {
+        let polys = self.outline_stroke(stroke_weight)?;
+        let mut lines_list: MultiLineString<f64> = MultiLineString::new(
+            polys
+                .0.iter().map(|p| p.exterior().clone()).collect());
+
+        lines_list.0.append(
+            &mut polys.hatch(LineHatch {}, angle, pen_width, pen_width * 0.5)?.0);
+        Ok(lines_list)
+    }
+}
 
 /// #InvalidHatchGeometry
 /// A bunch of excuses that the hatching traits will throw ;)
@@ -75,7 +115,6 @@ pub trait HatchPattern<T>
 /// ```
 /// ![hatch-example-1][hatch-example-1]
 #[embed_doc_image("hatch-example-1", "images/hatch-demo-1.png")]
-
 pub trait Hatch<P>
     where P: HatchPattern<f64>,
 {
