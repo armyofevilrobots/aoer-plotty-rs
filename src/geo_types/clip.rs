@@ -4,31 +4,6 @@ use geos::{Geom, Geometry as GeosGeometry, GResult};
 use std::convert::TryFrom;
 
 
-/*
-impl<'a, 'b> TryFrom<&'a Geometry<f64>> for GeosGeometry<'b> {
-    type Error = &'static str;
-
-    fn try_from(other: &'a Geometry<f64>) -> Result<GeosGeometry<'b>, Self::Error> {
-        match other {
-            Geometry::LineString(line) => geos::Geometry::try_from(line),
-            Geometry::Polygon(poly) => geos::Geometry::try_from(poly),
-            Geometry::MultiLineString(mls) => {
-                geos::Geometry::create_multiline_string(mls.0
-                    .clone()
-                    .iter()
-                    .map(|line| {
-                        geos::Geometry::try_from(line)
-                            .unwrap_or(geos::Geometry::create_empty_line_string().unwrap())
-                    })
-                    .collect())
-            },
-            _ => Err(geos::Error::InvalidGeometry("Wrong type of geometry".into()))
-        }
-    }
-
-}
- */
-
 pub trait LineClip {
     fn clipwith(&self, clipobj: &Self) -> Result<MultiLineString<f64>, Box<dyn Error>>;
 }

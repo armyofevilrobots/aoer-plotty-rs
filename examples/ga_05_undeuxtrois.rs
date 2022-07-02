@@ -4,13 +4,12 @@ use geo::centroid::Centroid;
 use geo::rotate::RotatePoint;
 use geo::translate::Translate;
 use geo_types::{coord, Coordinate, LineString, MultiLineString, Polygon, MultiPolygon, Rect, point, Geometry};
-use geos::Geom;
 use nalgebra::{Affine2, Matrix3};
 use nannou::prelude::PI_F64;
 use rand::{random, Rng};
 use wkt::types::Coord;
-use aoer_plotty_rs::prelude::{Arrangement, Hatch, LineHatch, ToSvg};
-use aoer_plotty_rs::geo_types::buffer::Buffer;
+use aoer_plotty_rs::prelude::{Arrangement, Hatch, LineHatch, OutlineFillStroke, OutlineStroke, ToSvg};
+// use aoer_plotty_rs::geo_types::buffer::{Buffer, OutlineStroke};
 
 fn draw(line_positions: Vec<f64>, size: f64, xc: f64, yc: f64, rotation: f64) -> MultiLineString<f64> {
     let mut lines: Vec<LineString<f64>> = vec![];
@@ -69,30 +68,19 @@ fn main() {
             }else{
                 line_positions = vec![0.1, 0.5, 0.9]
             }
-            let line_draw = draw(line_positions,
-                                 f64::from(step),
-                                 f64::from(xc*step),
-                                 f64::from(yc*step),
-                                 rot_angle);
-            // let outline = geos::Geometry::try_from(line_draw).unwrap()
-            //     .buffer(stroke_mm/2.0, 8).unwrap();
-            // match outline {
-            //     Geo
-            // }
-            let outline_polys = Geometry::MultiLineString(line_draw.clone())
-                .buffer(stroke_mm/2.0)
-                .unwrap();
-            let outline: MultiLineString<f64> = MultiLineString::new(
-                outline_polys
-                    .0.iter().map(|p| p.exterior().clone()).collect());
 
-            // lines_list.append(&mut vec![geo::MultiLineString(outline.clone())]);
-            lines_list.push(outline.clone());
-
-            let hatch = outline_polys
-                .hatch(LineHatch{}, 90.0+rot_angle, 1.5*pen_width, pen_width/2.0).unwrap();
-
-            lines_list.push(hatch);
+            // Render the thing, including fill
+            lines_list.push(
+                draw(line_positions,
+                     f64::from(step),
+                     f64::from(xc*step),
+                     f64::from(yc*step),
+                     rot_angle)
+                    // This method is cool. It fills a perimeter with a hatch, and turns the
+                    // perimeter into lines as well, returning the whole shebang as a
+                    // multilinestring.
+                    .outline_fill_stroke_with_hatch(stroke_mm, pen_width, Box::new(LineHatch{}), rot_angle+90.0).unwrap()
+            )
         }
     }
     let mut all_lines: MultiLineString<f64> = MultiLineString::new(vec![]);
