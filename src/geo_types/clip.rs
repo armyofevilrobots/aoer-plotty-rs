@@ -4,7 +4,7 @@
 /// objects, hint hint.
 use std::error::Error;
 use geo_types::{LineString, MultiLineString, Polygon, Geometry};
-use geos::{Geom, Geometry as GeosGeometry, GResult};
+use geos::Geom;
 use std::convert::TryFrom;
 
 /// #LineClip
