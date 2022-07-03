@@ -4,7 +4,6 @@
 
 use std::error::Error;
 use geo_types::{Geometry, MultiPolygon, Polygon};
-use geos::Geom;
 
 /// Return a single MultiPolygon which contains ALL of the polygons in a given geometry.
 /// This includes all nested polygons, even in a complex Geo with nested/recursive

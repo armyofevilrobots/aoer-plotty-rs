@@ -60,7 +60,6 @@ fn main() {
             y: f64::from(size)});
 
 
-    // let all_lines = draw(3, f64::from(step), 0.0, 0.0, 0.0);
     let mut lines_list: Vec<MultiLineString<f64>> = vec![];
     let mut line_positions: Vec<f64> = vec![];
     for yc in 0..steps{
