@@ -4,7 +4,7 @@ use geo::rotate::RotatePoint;
 use geo::translate::Translate;
 use geo_types::{coord, LineString, MultiLineString, Polygon, Rect};
 use aoer_plotty_rs::prelude::{Arrangement, ToSvg};
-
+use rand::prelude::{SmallRng, SeedableRng, Rng};
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/cubic-disarray/
 fn main() {
@@ -13,6 +13,9 @@ fn main() {
     let square_count: i32 = 9;
     let rotate_mul = 30.0;
     let displace_mul = f64::from(square_size / 2);
+    // We're using a static random generator here so that our SVG files
+    // don't get regenerated every time we run the examples.
+    let mut rng = SmallRng::seed_from_u64(12345);
 
     // Define our viewbox/canvas (in mm)
     let viewbox = Rect::new(
@@ -27,9 +30,9 @@ fn main() {
     for y in 0..square_count {
         for x in 0..square_count {
             let rotate_amt = (f64::from(y) / f64::from(square_count))
-                * ((2.0 * rand::random::<f64>()) - 1.0) * rotate_mul; // -1.0 to 1.0
+                * ((2.0 * rng.gen::<f64>()) - 1.0) * rotate_mul; // -1.0 to 1.0
             let translate_amt = (f64::from(y) / f64::from(square_count))
-                * ((2.0 * rand::random::<f64>()) - 1.0) * displace_mul;
+                * ((2.0 * rng.gen::<f64>()) - 1.0) * displace_mul;
             let r = Rect::new(
                 coord! {
                     x: f64::from(x * square_size),
