@@ -11,6 +11,9 @@ use wkt::types::Coord;
 use aoer_plotty_rs::prelude::{Arrangement, Hatch, LineHatch, OutlineFillStroke, OutlineStroke, ToSvg};
 // use aoer_plotty_rs::geo_types::buffer::{Buffer, OutlineStroke};
 
+/// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/un-deux-trois/
+
+/// Utility function for drawing, translating, and rotating the lines
 fn draw(line_positions: Vec<f64>, size: f64, xc: f64, yc: f64, rotation: f64) -> MultiLineString<f64> {
     let mut lines: Vec<LineString<f64>> = vec![];
     for position in line_positions {
@@ -36,7 +39,6 @@ fn draw(line_positions: Vec<f64>, size: f64, xc: f64, yc: f64, rotation: f64) ->
     MultiLineString::new(lines)
 }
 
-/// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/un-deux-trois/
 fn main() {
     let size = 224;
     let steps = 14;  // Matching the tute.
@@ -79,14 +81,22 @@ fn main() {
                     // This method is cool. It fills a perimeter with a hatch, and turns the
                     // perimeter into lines as well, returning the whole shebang as a
                     // multilinestring.
-                    .outline_fill_stroke_with_hatch(stroke_mm, pen_width, Box::new(LineHatch{}), rot_angle+90.0).unwrap()
+                    .outline_fill_stroke_with_hatch(stroke_mm, pen_width,
+                                                    Box::new(LineHatch{}),
+                                                    rot_angle+90.0)
+                    .unwrap()
             )
         }
     }
-    let mut all_lines: MultiLineString<f64> = MultiLineString::new(vec![]);
-    for line in lines_list{
-        all_lines.0.append(&mut line.0.clone());
-    }
+
+    // I've maybe spent a little too much time doing functional wannabe stuff...
+    let all_lines = MultiLineString::new(
+        lines_list
+            .iter()
+            .map(|mls| mls.0.clone())
+            .flatten()
+            .collect());
+
 
     // The arrangement chooses the way we "arrange" the SVG on the page.
     // In this case, fit it, center it, and then DON'T flip the coordinate

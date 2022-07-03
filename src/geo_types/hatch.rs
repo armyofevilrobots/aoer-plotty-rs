@@ -31,9 +31,9 @@ impl OutlineStroke for LineString<f64> {
         geo_types::Geometry::LineString(self.clone()).buffer(stroke_weight / 2.0)
     }
 }
-/// Turns out that one of the most common things we do to a polygon is to turn it into a
-/// series of outline LineStrings, which are in turn filled with a hatch. This trait
-/// combines those into a simple single operation.
+/// Turns out that one of the most common things we do to a line is to stroke it with a weight,
+/// turning  it into a series of outline LineStrings, which are in turn filled with a hatch.
+/// This trait combines those into a simple single operation.
 pub trait OutlineFillStroke {
     fn outline_fill_stroke_with_hatch(&self, stroke_weight: f64, pen_width: f64, pattern: Box<dyn HatchPattern<f64>>, angle: f64)
                                       -> Result<MultiLineString<f64>, Box<dyn Error>>;
