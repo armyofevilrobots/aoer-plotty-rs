@@ -5,7 +5,8 @@ use geo::rotate::RotatePoint;
 use geo::translate::Translate;
 use geo_types::{coord, Coordinate, LineString, MultiLineString, Polygon, MultiPolygon, Rect};
 use nalgebra::{Affine2, Matrix3};
-use rand::{random, Rng};
+use rand::{Rng, SeedableRng};
+use rand::prelude::SmallRng;
 use wkt::types::Coord;
 use aoer_plotty_rs::prelude::{Arrangement, Hatch, LineHatch, ToSvg};
 
@@ -16,6 +17,9 @@ fn main() {
     let steps = 8; // Note that this HAS to be EVEN
     let gap = size / steps;
     let pen_width = 0.3;
+    // We're using a static random generator here so that our SVG files
+    // don't get regenerated every time we run the examples.
+    let mut rng = SmallRng::seed_from_u64(12345);
 
 
     // Define our viewbox/canvas (in mm)
@@ -40,11 +44,11 @@ fn main() {
             let x = (gap / 4) + xs * gap;
             let dot = coord! {
                 x: if ys % 2 != 0 {
-                    f64::from(x) + (rand::random::<f64>()*0.8 - 0.4)*f64::from(gap)
+                    f64::from(x) + (rng.gen::<f64>()*0.8f64 - 0.4f64) * f64::from(gap)
                 } else {
-                    f64::from(x+gap/2) + (rand::random::<f64>()*0.8 - 0.4)*f64::from(gap)
+                    f64::from(x+gap/2) + (rng.gen::<f64>()*0.8f64 - 0.4f64)*f64::from(gap)
                 },
-                y: f64::from(y) + (rand::random::<f64>()*0.8 - 0.4) * f64::from(gap)};
+                y: f64::from(y) + (rng.gen::<f64>()*0.8f64 - 0.4) * f64::from(gap)};
             dots.push(dot.clone());
             line.0.push(dot.clone());
         }
@@ -95,7 +99,6 @@ fn main() {
         }
     }
 
-
     // OK, make the actual perimeter lines
     let all_lines = MultiLineString::<f64>::new(polygons.0.iter()
         .map(|poly| poly.exterior().clone())
@@ -104,8 +107,8 @@ fn main() {
     // Generate all the hatches
     let hatches: Vec<MultiLineString<f64>> = polygons.0.iter().map(
         |p| p.hatch(LineHatch {},
-                    rand::random::<f64>() * 90.0,
-                    rand::random::<f64>() * 1.0 + pen_width,
+                    rng.gen::<f64>() * 90.0,
+                    rng.gen::<f64>() * 1.0 + pen_width,
                     pen_width)
             .unwrap())
         .collect();

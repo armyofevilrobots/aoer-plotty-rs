@@ -3,6 +3,7 @@ use geo_types::{Geometry, LineString, MultiLineString, MultiPolygon, Polygon};
 use geos::Geom;
 use crate::geo_types::flatten::FlattenPolygons;
 
+// TODO: Take this out :\
 fn flatten_gt_geom_to_multipolygon(source_gt_geometry: &Geometry<f64>) -> Result<MultiPolygon<f64>, Box<dyn Error>> {
     match source_gt_geometry {
         geo_types::Geometry::Polygon(_poly) => Ok(MultiPolygon::<f64>::new(vec![_poly.clone()])),
@@ -29,6 +30,12 @@ fn flatten_gt_geom_to_multipolygon(source_gt_geometry: &Geometry<f64>) -> Result
 
 
 
+/// #Buffer
+///
+/// Given a geo_types geometry enum type, either inset (negative distance) or
+/// outset (positive distance) it by the distance amount, and return a new MultiPolygon
+/// which contains the offset version of the geometry. Supports a variety of input types
+/// including [`geo_types::Geometry`]::Point in case you want to create circles ;)
 pub trait Buffer{
    fn buffer(&self, distance: f64) -> Result<MultiPolygon<f64>, Box<dyn Error>>;
 }

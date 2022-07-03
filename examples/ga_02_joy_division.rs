@@ -3,12 +3,17 @@ use aoer_plotty_rs::geo_types::svg::{Arrangement, ToSvg};
 use aoer_plotty_rs::geo_types::clip::LineClip;
 use std::path::Path;
 use cubic_spline::{Points as CSPoints, Point as CSPoint, SplineOpts, TryFrom};
+use rand::rngs::SmallRng;
+use rand::{Rng, SeedableRng};
 
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/joy-division/
 fn main() {
     let step: usize = 10;
     let size: usize = 320;
+    // We're using a static random generator here so that our SVG files
+    // don't get regenerated every time we run the examples.
+    let mut rng = SmallRng::seed_from_u64(12345);
 
     // Define our viewbox/canvas (in mm)
     let viewbox = Rect::new(
@@ -35,7 +40,7 @@ fn main() {
     let spoints: Vec<Vec<(f64, f64)>> = (step..size).step_by(step).map(|y| {
         // (step..size).step_by(step).map(|x| {
         (step..size).step_by(step).map(|x| {
-            let r: f64 = rand::random::<f64>();// * f64::from(step as i32);
+            let r: f64 = rng.gen();// * f64::from(step as i32);
             let dts: f64 = ((x as i32 - (size as i32 / 2)) as f64).abs();
             let variance = (((size as i32 / 2) - 50) as f64 - dts).max(0.0_f64);
             (f64::from(x as i32), f64::from(y as i32) + (r * variance / 2.0 * -1.0))

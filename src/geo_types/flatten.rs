@@ -1,7 +1,14 @@
+/// Module for flattening all of the polygons out of a Geometry collection
+/// into a single MultiPolygon. Very useful before hatching a group of geometries,
+/// or for determining just the outlines of shapes.
+
 use std::error::Error;
 use geo_types::{Geometry, MultiPolygon, Polygon};
 use geos::Geom;
 
+/// Return a single MultiPolygon which contains ALL of the polygons in a given geometry.
+/// This includes all nested polygons, even in a complex Geo with nested/recursive
+/// GeometryCollections.
 pub trait FlattenPolygons{
     fn flatten_polys(&self) -> Result<MultiPolygon<f64>, Box<dyn Error>>;
 }

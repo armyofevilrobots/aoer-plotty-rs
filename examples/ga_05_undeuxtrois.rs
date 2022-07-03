@@ -6,7 +6,7 @@ use geo::translate::Translate;
 use geo_types::{coord, Coordinate, LineString, MultiLineString, Polygon, MultiPolygon, Rect, point, Geometry};
 use nalgebra::{Affine2, Matrix3};
 use nannou::prelude::PI_F64;
-use rand::{random, Rng};
+use rand::prelude::*;
 use wkt::types::Coord;
 use aoer_plotty_rs::prelude::{Arrangement, Hatch, LineHatch, OutlineFillStroke, OutlineStroke, ToSvg};
 // use aoer_plotty_rs::geo_types::buffer::{Buffer, OutlineStroke};
@@ -45,6 +45,9 @@ fn main() {
     let step = size / steps;
     let pen_width = 0.3;
     let stroke_mm = f64::from(step)/6.0;
+    // We're using a static random generator here so that our SVG files
+    // don't get regenerated every time we run the examples.
+    let mut rng = SmallRng::seed_from_u64(12345);
 
 
     // Define our viewbox/canvas (in mm)
@@ -62,7 +65,7 @@ fn main() {
     let mut line_positions: Vec<f64> = vec![];
     for yc in 0..steps{
         for xc in 0..steps{
-            let rot_angle = random::<f64>()*180.0;
+            let rot_angle = rng.gen::<f64>()*180.0;
             if yc < steps/3 {
                 line_positions = vec![0.5]
             }else if yc < ((2*steps)/3) {

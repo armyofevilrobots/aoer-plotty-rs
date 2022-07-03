@@ -1,9 +1,32 @@
+/// Clip utility. Takes a given Geometry object (which contains a LineString, MultiLine, or Polygon)
+/// and clips it with the clipobj, which has to be one of a LineString or Polygon. Useful for
+/// creating pseudo-3d objects, with foreground and background shapes. Works on your hatched
+/// objects, hint hint.
 use std::error::Error;
 use geo_types::{LineString, MultiLineString, Polygon, Geometry};
 use geos::{Geom, Geometry as GeosGeometry, GResult};
 use std::convert::TryFrom;
 
-
+/// #LineClip
+///
+/// self.clipwith will clip `self` with a foreground object `clipobj`, returning a MultiLineString
+/// Result. Self can be a:
+///
+/// * [`geo_types::Geometry::LineString`]
+/// * [`geo_types::Geometry::MultiLineString`]
+/// * [`geo_types::Geometry::Polygon`]
+///
+/// and `clipobj` has to be one of:
+///
+/// * [`geo_types::Geometry::LineString`]
+/// * [`geo_types::Geometry::Polygon`]
+///
+/// If `clipobj` is a line which is NOT closed, then it will be automatically converted to
+/// a closed polygon for the purposes of clipping. The original `clipobj` is NOT modified.
+///
+/// Regardless of self being lines or polygons, the result is a set of lines suitable
+/// for output to a plotter. Returning original source geometry is going to be a
+/// separate trait, which I'll get around to once I need it.
 pub trait LineClip {
     fn clipwith(&self, clipobj: &Self) -> Result<MultiLineString<f64>, Box<dyn Error>>;
 }
