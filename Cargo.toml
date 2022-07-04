@@ -8,6 +8,7 @@ homepage = "https://github.com/armyofevilrobots/aoer-plotty-rs"
 repository = "https://github.com/armyofevilrobots/aoer-plotty-rs"
 
 [dependencies]
+anyhow = "1.0"
 geo-types = "0.7"
 geo = "0.20"
 geos = {version = "8.1", features = ["geo", "json"]}

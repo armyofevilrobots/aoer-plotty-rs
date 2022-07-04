@@ -62,6 +62,9 @@ pub mod l_system;
 /// into GCode
 pub mod gcode;
 
+/// A stateful drawing context which gives you canvas-ish drawing capabilities
+pub mod context;
+
 /// Make your life easy! Just import prelude::* and ignore all the warnings!
 /// One stop shopping at the expense of a slightly more complex dependency graph.
 pub mod prelude {
