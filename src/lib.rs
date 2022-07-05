@@ -15,6 +15,8 @@
 //! [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 //!
 //! # Changelog
+//! * 0.1.7. Another big change. Added the Context drawing library, which is HUGE,
+//!   and contains way too much functionality to discuss here.
 //! * 0.1.6. Various changes:
 //!   * Add [`geo_types::buffer::Buffer`] trait to offset polygons
 //!   * Add [`geo_types::clip::LineClip`] trait to Clip geometry with

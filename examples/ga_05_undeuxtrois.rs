@@ -1,14 +1,9 @@
-use std::f64::consts::PI;
 use std::path::Path;
-use geo::centroid::Centroid;
 use geo::rotate::RotatePoint;
 use geo::translate::Translate;
-use geo_types::{coord, Coordinate, LineString, MultiLineString, Polygon, MultiPolygon, Rect, point, Geometry};
-use nalgebra::{Affine2, Matrix3};
-use nannou::prelude::PI_F64;
+use geo_types::{coord, LineString, MultiLineString, Rect, point};
 use rand::prelude::*;
-use wkt::types::Coord;
-use aoer_plotty_rs::prelude::{Arrangement, Hatch, LineHatch, OutlineFillStroke, OutlineStroke, ToSvg};
+use aoer_plotty_rs::prelude::{Arrangement, LineHatch, OutlineFillStroke, ToSvg};
 // use aoer_plotty_rs::geo_types::buffer::{Buffer, OutlineStroke};
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/un-deux-trois/
@@ -61,7 +56,7 @@ fn main() {
 
 
     let mut lines_list: Vec<MultiLineString<f64>> = vec![];
-    let mut line_positions: Vec<f64> = vec![];
+    let mut line_positions: Vec<f64>;// = vec![];
     for yc in 0..steps{
         for xc in 0..steps{
             let rot_angle = rng.gen::<f64>()*180.0;

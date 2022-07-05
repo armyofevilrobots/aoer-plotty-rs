@@ -1,21 +1,22 @@
-use std::error::Error;
+//! Provides the [`crate::context::Context`] struct which gives us a canvas-style drawing
+//! context which provides plotter-ready SVG files. See `Context` for more details, and examples.
+
+
 use std::f64::consts::PI;
-use std::fmt::{Debug, Display, Formatter};
 use geo_types::{coord, Coordinate, Geometry, LineString, MultiLineString, MultiPolygon, Point, Polygon};
 use svg::Document;
-use svg::node::element::SVG;
-use crate::prelude::{Arrangement, OutlineFillStroke, OutlineStroke, SvgCreationError, ToSvg};
-use crate::geo_types::hatch::{Hatch, HatchPattern, LineHatch};
-use anyhow::{Result as AResult, Error as AError};
+use crate::prelude::{Arrangement, OutlineFillStroke, ToSvg};
+use crate::geo_types::hatch::{Hatch, LineHatch};
 use cubic_spline::{Points, SplineOpts};
 use geo::map_coords::MapCoords;
 use nalgebra::{Affine2, Matrix3, Point2 as NPoint2};
-use svg::node::NodeClone;
 use crate::geo_types::buffer::Buffer;
 use crate::geo_types::clip::LineClip;
 use crate::errors::ContextError;
+use embed_doc_image::embed_doc_image;
 
-
+/// Operations are private items used to store the operation stack
+/// consisting of a combination of Geometry and Context state.
 #[derive(Clone)]
 struct Operation {
     content: Geometry<f64>,
@@ -31,10 +32,9 @@ struct Operation {
 }
 
 
-
 impl Operation {
     /// Helper function for converting polygons into sets of strings.
-    fn poly2lines(poly: &Polygon<f64>, pen_width: f64, hatch_angle: Option<f64>) -> (MultiLineString<f64>, MultiLineString<f64>){
+    fn poly2lines(poly: &Polygon<f64>, pen_width: f64, hatch_angle: Option<f64>) -> (MultiLineString<f64>, MultiLineString<f64>) {
         let mut strokes = MultiLineString::new(vec![]);
         let mut fills = MultiLineString::new(vec![]);
         // Push the exterior
@@ -53,7 +53,7 @@ impl Operation {
     }
 
     /// Helper to transform geometry when we have an affine transform set.
-    fn xform_coord((x,y): &(f64, f64), affine: &Affine2<f64>) -> (f64, f64){
+    fn xform_coord((x, y): &(f64, f64), affine: &Affine2<f64>) -> (f64, f64) {
         let out = affine * NPoint2::new(*x, *y);
         (out.x, out.y)
     }
@@ -70,7 +70,7 @@ impl Operation {
             Geometry::MultiPolygon(polys) => {
                 let mut strokes = MultiLineString::new(vec![]);
                 let mut fills = MultiLineString::new(vec![]);
-                for poly in polys{
+                for poly in polys {
                     let (new_strokes, new_fills) =
                         Self::poly2lines(poly, self.pen_width, self.hatch_angle);
                     strokes.0.append(&mut new_strokes.0.clone());
@@ -81,17 +81,17 @@ impl Operation {
             _ => (MultiLineString::new(vec![]), MultiLineString::new(vec![]))
         };
         let (outlines, fills) = match &self.transformation {
-            Some(affine)=> {
+            Some(affine) => {
                 (outlines.map_coords(|xy| Self::xform_coord(xy, affine)),
                  fills.map_coords(|xy| Self::xform_coord(xy, affine)))
-            },
+            }
             None => (outlines, fills)
         };
-        let outlines = match self.outline_stroke{
+        let outlines = match self.outline_stroke {
             Some(stroke) => outlines
                 .outline_fill_stroke_with_hatch(stroke,
                                                 self.pen_width,
-                                                Box::new(LineHatch{}),
+                                                Box::new(LineHatch {}),
                                                 self.hatch_angle.unwrap_or(45.0))
                 .unwrap_or(outlines),
             None => outlines
@@ -100,6 +100,66 @@ impl Operation {
     }
 }
 
+/// # Context
+///
+/// A Context is a _drawing_ context, used to perform operations against a
+/// pseudo-canvas. Those operations are later collected up and turned into
+/// an SVG, including line strokes, fills, and all the other useful tools
+/// that we need to drive a plotter robot.
+///
+/// # Example
+///
+/// ```rust
+/// use aoer_plotty_rs::context::Context;
+///
+/// let mut ctx = Context::new();
+/// ctx.stroke("black")
+///    .fill("red")
+///    .pen(0.5)
+///    .outline(Some(5.0))
+///    .poly(vec![(0.0,0.0),
+///           (25.0,0.0),
+///           (25.0,25.0),
+///           (0.0,25.0)],
+/// vec![])
+///    .outline(None)
+///    .hatch(Some(135.0))
+///    .stroke("blue")
+///    .fill("yellow")
+///    .circle(12.5,12.5, 5.0)
+///    .push()
+///    .hatch(Some(180.0))
+///    .stroke("red")
+///    .fill("green")
+///    .circle(17.5,12.5,2.5)
+///    .pop().unwrap()
+///    .hatch(None)
+///    .clip(true)
+///    .circle(7.5,12.5,2.5)
+///    .clip(false)
+///    .stroke("brown")
+///    .pen(1.0)
+///    .line(0.0, 0.0, 3.0, 3.0)
+///    .pen(0.1)
+///    .outline(Some(1.0))
+///    .stroke("pink")
+///    .line(3.0, 0.0, 0.0, 3.0)
+///    .stroke("purple")
+///    .spline(&vec![(0.0, 25.0), (0.0, 25.0), (10.0, 20.0), (20.0,25.0), (25.0, 25.0)],
+///            8, 0.5)
+///    .push()  // Prepare for this transformation stuff...
+///    .transform(Some(
+///        &(Context::translate_matrix(25.0, 25.0)
+///        * Context::rotate_matrix(45.0)
+///        * Context::scale_matrix(1.0, 0.5)
+///    ))) // Holy crap we can multiply these?! ;)
+///    .stroke("cyan")
+///    .circle(0.0, 0.0, 8.0)
+///    .pop().unwrap() // We're back to purple and regular coords
+/// ;
+/// ```
+/// ![context_basic][context_basic]
+#[embed_doc_image("context_basic", "images/context_basic.png")]
 #[derive(Clone)]
 pub struct Context {
     operations: Vec<Operation>,
@@ -117,15 +177,16 @@ pub struct Context {
 
 
 impl Context {
-
-    pub fn scale_matrix(sx: f64, sy: f64) -> Affine2<f64>{
+    /// Helper to create a scaling matrix
+    pub fn scale_matrix(sx: f64, sy: f64) -> Affine2<f64> {
         Affine2::from_matrix_unchecked(Matrix3::new(
             sx, 0.0, 0.0,
             0.0, sy, 0.0,
             0.0, 0.0, 1.0))
     }
 
-    pub fn translate_matrix(tx: f64, ty: f64) -> Affine2<f64>{
+    /// Helper to create a translation matrix
+    pub fn translate_matrix(tx: f64, ty: f64) -> Affine2<f64> {
         Affine2::from_matrix_unchecked(Matrix3::new(
             1.0, 0.0, tx,
             0.0, 1.0, ty,
@@ -134,17 +195,15 @@ impl Context {
 
     /// Angle is in degrees because I am a terrible person.
     /// Also, compass degrees. For an SVG anyhow. I am a bastard.
-    pub fn rotate_matrix(degrees: f64) -> Affine2<f64>{
-        let angle = PI*(degrees/180.0);
+    pub fn rotate_matrix(degrees: f64) -> Affine2<f64> {
+        let angle = PI * (degrees / 180.0);
         Affine2::from_matrix_unchecked(Matrix3::new(
             angle.cos(), -angle.sin(), 0.0,
             angle.sin(), angle.cos(), 0.0,
             0.0, 0.0, 1.0))
     }
 
-
-
-
+    /// I can haz a new default drawing context?
     pub fn new() -> Context {
         Context {
             operations: vec![],
@@ -162,10 +221,10 @@ impl Context {
     }
 
     /// Pushes the current context onto the stack.
-    pub fn push(&mut self) -> &mut Self{
-        self.stack.push(Self{
+    pub fn push(&mut self) -> &mut Self {
+        self.stack.push(Self {
             operations: vec![],
-            transformation: match self.transformation.clone(){
+            transformation: match self.transformation.clone() {
                 Some(transformation) => Some(transformation),
                 None => None
             },
@@ -183,7 +242,7 @@ impl Context {
     }
 
     /// Pops the previous context off the stack
-    pub fn pop(&mut self) -> Result<&mut Self, ContextError>{
+    pub fn pop(&mut self) -> Result<&mut Self, ContextError> {
         let other = self.stack.pop().ok_or(ContextError::PoppedEmptyStack)?;
         self.transformation = match other.transformation.clone() {
             Some(transformation) => Some(transformation),
@@ -200,15 +259,18 @@ impl Context {
         Ok(self)
     }
 
-    pub fn transform(&mut self, transformation: Option<&Affine2<f64>>) -> &mut Self{
-        self.transformation = match transformation{
+    /// Set the transformation matrix for subsequent ops. Take a look at the transformation
+    /// helpers, which are great if you don't want to generate your own unsafe Affine2
+    /// transformations.
+    pub fn transform(&mut self, transformation: Option<&Affine2<f64>>) -> &mut Self {
+        self.transformation = match transformation {
             Some(tx) => Some(tx.clone()),
             None => None
         };
         self
-
     }
 
+    /// Internal helper. shhhh.
     fn add_operation(&mut self, geometry: Geometry<f64>) {
         self.operations.push(Operation {
             content: geometry,
@@ -242,13 +304,13 @@ impl Context {
     /// First and last point in points are NOT drawn, and set the 'tension'
     /// points which the line pulls from.
     pub fn spline(&mut self, points: &Vec<(f64, f64)>,
-                  num_interpolated_segments: u32, tension: f64) -> &mut Self{
+                  num_interpolated_segments: u32, tension: f64) -> &mut Self {
         let spline_opts = SplineOpts::new()
             .num_of_segments(num_interpolated_segments)
             .tension(tension);
-        let points = match Points::try_from(points){
+        let points = match Points::try_from(points) {
             Ok(pts) => pts,
-            Err(e) => return self
+            Err(_e) => return self
         };
         let spline = cubic_spline::calc_spline(&points, &spline_opts);
         match spline {
@@ -259,16 +321,17 @@ impl Context {
                             spts
                                 .get_ref()
                                 .iter()
-                                .map(|pt| coord!{x: pt.x, y: pt.y})
+                                .map(|pt| coord! {x: pt.x, y: pt.y})
                                 .collect()
                         )));
                 self
             }
-            Err(e) => self
+            Err(_e) => self
         }
     }
 
-    pub fn rect(&mut self, x0: f64, y0: f64, x1: f64, y1: f64) -> &mut Self{
+    /// What it says on the box. Draws a simple rectangle on the context.
+    pub fn rect(&mut self, x0: f64, y0: f64, x1: f64, y1: f64) -> &mut Self {
         self.add_operation(
             Geometry::Polygon(
                 Polygon::<f64>::new(
@@ -284,107 +347,120 @@ impl Context {
     }
 
     /// Draws a polygon
-    pub fn poly(&mut self, exterior: Vec<(f64, f64)>, interiors: Vec<Vec<(f64, f64)>>) -> &mut Self{
+    pub fn poly(&mut self, exterior: Vec<(f64, f64)>, interiors: Vec<Vec<(f64, f64)>>) -> &mut Self {
         self.add_operation(
             Geometry::Polygon(
                 Polygon::<f64>::new(
                     LineString::new(
                         exterior
                             .iter()
-                            .map(|(x,y)| coord!{x:*x, y:*y})
+                            .map(|(x, y)| coord! {x:*x, y:*y})
                             .collect()
                     ),
                     interiors
                         .iter()
-                        .map(|interior|{
+                        .map(|interior| {
                             LineString::<f64>::new(interior
                                 .iter()
-                                .map(|(x,y)| coord!{x:*x, y:*y})
+                                .map(|(x, y)| coord! {x:*x, y:*y})
                                 .collect::<Vec<Coordinate<f64>>>())
                         })
-                        .collect()
+                        .collect(),
                 )));
         self
     }
 
+    /// Draws a circle. Actually just buffers a point, and returns a polygon
+    /// which it draws on the context.
     pub fn circle(&mut self, x0: f64, y0: f64, radius: f64) -> &mut Self {
         let geo =
             Geometry::MultiPolygon(Geometry::Point(Point::new(x0, y0))
-                                       .buffer(radius)
-                                       .unwrap_or(MultiPolygon::new(vec![])));
+                .buffer(radius)
+                .unwrap_or(MultiPolygon::new(vec![])));
         self.add_operation(geo);
         self
     }
 
-    pub fn clip(&mut self, clip: bool) -> &mut Self{
+    /// Sets the clipping state. Any subsequent objects will clip their predecessors.
+    /// Note that this is an EXPENSIVE operation, so you might want to leave it off
+    /// if you're sure you won't have intersections.
+    pub fn clip(&mut self, clip: bool) -> &mut Self {
         self.clip_previous = clip;
         self
     }
 
-    pub fn stroke(&mut self, color: &str) -> &mut Self{
+    /// Sets the stroke color
+    pub fn stroke(&mut self, color: &str) -> &mut Self {
         self.stroke_color = color.to_string();
         self
     }
 
-    pub fn fill(&mut self, color: &str) -> &mut Self{
+    /// Sets the fill color
+    pub fn fill(&mut self, color: &str) -> &mut Self {
         self.fill_color = color.to_string();
         self
     }
 
-    pub fn hatch(&mut self, angle: Option<f64>) -> &mut Self{
+    /// Sets the hatch state, either None for no hatching or
+    /// Some(angle) to set a hatching angle. Will use the current
+    /// pen width as the spacing between hatch lines.
+    pub fn hatch(&mut self, angle: Option<f64>) -> &mut Self {
         self.hatch_angle = angle;
         self
     }
 
-    pub fn pen(&mut self, width: f64) -> &mut Self{
+    /// Sets the pen width
+    pub fn pen(&mut self, width: f64) -> &mut Self {
         self.pen_width = width;
         self
     }
 
-    pub fn outline(&mut self, stroke: Option<f64>) -> &mut Self{
+    /// Neat option. Instead of drawing a complex poly, why not just
+    /// set outline, and have the lines/polys/whatever you subsequently
+    /// draw get buffered and hatched to imitate a really thick pen?
+    /// I knew you'd like this one :D
+    pub fn outline(&mut self, stroke: Option<f64>) -> &mut Self {
         self.outline_stroke = stroke;
         self
     }
 
-    pub fn matrix(&mut self, xform: Option<Affine2<f64>>) -> &mut Self{
-        self.transformation = xform;
-        self
-    }
 
+    /// Take this giant complex thing and generate and SVG Document, or an error. Whatever.
     pub fn to_svg(&self, arrangement: &Arrangement<f64>) -> Result<Document, ContextError> {
-        struct OPLayer{
+        struct OPLayer {
             stroke_lines: MultiLineString<f64>,
             fill_lines: MultiLineString<f64>,
             stroke: String,
             fill: String,
             stroke_width: f64,
             stroke_linejoin: String,
-            stroke_linecap: String
-        };
+            stroke_linecap: String,
+        }
+
         let mut svg = arrangement
             .create_svg_document()
             .or(Err(ContextError::SvgGenerationError("Failed to create raw svg doc".into()).into()))?;
         let mut oplayers: Vec<OPLayer> = vec![];
         for op in &self.operations {
             let (stroke, fill) = op.render_to_lines();
-            oplayers.push(OPLayer{
+            oplayers.push(OPLayer {
                 stroke_lines: stroke,
                 fill_lines: fill,
                 stroke: op.stroke_color.clone(),
                 fill: op.fill_color.clone(),
                 stroke_width: op.pen_width,
                 stroke_linejoin: op.line_join.clone(),
-                stroke_linecap: op.line_cap.clone()
+                stroke_linecap: op.line_cap.clone(),
             });
         }
         assert_eq!(&self.operations.len(), &oplayers.len());
 
         // Iterate the layers, and clip their predecessors where appropriate.
         // NOTE: CLIPPING IS S_L_O_W AF.
-        if self.operations.len()>1{
-            for i in 0..(self.operations.len()-1) {
-                for j in (i+1)..self.operations.len(){
-                    if self.operations[j].clip_previous{
+        if self.operations.len() > 1 {
+            for i in 0..(self.operations.len() - 1) {
+                for j in (i + 1)..self.operations.len() {
+                    if self.operations[j].clip_previous {
                         oplayers[i].stroke_lines = Geometry::MultiLineString(
                             oplayers[i].stroke_lines.clone())
                             .clipwith(&self.operations[j].content)
@@ -399,7 +475,7 @@ impl Context {
         }
 
         let mut id = 0;
-        for oplayer in oplayers{
+        for oplayer in oplayers {
             if !oplayer.stroke_lines.0.is_empty() {
                 let slines = oplayer.stroke_lines.to_path(&arrangement);
                 svg = svg.add(slines
@@ -441,7 +517,7 @@ mod test {
     }
 
     #[test]
-    fn test_minimal_rect(){
+    fn test_minimal_rect() {
         let mut context = Context::new();
         context.stroke("red")
             .pen(0.8)
@@ -450,13 +526,13 @@ mod test {
             .rect(10.0, 10.0, 50.0, 50.0);
         let arrangement = Arrangement::FitCenterMargin(
             10.0,
-            Rect::new(coord!{x: 0.0, y: 0.0}, coord!{x:100.0, y:100.0}),
+            Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}),
             false);
-        let svg = context.to_svg(&arrangement);
+        context.to_svg(&arrangement).unwrap();
     }
 
     #[test]
-    fn test_minimal_poly(){
+    fn test_minimal_poly() {
         let mut context = Context::new();
         context.stroke("red");
         context.pen(0.8);
@@ -466,8 +542,9 @@ mod test {
                      vec![]);
         let arrangement = Arrangement::FitCenterMargin(
             10.0,
-            Rect::new(coord!{x: 0.0, y: 0.0}, coord!{x:100.0, y:100.0}),
+            Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}),
             false);
-        let svg = context.to_svg(&arrangement);
+        context.to_svg(&arrangement).unwrap();
+
     }
 }
