@@ -10,17 +10,43 @@ fn main(){
     ctx.stroke("black")
         .fill("red")
         .pen(0.5)
-        .hatch(Some(45.0))
-        // .outline(Some(5.0))
+        .outline(Some(5.0))
+        // .hatch(Some(45.0))
         .poly(vec![(0.0,0.0),
                    (25.0,0.0),
                    (25.0,25.0),
                    (0.0,25.0)],
-              vec![]);
+              vec![])
+        .outline(None)
+        .hatch(Some(135.0))
+        .stroke("blue")
+        .fill("yellow")
+        .circle(12.5,12.5, 5.0)
+        .push()
+        .hatch(Some(180.0))
+        .stroke("red")
+        .fill("green")
+        .circle(17.5,12.5,2.5)
+        .pop().unwrap()
+        .hatch(None)
+        .clip(true)
+        .circle(7.5,12.5,2.5)
+        .clip(false)
+        .stroke("brown")
+        .pen(1.0)
+        .line(0.0, 0.0, 3.0, 3.0)
+        .pen(0.1)
+        .outline(Some(1.0))
+        .stroke("pink")
+        .line(3.0, 0.0, 0.0, 3.0)
+        .stroke("purple")
+        .spline(&vec![(0.0, 25.0), (0.0, 25.0), (10.0, 20.0), (20.0,25.0), (25.0, 25.0)],
+        8, 0.5)
+    ;
+
     let svg = ctx.to_svg(
-        &Arrangement::<f64>::Center(
-            Rect::<f64>::new(coord!{x:0.0, y:0.0}, coord!{x:100.0, y:100.0}),
-            false))
+        &Arrangement::<f64>::unit(
+            &Rect::<f64>::new(coord!{x:0.0, y:0.0}, coord!{x:100.0, y:100.0})))
         .unwrap();
     // Write it to the images folder, so we can use it as an example!
     // Write it out to /images/$THIS_EXAMPLE_FILE.svg
