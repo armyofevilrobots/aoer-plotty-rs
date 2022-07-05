@@ -1,13 +1,8 @@
-use std::f64::consts::PI;
 use std::path::Path;
-use geo::centroid::Centroid;
-use geo::rotate::RotatePoint;
-use geo::translate::Translate;
 use geo_types::{coord, Coordinate, LineString, MultiLineString, Polygon, MultiPolygon, Rect};
 use nalgebra::{Affine2, Matrix3};
 use rand::{Rng, SeedableRng};
 use rand::prelude::SmallRng;
-use wkt::types::Coord;
 use aoer_plotty_rs::prelude::{Arrangement, Hatch, LineHatch, ToSvg};
 
 
@@ -59,9 +54,8 @@ fn main() {
     // The odd and even lines have different strategies to generate those
     // triangles since each other row is offset by 1/2 the width.
     for yi in 0..(lines.0.len() - 1) {
-        let triline = LineString::<f64>::new(vec![]);
         for xi in 0..(lines.0.len() - 1) {
-            if (yi % 2 == 0) { // If it's even
+            if yi % 2 == 0 { // If it's even
                 polygons.0.push(
                     Polygon::new(
                         LineString::new(vec![

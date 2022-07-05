@@ -31,6 +31,7 @@ impl OutlineStroke for LineString<f64> {
         geo_types::Geometry::LineString(self.clone()).buffer(stroke_weight / 2.0)
     }
 }
+
 /// Turns out that one of the most common things we do to a line is to stroke it with a weight,
 /// turning  it into a series of outline LineStrings, which are in turn filled with a hatch.
 /// This trait combines those into a simple single operation.
@@ -46,6 +47,12 @@ impl OutlineFillStroke for MultiLineString<f64> {
         let mut lines_list: MultiLineString<f64> = MultiLineString::new(
             polys
                 .0.iter().map(|p| p.exterior().clone()).collect());
+        for poly in &polys{
+            for interior in poly.interiors(){
+                lines_list.0.push(interior.clone())
+            }
+        }
+
 
         lines_list.0.append(
             &mut polys.hatch(LineHatch {}, angle, pen_width, pen_width * 0.5)?.0);
