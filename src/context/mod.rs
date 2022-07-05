@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::f64::consts::PI;
 use std::fmt::{Debug, Display, Formatter};
 use geo_types::{coord, Coordinate, Geometry, LineString, MultiLineString, MultiPolygon, Point, Polygon};
 use svg::Document;
@@ -130,6 +131,19 @@ impl Context {
             0.0, 1.0, ty,
             0.0, 0.0, 1.0))
     }
+
+    /// Angle is in degrees because I am a terrible person.
+    /// Also, compass degrees. For an SVG anyhow. I am a bastard.
+    pub fn rotate_matrix(degrees: f64) -> Affine2<f64>{
+        let angle = PI*(degrees/180.0);
+        Affine2::from_matrix_unchecked(Matrix3::new(
+            angle.cos(), -angle.sin(), 0.0,
+            angle.sin(), angle.cos(), 0.0,
+            0.0, 0.0, 1.0))
+    }
+
+
+
 
     pub fn new() -> Context {
         Context {
