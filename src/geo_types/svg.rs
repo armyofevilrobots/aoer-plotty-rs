@@ -26,6 +26,17 @@ pub enum Arrangement<T>
 }
 
 impl<T: RealField + Float> Arrangement<T> {
+    pub fn unit(window: &Rect<T>) -> Arrangement<T> {
+        Arrangement::Transform(
+            window.clone(),
+            Affine2::from_matrix_unchecked(
+                Matrix3::<T>::new(
+                    T::one(), T::zero(), T::zero(),
+                    T::zero(), T::one(), T::zero(),
+                    T::zero(), T::zero(), T::one(),
+                )))
+    }
+
     pub fn create_svg_document(&self) -> Result<Document, SvgCreationError>
         where T: Real,
               T: CoordNum,
@@ -71,7 +82,7 @@ pub trait ToSvg<T>
           T: RealField {
     /// Given an [Arrangement] as a transformation strategy, transform the geometry to
     /// fit the bounds, or just run the transformation without bounds if None
-    fn arrange(&self, arrangement: &Arrangement<T>) -> Self;
+    fn arrange(&self, arrangement: &Arrangement<T>) -> Result<Self, SvgCreationError> where Self: Sized;
 
     /// Utility function returns a viewbox tuple for the geometry.
     /// Should be used AFTER calling arrange on the geo.
@@ -93,9 +104,11 @@ impl<T> ToSvg<T> for MultiLineString<T>
           T: ToPrimitive,
           T: FromPrimitive,
           f64: From<T> {
-    fn arrange(&self, arrangement: &Arrangement<T>) -> Self {
-        let gbox = self.bounding_rect()
-            .expect("Arranging geometry with no dimensions.");
+    fn arrange(&self, arrangement: &Arrangement<T>) -> Result<Self, SvgCreationError> {
+        let gbox = match self.bounding_rect() {
+            Some(gbox) => gbox,
+            None => return Err(SvgCreationError::UndefinedViewBox),
+        };
         let transformation = match arrangement {
             Arrangement::Transform(_viewbox, affine) => affine.clone(),
             Arrangement::Center(bounds, invert) => {
@@ -175,7 +188,7 @@ impl<T> ToSvg<T> for MultiLineString<T>
                 Coordinate::<T>::from((pt.x, pt.y))
             }).collect()
         }).collect();
-        MultiLineString::<T>::new(linestrings)
+        Ok(MultiLineString::<T>::new(linestrings))
     }
 
     fn viewbox(&self) -> Option<(T, T, T, T)> {
@@ -199,8 +212,15 @@ impl<T> ToSvg<T> for MultiLineString<T>
     }
 
     fn to_path(&self, arrangement: &Arrangement<T>) -> Path {
-        Path::new()
-            .set("d", (&self).arrange(arrangement).to_path_data())
+        let path_result = (&self).arrange(arrangement);
+        match path_result {
+            Ok(pathval) =>
+                Path::new()
+                    .set("d", pathval.to_path_data()),
+            Err(_) =>
+                Path::new()
+                    .set("d", "")
+        }
     }
 }
 
@@ -235,7 +255,6 @@ mod test {
             &Arrangement::Center(
                 Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
                 false));
-        println!("TXMLS when centered is: {:?}", txmls);
         assert_eq!(txmls.bounding_rect()
                        .expect("Should have been able to get brect")
                        .center(),
@@ -266,7 +285,6 @@ mod test {
             &Arrangement::FitCenter(
                 Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
                 false));
-        println!("TXMLS when centered is: {:?}", txmls);
         assert_eq!(txmls.bounding_rect()
                        .expect("Should have been able to get brect")
                        .center(),
@@ -288,7 +306,6 @@ mod test {
             &Arrangement::FitCenter(
                 Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
                 true));
-        println!("TXMLS when centered is: {:?}", txmls);
         assert_eq!(txmls.bounding_rect()
                        .expect("Should have been able to get brect")
                        .center(),
@@ -318,7 +335,6 @@ mod test {
             &Arrangement::FitCenter(
                 Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
                 true));
-        println!("TXMLS fitcenter2 when centered is: {:?}", txmls);
         assert_eq!(txmls.bounding_rect()
                        .expect("Should have been able to get brect")
                        .center(),
@@ -349,7 +365,6 @@ mod test {
                         0.0, 0.0, 1.0,
                     )
                 )));
-        println!("TXMLS IS {:?}", txmls);
         assert_eq!(
             txmls.0[0].coords()
                 .zip(
@@ -362,7 +377,6 @@ mod test {
                             coord! {x: 300.0f64, y: 0.0f64},
                         ]).coords())
                 .filter(|&(left, right)| {
-                    println!("LEFT: {:?} RIGHT: {:?}", left, right);
                     left == right
                 })
                 .count(),

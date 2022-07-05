@@ -47,6 +47,11 @@ impl OutlineFillStroke for MultiLineString<f64> {
         let mut lines_list: MultiLineString<f64> = MultiLineString::new(
             polys
                 .0.iter().map(|p| p.exterior().clone()).collect());
+        for poly in &polys{
+            for interior in poly.interiors(){
+                lines_list.0.push(interior.clone())
+            }
+        }
 
 
         lines_list.0.append(
