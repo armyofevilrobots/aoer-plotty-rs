@@ -254,7 +254,7 @@ mod test {
         let txmls = mls.arrange(
             &Arrangement::Center(
                 Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
-                false));
+                false)).unwrap();
         assert_eq!(txmls.bounding_rect()
                        .expect("Should have been able to get brect")
                        .center(),
@@ -284,7 +284,7 @@ mod test {
         let txmls = mls.arrange(
             &Arrangement::FitCenter(
                 Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
-                false));
+                false)).unwrap();
         assert_eq!(txmls.bounding_rect()
                        .expect("Should have been able to get brect")
                        .center(),
@@ -305,7 +305,7 @@ mod test {
         let txmls = mls.arrange(
             &Arrangement::FitCenter(
                 Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
-                true));
+                true)).unwrap();
         assert_eq!(txmls.bounding_rect()
                        .expect("Should have been able to get brect")
                        .center(),
@@ -334,7 +334,7 @@ mod test {
         let txmls = mls.arrange(
             &Arrangement::FitCenter(
                 Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
-                true));
+                true)).unwrap();
         assert_eq!(txmls.bounding_rect()
                        .expect("Should have been able to get brect")
                        .center(),
@@ -364,7 +364,7 @@ mod test {
                         0.0, 1.0, 0.0,
                         0.0, 0.0, 1.0,
                     )
-                )));
+                ))).unwrap();
         assert_eq!(
             txmls.0[0].coords()
                 .zip(

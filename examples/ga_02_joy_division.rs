@@ -2,7 +2,7 @@ use geo_types::{coord, Coordinate, LineString, MultiLineString, Rect, Geometry};
 use aoer_plotty_rs::geo_types::svg::{Arrangement, ToSvg};
 use aoer_plotty_rs::geo_types::clip::LineClip;
 use std::path::Path;
-use cubic_spline::{Points as CSPoints, Point as CSPoint, SplineOpts, TryFrom};
+use cubic_spline::{Points as CSPoints, SplineOpts};
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 

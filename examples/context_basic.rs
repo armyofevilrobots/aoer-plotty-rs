@@ -1,6 +1,5 @@
 use std::path::Path;
 use geo_types::{coord, Rect};
-use nalgebra::Affine2;
 use aoer_plotty_rs::context::Context;
 use aoer_plotty_rs::geo_types::svg::Arrangement;
 
@@ -12,7 +11,6 @@ fn main(){
         .fill("red")
         .pen(0.5)
         .outline(Some(5.0))
-        // .hatch(Some(45.0))
         .poly(vec![(0.0,0.0),
                    (25.0,0.0),
                    (25.0,25.0),
