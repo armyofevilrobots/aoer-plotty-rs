@@ -1,5 +1,6 @@
 use std::path::Path;
 use geo_types::{coord, Rect};
+use nalgebra::Affine2;
 use aoer_plotty_rs::context::Context;
 use aoer_plotty_rs::geo_types::svg::Arrangement;
 
@@ -42,6 +43,14 @@ fn main(){
         .stroke("purple")
         .spline(&vec![(0.0, 25.0), (0.0, 25.0), (10.0, 20.0), (20.0,25.0), (25.0, 25.0)],
         8, 0.5)
+        .push()  // Prepare for this transformation stuff...
+        .transform(Some(
+            &(
+                Context::translate_matrix(25.0, 25.0) * Context::scale_matrix(1.0, 0.5)
+            ))) // Holy crap we can multiply these?! ;)
+        .stroke("cyan")
+        .circle(0.0, 0.0, 8.0)
+        .pop().unwrap()
     ;
 
     let svg = ctx.to_svg(

@@ -7,6 +7,8 @@ use crate::prelude::{Arrangement, OutlineFillStroke, OutlineStroke, SvgCreationE
 use crate::geo_types::hatch::{Hatch, HatchPattern, LineHatch};
 use anyhow::{Result as AResult, Error as AError};
 use cubic_spline::{Points, SplineOpts};
+use geo::map_coords::MapCoords;
+use nalgebra::{Affine2, Matrix3, Point2 as NPoint2};
 use svg::node::NodeClone;
 use crate::geo_types::buffer::Buffer;
 use crate::geo_types::clip::LineClip;
@@ -16,7 +18,7 @@ use crate::errors::ContextError;
 #[derive(Clone)]
 struct Operation {
     content: Geometry<f64>,
-    transformation: Option<nalgebra::Affine2<f64>>,
+    transformation: Option<Affine2<f64>>,
     stroke_color: String,
     outline_stroke: Option<f64>,
     fill_color: String,
@@ -49,6 +51,12 @@ impl Operation {
         (strokes, fills)
     }
 
+    /// Helper to transform geometry when we have an affine transform set.
+    fn xform_coord((x,y): &(f64, f64), affine: &Affine2<f64>) -> (f64, f64){
+        let out = affine * NPoint2::new(*x, *y);
+        (out.x, out.y)
+    }
+
     fn render_to_lines(&self) -> (MultiLineString<f64>, MultiLineString<f64>) {
         let (outlines, fills) = match &self.content {
             Geometry::MultiLineString(mls) =>
@@ -71,6 +79,13 @@ impl Operation {
             }
             _ => (MultiLineString::new(vec![]), MultiLineString::new(vec![]))
         };
+        let (outlines, fills) = match &self.transformation {
+            Some(affine)=> {
+                (outlines.map_coords(|xy| Self::xform_coord(xy, affine)),
+                 fills.map_coords(|xy| Self::xform_coord(xy, affine)))
+            },
+            None => (outlines, fills)
+        };
         let outlines = match self.outline_stroke{
             Some(stroke) => outlines
                 .outline_fill_stroke_with_hatch(stroke,
@@ -87,7 +102,7 @@ impl Operation {
 #[derive(Clone)]
 pub struct Context {
     operations: Vec<Operation>,
-    transformation: Option<nalgebra::Affine2<f64>>,
+    transformation: Option<Affine2<f64>>,
     stroke_color: String,
     outline_stroke: Option<f64>,
     fill_color: String,
@@ -101,6 +116,21 @@ pub struct Context {
 
 
 impl Context {
+
+    pub fn scale_matrix(sx: f64, sy: f64) -> Affine2<f64>{
+        Affine2::from_matrix_unchecked(Matrix3::new(
+            sx, 0.0, 0.0,
+            0.0, sy, 0.0,
+            0.0, 0.0, 1.0))
+    }
+
+    pub fn translate_matrix(tx: f64, ty: f64) -> Affine2<f64>{
+        Affine2::from_matrix_unchecked(Matrix3::new(
+            1.0, 0.0, tx,
+            0.0, 1.0, ty,
+            0.0, 0.0, 1.0))
+    }
+
     pub fn new() -> Context {
         Context {
             operations: vec![],
@@ -154,6 +184,15 @@ impl Context {
         self.hatch_angle = other.hatch_angle.clone();
         self.clip_previous = other.clip_previous.clone();
         Ok(self)
+    }
+
+    pub fn transform(&mut self, transformation: Option<&Affine2<f64>>) -> &mut Self{
+        self.transformation = match transformation{
+            Some(tx) => Some(tx.clone()),
+            None => None
+        };
+        self
+
     }
 
     fn add_operation(&mut self, geometry: Geometry<f64>) {
@@ -293,7 +332,7 @@ impl Context {
         self
     }
 
-    pub fn matrix(&mut self, xform: Option<nalgebra::Affine2<f64>>) -> &mut Self{
+    pub fn matrix(&mut self, xform: Option<Affine2<f64>>) -> &mut Self{
         self.transformation = xform;
         self
     }
