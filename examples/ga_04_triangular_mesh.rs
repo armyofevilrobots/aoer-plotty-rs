@@ -100,7 +100,7 @@ fn main() {
 
     // Generate all the hatches
     let hatches: Vec<MultiLineString<f64>> = polygons.0.iter().map(
-        |p| p.hatch(LineHatch {},
+        |p| p.hatch(&LineHatch {},
                     rng.gen::<f64>() * 90.0,
                     rng.gen::<f64>() * 1.0 + pen_width,
                     pen_width)

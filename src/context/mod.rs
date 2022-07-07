@@ -14,6 +14,7 @@ use crate::geo_types::buffer::Buffer;
 use crate::geo_types::clip::LineClip;
 use crate::errors::ContextError;
 use embed_doc_image::embed_doc_image;
+use crate::geo_types::hatch;
 
 /// Operations are private items used to store the operation stack
 /// consisting of a combination of Geometry and Context state.
@@ -44,7 +45,7 @@ impl Operation {
         }
         if hatch_angle != None {
             let hatches = poly
-                .hatch(LineHatch {}, hatch_angle.unwrap(),
+                .hatch(&LineHatch {}, hatch_angle.unwrap(),
                        pen_width * 0.8, pen_width * 0.8)
                 .unwrap_or(MultiLineString::new(vec![]));
             fills.0.append(&mut hatches.0.clone());
@@ -91,7 +92,7 @@ impl Operation {
             Some(stroke) => outlines
                 .outline_fill_stroke_with_hatch(stroke,
                                                 self.pen_width,
-                                                Box::new(LineHatch {}),
+                                                &LineHatch {},
                                                 self.hatch_angle.unwrap_or(45.0))
                 .unwrap_or(outlines),
             None => outlines
