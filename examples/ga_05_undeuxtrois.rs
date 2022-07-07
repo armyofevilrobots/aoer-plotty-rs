@@ -79,7 +79,7 @@ fn main() {
                     // perimeter into lines as well, returning the whole shebang as a
                     // multilinestring.
                     .outline_fill_stroke_with_hatch(stroke_mm, pen_width,
-                                                    Box::new(LineHatch{}),
+                                                    &LineHatch{},
                                                     rot_angle+90.0)
                     .unwrap()
             )
