@@ -3,9 +3,11 @@
 
 
 use std::f64::consts::PI;
+use std::rc::Rc;
 use geo_types::{coord, Coordinate, Geometry, LineString, MultiLineString, MultiPolygon, Point, Polygon};
 use svg::Document;
-use crate::prelude::{Arrangement, OutlineFillStroke, ToSvg};
+use crate::prelude::{Arrangement, HatchPattern, OutlineFillStroke, ToSvg};
+// use crate::geo_types::hatch::HatchPatternClone;
 use crate::geo_types::hatch::{Hatch, LineHatch};
 use cubic_spline::{Points, SplineOpts};
 use geo::map_coords::MapCoords;
@@ -29,6 +31,7 @@ struct Operation {
     line_cap: String,
     pen_width: f64,
     clip_previous: bool,
+    hatch_pattern: Rc<dyn HatchPattern>,
     hatch_angle: Option<f64>,
 }
 
@@ -172,6 +175,7 @@ pub struct Context {
     line_cap: String,
     pen_width: f64,
     clip_previous: bool,
+    hatch_pattern: Rc<dyn HatchPattern>,
     hatch_angle: Option<f64>,
     stack: Vec<Context>,
 }
@@ -216,6 +220,7 @@ impl Context {
             line_cap: "round".to_string(),
             pen_width: 0.5,
             clip_previous: false,
+            hatch_pattern: Rc::new(LineHatch {}),
             hatch_angle: None,
             stack: vec![],
         }
@@ -236,6 +241,7 @@ impl Context {
             line_cap: self.line_cap.clone(),
             pen_width: self.pen_width.clone(),
             clip_previous: self.clip_previous.clone(),
+            hatch_pattern: self.hatch_pattern.clone(),
             hatch_angle: self.hatch_angle.clone(),
             stack: vec![],
         });
@@ -283,6 +289,7 @@ impl Context {
             line_cap: self.line_cap.clone(),
             pen_width: self.pen_width.clone(),
             clip_previous: self.clip_previous.clone(),
+            hatch_pattern: self.hatch_pattern.clone(),
             hatch_angle: self.hatch_angle,
         });
     }
