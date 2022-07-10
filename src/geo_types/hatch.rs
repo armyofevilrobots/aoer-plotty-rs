@@ -1,14 +1,10 @@
-use geo_types::{CoordNum, Polygon, MultiPolygon, MultiLineString, Rect, coord, LineString};
+use geo_types::{Polygon, MultiPolygon, MultiLineString, Rect, coord, LineString};
 use geo::bounding_rect::BoundingRect;
-// use geo::GeoFloat;
 use geo::rotate::Rotate;
-// use geos::from_geo;
-// use geos::to_geo;
 use geos::{Geom, Geometry};
-// use geos::GeometryTypes::{GeometryCollection as GGeometryCollection, LineString};
-use num_traits::real::Real;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use std::rc::Rc;
 use geo_offset::Offset;
 use embed_doc_image::embed_doc_image;
 use crate::geo_types::buffer::Buffer;
@@ -95,25 +91,6 @@ pub trait HatchPattern{
     fn generate(&self, bbox: &Rect<f64>, scale: f64) -> MultiLineString<f64>;
 }
 
-/*
-pub trait HatchPatternClone{
-    fn clone_box(&self) -> Box<dyn HatchPattern>;
-}
-
-impl<T> HatchPatternClone for T
-where T: 'static + HatchPattern + Clone
-{
-    fn clone_box(&self) -> Box<dyn HatchPattern>{
-        Box::new(self.clone())
-    }
-}
-
-impl Clone for Box<dyn HatchPattern> {
-    fn clone(&self) -> Box<dyn HatchPattern> {
-        self.clone_box()
-    }
-}
-*/
 /// # Hatch
 /// Trait which can be implemented for various geo_types, to provide fills
 /// on their interiors. Requires an instance of a Pattern type &lt;P&gt;, which
@@ -145,9 +122,29 @@ pub trait Hatch
              -> Result<MultiLineString<f64>, InvalidHatchGeometry>;
 }
 
+/// The no-hatch option
+#[derive(Debug, Clone)]
+pub struct NoHatch {}
+impl NoHatch {
+    pub fn gen() -> Rc<NoHatch> {
+        Rc::new(Self {})
+    }
+}
+
+impl HatchPattern for NoHatch {
+    fn generate(&self, _bbox: &Rect<f64>, _scale: f64) -> MultiLineString<f64> {
+        MultiLineString::new(vec![])
+    }
+}
+
 /// The basic built in parallel LineHatch.
 #[derive(Debug, Clone)]
 pub struct LineHatch {}
+impl LineHatch {
+    pub fn gen() -> Rc<LineHatch> {
+        Rc::new(Self {})
+    }
+}
 
 impl HatchPattern for LineHatch {
     fn generate(&self, bbox: &Rect<f64>, scale: f64) -> MultiLineString<f64> {
@@ -179,6 +176,13 @@ impl HatchPattern for LineHatch {
 
 #[derive(Debug, Clone)]
 pub struct CrossHatch {}
+impl CrossHatch {
+    pub fn gen() -> Rc<CrossHatch> {
+        Rc::new(Self {})
+    }
+}
+
+
 
 impl HatchPattern for CrossHatch {
     fn generate(&self, bbox: &Rect<f64>, scale: f64) -> MultiLineString<f64> {
@@ -322,7 +326,6 @@ mod test {
             coord! {x: 0.0, y: 0.0},
             coord! {x: 100.0, y: 100.0});
         let hatch_lines = LineHatch {}.generate(&rect, 10.0);
-        println!("LINES HATCHED: {:?}", hatch_lines);
     }
 
     #[test]
@@ -347,7 +350,6 @@ mod test {
                 (hatch_line).try_into().expect("Invalid hatch lines")).collect();
         let geo_hatchlines = Geometry::create_geometry_collection(geo_hatchlines).expect("Got this far?");
         let _hatched_object = geo_perimeter.intersection(&geo_hatchlines).expect("Got this far?");
-        // println!("Hatched object is: {}", _hatched_object.to_wkt().expect("As a string!"))
     }
 
     #[test]
@@ -379,7 +381,7 @@ mod test {
             ]),
             vec![]);
         let hatches = poly.hatch(&LineHatch {}, PI / 4.0, 5.0, 0.0).expect("Failed to Ok the hatches.");
-        println!("Angle-Hatched object is: {:?}", hatches);
+        // println!("Angle-Hatched object is: {:?}", hatches);
         // assert!(hatches.0.len() == 7);
     }
 
