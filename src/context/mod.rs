@@ -1,22 +1,22 @@
 //! Provides the [`crate::context::Context`] struct which gives us a canvas-style drawing
 //! context which provides plotter-ready SVG files. See `Context` for more details, and examples.
+use embed_doc_image::embed_doc_image;
 
 
 use std::f64::consts::PI;
+use std::ops::Deref;
 use std::rc::Rc;
 use geo_types::{coord, Coordinate, Geometry, LineString, MultiLineString, MultiPolygon, Point, Polygon};
 use svg::Document;
-use crate::prelude::{Arrangement, HatchPattern, OutlineFillStroke, ToSvg};
-// use crate::geo_types::hatch::HatchPatternClone;
+use crate::prelude::{Arrangement, HatchPattern, NoHatch, OutlineFillStroke, ToSvg};
 use crate::geo_types::hatch::{Hatch, LineHatch};
 use cubic_spline::{Points, SplineOpts};
 use geo::map_coords::MapCoords;
 use nalgebra::{Affine2, Matrix3, Point2 as NPoint2};
+use nannou::prelude::PI_F64;
 use crate::geo_types::buffer::Buffer;
 use crate::geo_types::clip::LineClip;
 use crate::errors::ContextError;
-use embed_doc_image::embed_doc_image;
-use crate::geo_types::hatch;
 
 /// Operations are private items used to store the operation stack
 /// consisting of a combination of Geometry and Context state.
@@ -32,13 +32,16 @@ struct Operation {
     pen_width: f64,
     clip_previous: bool,
     hatch_pattern: Rc<dyn HatchPattern>,
-    hatch_angle: Option<f64>,
+    hatch_angle: f64,
 }
 
 
 impl Operation {
     /// Helper function for converting polygons into sets of strings.
-    fn poly2lines(poly: &Polygon<f64>, pen_width: f64, hatch_angle: Option<f64>) -> (MultiLineString<f64>, MultiLineString<f64>) {
+    fn poly2lines(poly: &Polygon<f64>, pen_width: f64,
+                  hatch_angle: f64, hatch_pattern: Rc<dyn HatchPattern>)
+                  -> (MultiLineString<f64>, MultiLineString<f64>)
+    {
         let mut strokes = MultiLineString::new(vec![]);
         let mut fills = MultiLineString::new(vec![]);
         // Push the exterior
@@ -46,13 +49,12 @@ impl Operation {
         for interior in poly.interiors() {
             strokes.0.push(interior.clone())
         }
-        if hatch_angle != None {
-            let hatches = poly
-                .hatch(&LineHatch {}, hatch_angle.unwrap(),
-                       pen_width * 0.8, pen_width * 0.8)
-                .unwrap_or(MultiLineString::new(vec![]));
-            fills.0.append(&mut hatches.0.clone());
-        }
+        let hatch_pattern = hatch_pattern.deref();
+        let hatches = poly
+            .hatch(hatch_pattern, hatch_angle,
+                   pen_width * 0.8, pen_width * 0.8)
+            .unwrap_or(MultiLineString::new(vec![]));
+        fills.0.append(&mut hatches.0.clone());
         (strokes, fills)
     }
 
@@ -70,13 +72,15 @@ impl Operation {
                 (MultiLineString::new(vec![ls.clone()]),
                  MultiLineString::new(vec![])),
             Geometry::Polygon(poly) =>
-                Self::poly2lines(poly, self.pen_width, self.hatch_angle),
+                Self::poly2lines(poly, self.pen_width, self.hatch_angle,
+                                 self.hatch_pattern.clone()),
             Geometry::MultiPolygon(polys) => {
                 let mut strokes = MultiLineString::new(vec![]);
                 let mut fills = MultiLineString::new(vec![]);
                 for poly in polys {
                     let (new_strokes, new_fills) =
-                        Self::poly2lines(poly, self.pen_width, self.hatch_angle);
+                        Self::poly2lines(poly, self.pen_width, self.hatch_angle,
+                                         self.hatch_pattern.clone());
                     strokes.0.append(&mut new_strokes.0.clone());
                     fills.0.append(&mut new_fills.0.clone());
                 }
@@ -96,7 +100,7 @@ impl Operation {
                 .outline_fill_stroke_with_hatch(stroke,
                                                 self.pen_width,
                                                 &LineHatch {},
-                                                self.hatch_angle.unwrap_or(45.0))
+                                                self.hatch_angle)
                 .unwrap_or(outlines),
             None => outlines
         };
@@ -127,17 +131,17 @@ impl Operation {
 ///           (0.0,25.0)],
 /// vec![])
 ///    .outline(None)
-///    .hatch(Some(135.0))
+///    .hatch(135.0)
 ///    .stroke("blue")
 ///    .fill("yellow")
 ///    .circle(12.5,12.5, 5.0)
 ///    .push()
-///    .hatch(Some(180.0))
+///    .hatch(180.0)
 ///    .stroke("red")
 ///    .fill("green")
 ///    .circle(17.5,12.5,2.5)
 ///    .pop().unwrap()
-///    .hatch(None)
+///    .hatch(0.0)
 ///    .clip(true)
 ///    .circle(7.5,12.5,2.5)
 ///    .clip(false)
@@ -176,7 +180,7 @@ pub struct Context {
     pen_width: f64,
     clip_previous: bool,
     hatch_pattern: Rc<dyn HatchPattern>,
-    hatch_angle: Option<f64>,
+    hatch_angle: f64,
     stack: Vec<Context>,
 }
 
@@ -220,8 +224,8 @@ impl Context {
             line_cap: "round".to_string(),
             pen_width: 0.5,
             clip_previous: false,
-            hatch_pattern: Rc::new(LineHatch {}),
-            hatch_angle: None,
+            hatch_pattern: NoHatch::gen(),
+            hatch_angle: 0.0,
             stack: vec![],
         }
     }
@@ -242,7 +246,7 @@ impl Context {
             pen_width: self.pen_width.clone(),
             clip_previous: self.clip_previous.clone(),
             hatch_pattern: self.hatch_pattern.clone(),
-            hatch_angle: self.hatch_angle.clone(),
+            hatch_angle: self.hatch_angle,
             stack: vec![],
         });
         self
@@ -261,7 +265,7 @@ impl Context {
         self.line_join = other.line_join.clone();
         self.line_cap = other.line_cap.clone();
         self.pen_width = other.pen_width.clone();
-        self.hatch_angle = other.hatch_angle.clone();
+        self.hatch_angle = other.hatch_angle;
         self.clip_previous = other.clip_previous.clone();
         Ok(self)
     }
@@ -277,7 +281,7 @@ impl Context {
         self
     }
 
-    /// Internal helper. shhhh.
+    /// Adds any arbitrary Geometry type (geo_types geometry)
     fn add_operation(&mut self, geometry: Geometry<f64>) {
         self.operations.push(Operation {
             content: geometry,
@@ -292,6 +296,68 @@ impl Context {
             hatch_pattern: self.hatch_pattern.clone(),
             hatch_angle: self.hatch_angle,
         });
+    }
+
+
+    /// Adds a geometry to the operations list. Has some checking to make it safe
+    /// for general users.
+    pub fn geometry(&mut self, geometry: &Geometry<f64>) -> &mut Self {
+        match &geometry {
+            Geometry::LineString(_ls) => {
+                self.add_operation(geometry.clone());
+            }
+            Geometry::MultiLineString(_mls) => {
+                self.add_operation(geometry.clone());
+            }
+            Geometry::Polygon(_poly) => {
+                self.add_operation(geometry.clone());
+            }
+            Geometry::MultiPolygon(_mp) => {
+                self.add_operation(geometry.clone());
+            }
+            Geometry::Rect(rect) => self.add_operation(Geometry::Polygon(Polygon::new(
+                LineString::new(vec![
+                    coord! {x: rect.min().x, y: rect.min().y},
+                    coord! {x: rect.max().x, y: rect.min().y},
+                    coord! {x: rect.max().x, y: rect.max().y},
+                    coord! {x: rect.min().x, y: rect.max().y},
+                    coord! {x: rect.min().x, y: rect.min().y},
+                ]),
+                vec![],
+            ))),
+            Geometry::Triangle(tri) => self.add_operation(Geometry::Polygon(Polygon::new(
+                LineString::new(vec![
+                    coord! {x: tri.0.x, y:tri.0.y},
+                    coord! {x: tri.1.x, y:tri.1.y},
+                    coord! {x: tri.2.x, y:tri.2.y},
+                    coord! {x: tri.0.x, y:tri.0.y},
+                ]),
+                vec![],
+            ))),
+            Geometry::GeometryCollection(collection) => {
+                for item in collection {
+                    self.geometry(item);
+                }
+            }
+            Geometry::Line(line) => self.add_operation(
+                Geometry::LineString(LineString(vec![
+                    coord!{x: line.start.x, y: line.start.y},
+                    coord!{x: line.end.x, y: line.end.y}
+                ]))),
+            Geometry::Point(pt) => {
+                self.circle(
+                    pt.0.x, pt.0.y, self.pen_width/2.0
+                );
+            },
+            Geometry::MultiPoint(points) => {
+                for pt in points{
+                    self.circle(
+                        pt.0.x, pt.0.y, self.pen_width/2.0
+                    );
+                }
+            }
+        };
+        self
     }
 
     /// Draws a simple line from x0,y0 to x1,y1
@@ -389,6 +455,19 @@ impl Context {
         self
     }
 
+    /// Circumscribed regular polygon.
+    fn regular_poly(&mut self, sides: usize, radius: f64) -> &mut Self {
+        // all the way around to the start again, and hit the first point twice to close it.
+        let geo = Geometry::Polygon(Polygon::new(LineString::new((0..(sides + 2))
+            .map(|i| {
+                let angle = (f64::from(i as i32) / f64::from(sides as i32)) * (2.0 * PI_F64);
+                coord! {x: angle.cos() * radius, y: angle.sin() * radius}
+            }).collect()
+        ), vec![]));
+        self.add_operation(geo);
+        self
+    }
+
     /// Sets the clipping state. Any subsequent objects will clip their predecessors.
     /// Note that this is an EXPENSIVE operation, so you might want to leave it off
     /// if you're sure you won't have intersections.
@@ -412,7 +491,7 @@ impl Context {
     /// Sets the hatch state, either None for no hatching or
     /// Some(angle) to set a hatching angle. Will use the current
     /// pen width as the spacing between hatch lines.
-    pub fn hatch(&mut self, angle: Option<f64>) -> &mut Self {
+    pub fn hatch(&mut self, angle: f64) -> &mut Self {
         self.hatch_angle = angle;
         self
     }
@@ -420,6 +499,12 @@ impl Context {
     /// Sets the pen width
     pub fn pen(&mut self, width: f64) -> &mut Self {
         self.pen_width = width;
+        self
+    }
+
+    /// Set the hatch pattern
+    pub fn pattern(&mut self, pattern: Rc<dyn HatchPattern>) -> &mut Self {
+        self.hatch_pattern = pattern.clone();
         self
     }
 
@@ -515,7 +600,7 @@ impl Context {
 
 #[cfg(test)]
 mod test {
-    use geo_types::Rect;
+    use geo_types::{Rect, Triangle};
     use super::*;
 
     #[test]
@@ -530,7 +615,7 @@ mod test {
         context.stroke("red")
             .pen(0.8)
             .fill("blue")
-            .hatch(Some(45.0))
+            .hatch(45.0)
             .rect(10.0, 10.0, 50.0, 50.0);
         let arrangement = Arrangement::FitCenterMargin(
             10.0,
@@ -545,7 +630,7 @@ mod test {
         context.stroke("red");
         context.pen(0.8);
         context.fill("blue");
-        context.hatch(Some(45.0));
+        context.hatch(45.0);
         context.poly(vec![(10.0, 10.0), (50.0, 10.0), (25.0, 25.0)],
                      vec![]);
         let arrangement = Arrangement::FitCenterMargin(
@@ -553,6 +638,46 @@ mod test {
             Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}),
             false);
         context.to_svg(&arrangement).unwrap();
+    }
 
+    #[test]
+    fn test_regular_poly() {
+        let mut context = Context::new();
+        context.stroke("red");
+        context.pen(0.8);
+        context.fill("blue");
+        context.hatch(45.0);
+        context.regular_poly(4, 100.0);
+        let arrangement = Arrangement::FitCenterMargin(
+            10.0,
+            Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}),
+            false);
+        context.to_svg(&arrangement).unwrap();
+    }
+
+    #[test]
+    fn test_various_geometry(){
+        let mut context = Context::new();
+        context.stroke("red");
+        context.pen(0.8);
+        context.fill("blue");
+        context.hatch(45.0)
+            .geometry(
+                &Geometry::Polygon(
+                    Polygon::new(
+                        LineString::new(
+                            vec![
+                                coord!{x: 0.0, y:0.0},
+                                coord!{x: 100.0, y:0.0},
+                                coord!{x:100.0, y:100.0},
+                                coord!{x:0.0, y:100.0},
+                                coord!{x: 0.0, y:0.0},
+                            ]), vec![])))
+            .geometry(
+                &Geometry::Triangle(
+                    Triangle::new(
+                                coord!{x: 0.0, y:0.0},
+                                coord!{x: 100.0, y:0.0},
+                                coord!{x:100.0, y:100.0})));
     }
 }
