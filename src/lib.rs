@@ -15,6 +15,9 @@
 //! [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 //!
 //! # Changelog
+//! * 0.1.8. Add a bunch of new features to Context, including regular polygons
+//!          and tesselated polys (stars of various point counts). Circles are
+//!          now somewhat simpler as well.
 //! * 0.1.7. Another big change. Added the Context drawing library, which is HUGE,
 //!   and contains way too much functionality to discuss here.
 //! * 0.1.6. Various changes:

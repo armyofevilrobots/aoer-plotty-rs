@@ -1,5 +1,4 @@
 use std::path::Path;
-use std::rc::Rc;
 use geo_types::{coord, Rect};
 use aoer_plotty_rs::context::Context;
 use aoer_plotty_rs::geo_types::svg::Arrangement;
@@ -55,6 +54,10 @@ fn main(){
         .stroke("cyan")
         .circle(0.0, 0.0, 8.0)
         .pop().unwrap() // We're back to purple and regular coords
+        .outline(None)
+        .stroke("green")
+        .regular_poly(8, 80.0, 80.0, 20.0, 0.0)
+        .star_poly(5, 30.0, 80.0, 10.0, 20.0, 0.0)
     ;
 
     let svg = ctx.to_svg(
