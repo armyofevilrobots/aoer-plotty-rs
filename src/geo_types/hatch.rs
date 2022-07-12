@@ -325,7 +325,8 @@ mod test {
         let rect = Rect::<f64>::new(
             coord! {x: 0.0, y: 0.0},
             coord! {x: 100.0, y: 100.0});
-        let hatch_lines = LineHatch {}.generate(&rect, 10.0);
+        //let hatch_lines =
+        LineHatch {}.generate(&rect, 10.0);
     }
 
     #[test]
@@ -382,7 +383,7 @@ mod test {
             vec![]);
         let hatches = poly.hatch(&LineHatch {}, PI / 4.0, 5.0, 0.0).expect("Failed to Ok the hatches.");
         // println!("Angle-Hatched object is: {:?}", hatches);
-        // assert!(hatches.0.len() == 7);
+        assert_eq!(hatches.0.len(), 8);
     }
 
     #[test]

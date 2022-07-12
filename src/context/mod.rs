@@ -6,7 +6,7 @@ use embed_doc_image::embed_doc_image;
 use std::f64::consts::PI;
 use std::ops::Deref;
 use std::rc::Rc;
-use geo_types::{coord, Coordinate, Geometry, LineString, MultiLineString, MultiPolygon, Point, Polygon};
+use geo_types::{coord, Coordinate, Geometry, LineString, MultiLineString, Polygon};
 use svg::Document;
 use crate::prelude::{Arrangement, HatchPattern, NoHatch, OutlineFillStroke, ToSvg};
 use crate::geo_types::hatch::{Hatch, LineHatch};
@@ -14,7 +14,7 @@ use cubic_spline::{Points, SplineOpts};
 use geo::map_coords::MapCoords;
 use nalgebra::{Affine2, Matrix3, Point2 as NPoint2};
 use nannou::prelude::PI_F64;
-use crate::geo_types::buffer::Buffer;
+use num_traits::FromPrimitive;
 use crate::geo_types::clip::LineClip;
 use crate::errors::ContextError;
 
@@ -164,6 +164,10 @@ impl Operation {
 ///    .stroke("cyan")
 ///    .circle(0.0, 0.0, 8.0)
 ///    .pop().unwrap() // We're back to purple and regular coords
+///    .outline(None)
+///     .stroke("green")
+///     .regular_poly(8, 80.0, 80.0, 20.0, 0.0)
+///     .star_poly(5, 30.0, 80.0, 10.0, 20.0, 0.0)
 /// ;
 /// ```
 /// ![context_basic][context_basic]
@@ -341,18 +345,18 @@ impl Context {
             }
             Geometry::Line(line) => self.add_operation(
                 Geometry::LineString(LineString(vec![
-                    coord!{x: line.start.x, y: line.start.y},
-                    coord!{x: line.end.x, y: line.end.y}
+                    coord! {x: line.start.x, y: line.start.y},
+                    coord! {x: line.end.x, y: line.end.y},
                 ]))),
             Geometry::Point(pt) => {
                 self.circle(
-                    pt.0.x, pt.0.y, self.pen_width/2.0
+                    pt.0.x, pt.0.y, self.pen_width / 2.0,
                 );
-            },
+            }
             Geometry::MultiPoint(points) => {
-                for pt in points{
+                for pt in points {
                     self.circle(
-                        pt.0.x, pt.0.y, self.pen_width/2.0
+                        pt.0.x, pt.0.y, self.pen_width / 2.0,
                     );
                 }
             }
@@ -447,24 +451,62 @@ impl Context {
     /// Draws a circle. Actually just buffers a point, and returns a polygon
     /// which it draws on the context.
     pub fn circle(&mut self, x0: f64, y0: f64, radius: f64) -> &mut Self {
-        let geo =
-            Geometry::MultiPolygon(Geometry::Point(Point::new(x0, y0))
-                .buffer(radius)
-                .unwrap_or(MultiPolygon::new(vec![])));
+        // let geo =
+        //     Geometry::MultiPolygon(Geometry::Point(Point::new(x0, y0))
+        //         .buffer(radius)
+        //         .unwrap_or(MultiPolygon::new(vec![])));
+        // self.add_operation(geo);
+        // self
+        // As the size increases, absolute deviation grows. Therefore, increase
+        // the number of sides as a linear relation to radius. Maximum of 1000 sides,
+        // but usually far fewer, minimum of 32.
+        let radius = radius.abs();
+        let sides = 1000.min(32.max(usize::from_f64(radius).unwrap_or(1000)*4));
+        self.regular_poly(sides, x0, y0, radius, 0.0)
+    }
+
+    /// Circumscribed regular polygon. The vertices of the polygon will be situated on a
+    /// circle defined by the given radius. Polygon will be centered at x,y.
+    pub fn regular_poly(&mut self, sides: usize, x: f64, y: f64, radius: f64, rotation: f64) -> &mut Self {
+        // all the way around to the start again, and hit the first point twice to close it.
+        if sides < 3 { return self; };
+
+        let geo = Geometry::Polygon(Polygon::new(LineString::new((0..(sides + 2))
+            .map(|i| {
+                let angle = rotation - PI_F64/2.0 +
+                    (f64::from(i as i32) / f64::from(sides as i32)) * (2.0 * PI_F64);
+                coord! {x: x+angle.cos() * radius, y: y+angle.sin() * radius}
+            }).collect()
+        ), vec![]));
         self.add_operation(geo);
         self
     }
 
-    /// Circumscribed regular polygon.
-    fn regular_poly(&mut self, sides: usize, radius: f64) -> &mut Self {
-        // all the way around to the start again, and hit the first point twice to close it.
-        let geo = Geometry::Polygon(Polygon::new(LineString::new((0..(sides + 2))
-            .map(|i| {
-                let angle = (f64::from(i as i32) / f64::from(sides as i32)) * (2.0 * PI_F64);
-                coord! {x: angle.cos() * radius, y: angle.sin() * radius}
-            }).collect()
-        ), vec![]));
-        self.add_operation(geo);
+    /// Regular star polygon. This is effectively a _star_ shape with the number of points indicated,
+    /// and with inner and outer radiuses which correspond to the valleys and tips of the star
+    /// respectively. Note: this is not a star polygon in the strict mathematical sense. This is
+    /// just a polygon that is in the shape of a star. I may or may not get to regular star polygons
+    /// (in the canonical mathematical sense) at some point.
+    pub fn star_poly(&mut self, sides: usize, x: f64, y: f64, inner_radius: f64, outer_radius: f64, rotation: f64) -> &mut Self {
+        if sides < 3 { return self; };
+        let mut exterior = LineString::<f64>::new(vec![]);
+        for i in 0..sides {
+            let angle_a = rotation - PI_F64/2.0 +
+                (f64::from(i as i32) / f64::from(sides as i32)) * (2.0 * PI_F64);
+            let angle_b = rotation - PI_F64/2.0 +
+                ((f64::from(i as i32) + 0.5) / f64::from(sides as i32)) * (2.0 * PI_F64);
+            exterior.0.push(coord! {
+                x: x+angle_a.cos() * outer_radius,
+                y: y+angle_a.sin() * outer_radius});
+            exterior.0.push(coord! {
+                x: x+angle_b.cos() * inner_radius,
+                y: y+angle_b.sin() * inner_radius});
+        }
+        // and close it...
+        exterior.0.push(coord! {
+            x: x+(rotation - PI_F64/2.0).cos() * outer_radius,
+            y: y+(rotation - PI_F64/2.0).sin() * outer_radius});
+        self.add_operation(Geometry::Polygon(Polygon::new(exterior, vec![])));
         self
     }
 
@@ -647,7 +689,7 @@ mod test {
         context.pen(0.8);
         context.fill("blue");
         context.hatch(45.0);
-        context.regular_poly(4, 100.0);
+        context.regular_poly(4, 50.0, 50.0, 100.0, 0.0);
         let arrangement = Arrangement::FitCenterMargin(
             10.0,
             Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}),
@@ -656,7 +698,17 @@ mod test {
     }
 
     #[test]
-    fn test_various_geometry(){
+    fn test_5_pointed_star() {
+        let mut context = Context::new();
+        context.stroke("red")
+            .pen(0.8)
+            .fill("blue")
+            .hatch(45.0)
+            .star_poly(5, 50.0, 50.0, 20.0, 40.0, 0.0);
+    }
+
+    #[test]
+    fn test_various_geometry() {
         let mut context = Context::new();
         context.stroke("red");
         context.pen(0.8);
@@ -667,17 +719,28 @@ mod test {
                     Polygon::new(
                         LineString::new(
                             vec![
-                                coord!{x: 0.0, y:0.0},
-                                coord!{x: 100.0, y:0.0},
-                                coord!{x:100.0, y:100.0},
-                                coord!{x:0.0, y:100.0},
-                                coord!{x: 0.0, y:0.0},
+                                coord! {x: 0.0, y:0.0},
+                                coord! {x: 100.0, y:0.0},
+                                coord! {x:100.0, y:100.0},
+                                coord! {x:0.0, y:100.0},
+                                coord! {x: 0.0, y:0.0},
                             ]), vec![])))
             .geometry(
                 &Geometry::Triangle(
                     Triangle::new(
-                                coord!{x: 0.0, y:0.0},
-                                coord!{x: 100.0, y:0.0},
-                                coord!{x:100.0, y:100.0})));
+                        coord! {x: 0.0, y:0.0},
+                        coord! {x: 100.0, y:0.0},
+                        coord! {x:100.0, y:100.0})));
+        let arrangement = Arrangement::unit(&Rect::new(coord!{x: 0.0, y: 0.0}, coord!{x:100.0, y:100.0}));
+        let svg = context.to_svg(&arrangement).unwrap();
+        assert_eq!(svg.to_string(), concat!(
+        "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
+        "<path d=\"M0,0 L100,0 L100,100 L0,100 L0,0\" fill=\"none\" id=\"outline-0\" stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.8\"/>\n",
+        "<path d=\"M0,0 L100,0 L100,100 L0,0\" fill=\"none\" id=\"outline-0\" stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.8\"/>\n",
+        "</svg>"
+        ));
+
+
     }
+
 }
