@@ -275,8 +275,13 @@ impl Context {
     }
 
     /// Set the transformation matrix for subsequent ops. Take a look at the transformation
-    /// helpers, which are great if you don't want to generate your own unsafe Affine2
-    /// transformations.
+    /// helpers ([`crate::context::Context::scale_matrix`],
+    /// [`crate::context::Context::translate_matrix`], and
+    /// [`crate::context::Context::rotate_matrix`], which are great
+    /// if you don't want to generate your own unsafe Affine2 transformations. Also, usefully,
+    /// these transformations can be COMPOSED via multiplication. Note that the order of the
+    /// compositions is right-to-left, so the last in the chain of multiplications is the
+    /// first one to be performed. See the example in context_basic.rs for more info.
     pub fn transform(&mut self, transformation: Option<&Affine2<f64>>) -> &mut Self {
         self.transformation = match transformation {
             Some(tx) => Some(tx.clone()),
