@@ -30,6 +30,7 @@ struct Operation {
     line_join: String,
     line_cap: String,
     pen_width: f64,
+    mask: Option<Geometry<f64>>,
     clip_previous: bool,
     hatch_pattern: Rc<dyn HatchPattern>,
     hatch_angle: f64,
@@ -104,7 +105,24 @@ impl Operation {
                 .unwrap_or(outlines),
             None => outlines
         };
-        (outlines, fills)
+        // Aha! Now we have to clip this shit.
+        if let Some(mask) = &self.mask.clone(){
+            let mask_tx = match &self.transformation {
+                Some(affine) => {
+                    mask.map_coords(|xy| Self::xform_coord(xy, affine))
+                }
+                None => mask.clone()
+            };
+            let outlines = Geometry::MultiLineString(outlines)
+                .clipwith(&mask)
+                .unwrap_or(MultiLineString::<f64>::new(vec![]));
+            let fills = Geometry::MultiLineString(fills)
+                .clipwith(&mask)
+                .unwrap_or(MultiLineString::<f64>::new(vec![]));
+            (outlines, fills)
+        }else{
+            (outlines, fills)
+        }
     }
 }
 
@@ -182,6 +200,7 @@ pub struct Context {
     line_join: String,
     line_cap: String,
     pen_width: f64,
+    mask: Option<Geometry<f64>>,
     clip_previous: bool,
     hatch_pattern: Rc<dyn HatchPattern>,
     hatch_angle: f64,
@@ -227,11 +246,43 @@ impl Context {
             line_join: "round".to_string(),
             line_cap: "round".to_string(),
             pen_width: 0.5,
+            mask: None,
             clip_previous: false,
             hatch_pattern: NoHatch::gen(),
             hatch_angle: 0.0,
             stack: vec![],
         }
+    }
+
+    /// Masks any further operations with a clipping polygon. Only items
+    /// inside the clipping poly will be used.
+    pub fn mask_poly(&mut self, exterior: Vec<(f64, f64)>, interiors: Vec<Vec<(f64, f64)>>) -> &mut Self {
+        self.mask = Option::from(Geometry::Polygon(
+            Polygon::<f64>::new(
+                LineString::new(
+                    exterior
+                        .iter()
+                        .map(|(x, y)| coord! {x:*x, y:*y})
+                        .collect()
+                ),
+                interiors
+                    .iter()
+                    .map(|interior| {
+                        LineString::<f64>::new(interior
+                            .iter()
+                            .map(|(x, y)| coord! {x:*x, y:*y})
+                            .collect::<Vec<Coordinate<f64>>>())
+                    })
+                    .collect(),
+            )));
+
+        self
+    }
+
+    /// Sets the mask to Geometry, or None.
+    pub fn set_mask(&mut self, mask: &Option<Geometry<f64>>) -> &mut Self {
+        self.mask = mask.clone();
+        self
     }
 
     /// Pushes the current context onto the stack.
@@ -248,6 +299,7 @@ impl Context {
             line_join: self.line_join.clone(),
             line_cap: self.line_cap.clone(),
             pen_width: self.pen_width.clone(),
+            mask: self.mask.clone(),
             clip_previous: self.clip_previous.clone(),
             hatch_pattern: self.hatch_pattern.clone(),
             hatch_angle: self.hatch_angle,
@@ -301,6 +353,7 @@ impl Context {
             line_join: self.line_join.clone(),
             line_cap: self.line_cap.clone(),
             pen_width: self.pen_width.clone(),
+            mask: self.mask.clone(),
             clip_previous: self.clip_previous.clone(),
             hatch_pattern: self.hatch_pattern.clone(),
             hatch_angle: self.hatch_angle,
