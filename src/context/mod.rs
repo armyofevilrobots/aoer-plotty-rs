@@ -24,6 +24,7 @@ use crate::errors::ContextError;
 #[derive(Clone)]
 struct Operation {
     content: Geometry<f64>,
+    rendered: (MultiLineString<f64>, MultiLineString<f64>),
     transformation: Option<Affine2<f64>>,
     stroke_color: String,
     outline_stroke: Option<f64>,
@@ -220,7 +221,8 @@ impl Context {
             0.0, 0.0, 1.0))
     }
 
-    /// Viewbox helper
+    /// Viewbox helper. Useful to create an arbitrary viewbox for
+    /// your SVGs.
     pub fn viewbox(x0: f64, y0: f64, x1: f64, y1: f64) -> Rect<f64> {
         Rect::new(
             coord! {x: x0, y: y0},
@@ -371,8 +373,10 @@ impl Context {
 
     /// Adds any arbitrary Geometry type (geo_types geometry)
     fn add_operation(&mut self, geometry: Geometry<f64>) {
-        self.operations.push(Operation {
+        let mut op = Operation {
             content: geometry,
+            rendered: (MultiLineString::new(vec![]),
+                       MultiLineString::new(vec![])),
             transformation: self.transformation.clone(),
             stroke_color: self.stroke_color.clone(),
             outline_stroke: self.outline_stroke.clone(),
@@ -384,7 +388,9 @@ impl Context {
             clip_previous: self.clip_previous.clone(),
             hatch_pattern: self.hatch_pattern.clone(),
             hatch_angle: self.hatch_angle,
-        });
+        };
+        op.rendered = op.render_to_lines();
+        self.operations.push(op);
     }
 
 
@@ -662,7 +668,8 @@ impl Context {
             .or(Err(ContextError::SvgGenerationError("Failed to create raw svg doc".into()).into()))?;
         let mut oplayers: Vec<OPLayer> = vec![];
         for op in &self.operations {
-            let (stroke, fill) = op.render_to_lines();
+            // let (stroke, fill) = op.render_to_lines();
+            let (stroke, fill) = op.rendered.clone();
             oplayers.push(OPLayer {
                 stroke_lines: stroke,
                 fill_lines: fill,
