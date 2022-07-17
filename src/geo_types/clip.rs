@@ -36,7 +36,8 @@ pub trait LineClip {
 
 }
 
-
+/// Helper function to map geos geoms from geo_types geom. Public, but no promises that it
+/// stays stable.
 pub fn try_to_geos_geometry(geometry: &Geometry<f64>) -> Result<geos::Geometry, Box<dyn Error>>{
     Ok(match geometry {
         Geometry::LineString(line) => geos::Geometry::try_from(line),
