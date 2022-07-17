@@ -6,16 +6,17 @@ use embed_doc_image::embed_doc_image;
 use std::f64::consts::PI;
 use std::ops::Deref;
 use std::rc::Rc;
-use geo_types::{coord, Coordinate, Geometry, LineString, MultiLineString, Polygon};
+use geo_types::{coord, Coordinate, Geometry, LineString, MultiLineString, Polygon, Rect};
 use svg::Document;
 use crate::prelude::{Arrangement, HatchPattern, NoHatch, OutlineFillStroke, ToSvg};
 use crate::geo_types::hatch::{Hatch, LineHatch};
 use cubic_spline::{Points, SplineOpts};
 use geo::map_coords::MapCoords;
+use geos::{Geom, GeometryTypes};
 use nalgebra::{Affine2, Matrix3, Point2 as NPoint2};
 use nannou::prelude::PI_F64;
 use num_traits::FromPrimitive;
-use crate::geo_types::clip::LineClip;
+use crate::geo_types::clip::{LineClip, try_to_geos_geometry};
 use crate::errors::ContextError;
 
 /// Operations are private items used to store the operation stack
@@ -66,21 +67,45 @@ impl Operation {
     }
 
     fn render_to_lines(&self) -> (MultiLineString<f64>, MultiLineString<f64>) {
-        let (outlines, fills) = match &self.content {
+        // Get the transformed geo, or just this geo at 1:1
+        let txgeo = match &self.transformation {
+            Some(tx) => self.content
+                .map_coords(|xy| Operation::xform_coord(xy, tx)),
+            None => self.content.clone()
+        };
+        // Then mask the geo if there is a mask.
+        let txgeo = match &self.mask {
+            Some(mask) => {
+                let ggeo = try_to_geos_geometry(&txgeo)
+                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+                        .unwrap());
+                let mggeo = try_to_geos_geometry(mask)
+                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+                        .unwrap());
+                let masked_geo = ggeo.intersection(&mggeo)
+                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+                        .unwrap());
+                geo_types::Geometry::<f64>::try_from(masked_geo).unwrap_or(Geometry::GeometryCollection::<f64>(Default::default()))
+            },
+            None => txgeo
+        };
+
+        // Then turn it into outlines and fills
+        let (outlines, fills) = match txgeo {
             Geometry::MultiLineString(mls) =>
                 (mls.clone(), MultiLineString::new(vec![])),
             Geometry::LineString(ls) =>
                 (MultiLineString::new(vec![ls.clone()]),
                  MultiLineString::new(vec![])),
             Geometry::Polygon(poly) =>
-                Self::poly2lines(poly, self.pen_width, self.hatch_angle,
+                Self::poly2lines(&poly, self.pen_width, self.hatch_angle,
                                  self.hatch_pattern.clone()),
             Geometry::MultiPolygon(polys) => {
                 let mut strokes = MultiLineString::new(vec![]);
                 let mut fills = MultiLineString::new(vec![]);
                 for poly in polys {
                     let (new_strokes, new_fills) =
-                        Self::poly2lines(poly, self.pen_width, self.hatch_angle,
+                        Self::poly2lines(&poly, self.pen_width, self.hatch_angle,
                                          self.hatch_pattern.clone());
                     strokes.0.append(&mut new_strokes.0.clone());
                     fills.0.append(&mut new_fills.0.clone());
@@ -89,13 +114,8 @@ impl Operation {
             }
             _ => (MultiLineString::new(vec![]), MultiLineString::new(vec![]))
         };
-        let (outlines, fills) = match &self.transformation {
-            Some(affine) => {
-                (outlines.map_coords(|xy| Self::xform_coord(xy, affine)),
-                 fills.map_coords(|xy| Self::xform_coord(xy, affine)))
-            }
-            None => (outlines, fills)
-        };
+
+        // Finally, if we have outline stroke, then outline the existing strokes.
         let outlines = match self.outline_stroke {
             Some(stroke) => outlines
                 .outline_fill_stroke_with_hatch(stroke,
@@ -105,24 +125,7 @@ impl Operation {
                 .unwrap_or(outlines),
             None => outlines
         };
-        // Aha! Now we have to clip this shit.
-        if let Some(mask) = &self.mask.clone(){
-            let mask_tx = match &self.transformation {
-                Some(affine) => {
-                    mask.map_coords(|xy| Self::xform_coord(xy, affine))
-                }
-                None => mask.clone()
-            };
-            let outlines = Geometry::MultiLineString(outlines)
-                .clipwith(&mask)
-                .unwrap_or(MultiLineString::<f64>::new(vec![]));
-            let fills = Geometry::MultiLineString(fills)
-                .clipwith(&mask)
-                .unwrap_or(MultiLineString::<f64>::new(vec![]));
-            (outlines, fills)
-        }else{
-            (outlines, fills)
-        }
+        (outlines, fills)
     }
 }
 
@@ -217,6 +220,13 @@ impl Context {
             0.0, 0.0, 1.0))
     }
 
+    /// Viewbox helper
+    pub fn viewbox(x0: f64, y0: f64, x1: f64, y1: f64) -> Rect<f64> {
+        Rect::new(
+            coord! {x: x0, y: y0},
+            coord! {x: x1, y: y1})
+    }
+
     /// Helper to create a translation matrix
     pub fn translate_matrix(tx: f64, ty: f64) -> Affine2<f64> {
         Affine2::from_matrix_unchecked(Matrix3::new(
@@ -257,7 +267,7 @@ impl Context {
     /// Masks any further operations with a clipping polygon. Only items
     /// inside the clipping poly will be used.
     pub fn mask_poly(&mut self, exterior: Vec<(f64, f64)>, interiors: Vec<Vec<(f64, f64)>>) -> &mut Self {
-        self.mask = Option::from(Geometry::Polygon(
+        let mask = Geometry::Polygon(
             Polygon::<f64>::new(
                 LineString::new(
                     exterior
@@ -274,14 +284,31 @@ impl Context {
                             .collect::<Vec<Coordinate<f64>>>())
                     })
                     .collect(),
-            )));
-
+            ));
+        self.set_mask(&Some(mask));
         self
+    }
+
+    pub fn mask_box(&mut self, x0: f64, y0: f64, x1: f64, y1: f64) -> &mut Self {
+        self.mask_poly(vec![
+            (x0, y0),
+            (x1, y0),
+            (x1, y1),
+            (x0, y1),
+            (x0, y0)
+        ], vec![])
     }
 
     /// Sets the mask to Geometry, or None.
     pub fn set_mask(&mut self, mask: &Option<Geometry<f64>>) -> &mut Self {
-        self.mask = mask.clone();
+        self.mask = match mask{
+            Some(maskgeo) => Some(match &self.transformation {
+                Some(affine)=> maskgeo.map_coords(
+                    |xy| Operation::xform_coord(xy, affine)),
+                None => maskgeo.clone()
+            }),
+            None => mask.clone()
+        };
         self
     }
 
@@ -519,7 +546,7 @@ impl Context {
         // the number of sides as a linear relation to radius. Maximum of 1000 sides,
         // but usually far fewer, minimum of 32.
         let radius = radius.abs();
-        let sides = 1000.min(32.max(usize::from_f64(radius).unwrap_or(1000)*4));
+        let sides = 1000.min(32.max(usize::from_f64(radius).unwrap_or(1000) * 4));
         self.regular_poly(sides, x0, y0, radius, 0.0)
     }
 
@@ -531,7 +558,7 @@ impl Context {
 
         let geo = Geometry::Polygon(Polygon::new(LineString::new((0..(sides + 2))
             .map(|i| {
-                let angle = rotation - PI_F64/2.0 +
+                let angle = rotation - PI_F64 / 2.0 +
                     (f64::from(i as i32) / f64::from(sides as i32)) * (2.0 * PI_F64);
                 coord! {x: x+angle.cos() * radius, y: y+angle.sin() * radius}
             }).collect()
@@ -549,9 +576,9 @@ impl Context {
         if sides < 3 { return self; };
         let mut exterior = LineString::<f64>::new(vec![]);
         for i in 0..sides {
-            let angle_a = rotation - PI_F64/2.0 +
+            let angle_a = rotation - PI_F64 / 2.0 +
                 (f64::from(i as i32) / f64::from(sides as i32)) * (2.0 * PI_F64);
-            let angle_b = rotation - PI_F64/2.0 +
+            let angle_b = rotation - PI_F64 / 2.0 +
                 ((f64::from(i as i32) + 0.5) / f64::from(sides as i32)) * (2.0 * PI_F64);
             exterior.0.push(coord! {
                 x: x+angle_a.cos() * outer_radius,
@@ -789,7 +816,7 @@ mod test {
                         coord! {x: 0.0, y:0.0},
                         coord! {x: 100.0, y:0.0},
                         coord! {x:100.0, y:100.0})));
-        let arrangement = Arrangement::unit(&Rect::new(coord!{x: 0.0, y: 0.0}, coord!{x:100.0, y:100.0}));
+        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
         let svg = context.to_svg(&arrangement).unwrap();
         assert_eq!(svg.to_string(), concat!(
         "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
@@ -797,8 +824,5 @@ mod test {
         "<path d=\"M0,0 L100,0 L100,100 L0,0\" fill=\"none\" id=\"outline-0\" stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.8\"/>\n",
         "</svg>"
         ));
-
-
     }
-
 }

@@ -27,8 +27,35 @@ use std::convert::TryFrom;
 /// Regardless of self being lines or polygons, the result is a set of lines suitable
 /// for output to a plotter. Returning original source geometry is going to be a
 /// separate trait, which I'll get around to once I need it.
+///
+/// maskwith is the inverse: only objects (or the portions thereof) which intersect with the maskobj
+/// will be returned.
 pub trait LineClip {
     fn clipwith(&self, clipobj: &Self) -> Result<MultiLineString<f64>, Box<dyn Error>>;
+    fn maskwith(&self, maskobj: &Self) -> Result<MultiLineString<f64>, Box<dyn Error>>;
+
+}
+
+
+pub fn try_to_geos_geometry(geometry: &Geometry<f64>) -> Result<geos::Geometry, Box<dyn Error>>{
+    Ok(match geometry {
+        Geometry::LineString(line) => geos::Geometry::try_from(line),
+        Geometry::Polygon(poly) => geos::Geometry::try_from(poly),
+        Geometry::MultiPolygon(polys) => geos::Geometry::try_from(polys),
+        Geometry::MultiLineString(mls) => {
+            geos::Geometry::create_multiline_string(mls.0
+                .clone()
+                .iter()
+                .map(|line| {
+                    geos::Geometry::try_from(line)
+                        .unwrap_or(geos::Geometry::create_empty_line_string().unwrap())
+                })
+                .collect())
+        },
+        _ => {
+            Err(geos::Error::InvalidGeometry("Wrong type of geometry".into()))
+        }
+    }?)
 }
 
 impl LineClip for Geometry<f64>
@@ -86,9 +113,66 @@ impl LineClip for Geometry<f64>
 
             },
         }
+    }
+
+
+    fn maskwith(&self, maskobj: &Self) -> Result<MultiLineString<f64>, Box<dyn Error>> {
+        let geo_self: geos::Geometry = match self {
+            Geometry::LineString(line) => geos::Geometry::try_from(line),
+            Geometry::Polygon(poly) => geos::Geometry::try_from(poly),
+            Geometry::MultiPolygon(polys) => geos::Geometry::try_from(polys),
+            Geometry::MultiLineString(mls) => {
+                geos::Geometry::create_multiline_string(mls.0
+                    .clone()
+                    .iter()
+                    .map(|line| {
+                        geos::Geometry::try_from(line)
+                            .unwrap_or(geos::Geometry::create_empty_line_string().unwrap())
+                    })
+                    .collect())
+            },
+            _ => {
+                Err(geos::Error::InvalidGeometry("Wrong type of geometry".into()))
+            }
+        }?;
+
+        let geo_masking_obj = match maskobj {
+            Geometry::LineString(the_line) => {
+                geos::Geometry::try_from(
+                    Polygon::new(the_line.clone(), vec![]))?
+                    .buffer(0.001, 8)
+            },
+            Geometry::Polygon(poly) => geos::Geometry::try_from(poly),
+            Geometry::MultiPolygon(polys) => geos::Geometry::try_from(polys),
+            _ => {
+                Err(geos::Error::InvalidGeometry("Wrong type of geometry".into()))
+            }
+        }?;
+        let masked_self = geo_self.intersection(&geo_masking_obj)?;
+        let gt_out: geo_types::Geometry<f64> = geo_types::Geometry::try_from(masked_self)?;
+
+        match gt_out {
+            geo_types::Geometry::MultiLineString(mls) => Ok(mls),
+            geo_types::Geometry::LineString(ls) => {
+                Ok(MultiLineString::new(vec![ls.clone()]))
+            },
+            geo_types::Geometry::GeometryCollection(gc) => {
+                let foo = gc.iter().map(|g| match g {
+                    geo_types::Geometry::MultiLineString(mls) => mls.clone(),
+                    geo_types::Geometry::LineString(ls) => MultiLineString(vec![ls.clone()]),
+                    _ => MultiLineString(vec![])
+                }).collect::<Vec<MultiLineString<f64>>>();
+                Ok(MultiLineString::new(foo.iter().map(|mls| mls.0.clone()).flatten().collect()))
+            },
+            _ => {
+                Ok(MultiLineString::new(vec![]))
+
+            },
+        }
 
 
     }
+
 }
 
 impl LineClip for LineString<f64> {
@@ -111,6 +195,27 @@ impl LineClip for LineString<f64> {
             _ => Ok(MultiLineString::new(vec![])),
         }
     }
+
+    fn maskwith(&self, maskobj: &Self) -> Result<MultiLineString<f64>, Box<dyn Error>> {
+        let geo_self: geos::Geometry = geos::Geometry::try_from(self)?;
+        let geo_masking_obj = geos::Geometry::try_from(Polygon::new(maskobj.clone(), vec![]))?;
+        let geo_masking_obj = geo_masking_obj.buffer(0.001, 4)?;
+        let masked_self = geo_self.intersection(&geo_masking_obj)?;
+        let gt_out: geo_types::Geometry<f64> = geo_types::Geometry::try_from(masked_self)?;
+        match gt_out {
+            geo_types::Geometry::MultiLineString(mls) => Ok(mls),
+            geo_types::Geometry::GeometryCollection(gc) => {
+                let foo = gc.iter().map(|g| match g {
+                    geo_types::Geometry::MultiLineString(mls) => mls.clone(),
+                    geo_types::Geometry::LineString(ls) => MultiLineString(vec![ls.clone()]),
+                    _ => MultiLineString(vec![])
+                }).collect::<Vec<MultiLineString<f64>>>();
+                Ok(MultiLineString::new(foo.iter().map(|mls| mls.0.clone()).flatten().collect()))
+            },
+            _ => Ok(MultiLineString::new(vec![])),
+        }
+    }
+
 }
 
 #[cfg(test)]
