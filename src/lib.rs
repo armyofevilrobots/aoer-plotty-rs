@@ -15,6 +15,12 @@
 //! [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 //!
 //! # Changelog
+//! * 0.1.9. Add masking to context: You can now mask the drawable area with
+//!          any [`geo_types::Geometry`] variant and only areas under the mask
+//!          will actually render. Also changed some performance and accuracy
+//!          related optimizations so that clipped items look clean.
+//!          Also added the final Generative Artistry examples. I'll miss
+//!          implementing those :(
 //! * 0.1.8. Add a bunch of new features to Context, including regular polygons
 //!          and tesselated polys (stars of various point counts). Circles are
 //!          now somewhat simpler as well.
