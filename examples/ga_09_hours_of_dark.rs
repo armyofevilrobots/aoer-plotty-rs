@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 use std::path::Path;
-use aoer_plotty_rs::prelude::{Arrangement, LineHatch, NoHatch};
+use aoer_plotty_rs::prelude::{Arrangement, LineHatch};
 use aoer_plotty_rs::context::Context;
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/hours-of-dark/

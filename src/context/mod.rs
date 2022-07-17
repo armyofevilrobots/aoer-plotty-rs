@@ -69,11 +69,12 @@ impl Operation {
 
     fn render_to_lines(&self) -> (MultiLineString<f64>, MultiLineString<f64>) {
         // Get the transformed geo, or just this geo at 1:1
-        let txgeo = match &self.transformation {
-            Some(tx) => self.content
-                .map_coords(|xy| Operation::xform_coord(xy, tx)),
-            None => self.content.clone()
-        };
+        // let txgeo = match &self.transformation {
+        //     Some(tx) => self.content
+        //         .map_coords(|xy| Operation::xform_coord(xy, tx)),
+        //     None => self.content.clone()
+        // };
+        let txgeo = self.content.clone();
         // Then mask the geo if there is a mask.
         let txgeo = match &self.mask {
             Some(mask) => {
@@ -87,7 +88,7 @@ impl Operation {
                     .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
                         .unwrap());
                 geo_types::Geometry::<f64>::try_from(masked_geo).unwrap_or(Geometry::GeometryCollection::<f64>(Default::default()))
-            },
+            }
             None => txgeo
         };
 
@@ -297,15 +298,15 @@ impl Context {
             (x1, y0),
             (x1, y1),
             (x0, y1),
-            (x0, y0)
+            (x0, y0),
         ], vec![])
     }
 
     /// Sets the mask to Geometry, or None.
     pub fn set_mask(&mut self, mask: &Option<Geometry<f64>>) -> &mut Self {
-        self.mask = match mask{
+        self.mask = match mask {
             Some(maskgeo) => Some(match &self.transformation {
-                Some(affine)=> maskgeo.map_coords(
+                Some(affine) => maskgeo.map_coords(
                     |xy| Operation::xform_coord(xy, affine)),
                 None => maskgeo.clone()
             }),
@@ -389,6 +390,9 @@ impl Context {
             hatch_pattern: self.hatch_pattern.clone(),
             hatch_angle: self.hatch_angle,
         };
+        if let Some(tx) = &op.transformation {
+            op.content = op.content.map_coords(|xy| Operation::xform_coord(xy, tx));
+        }
         op.rendered = op.render_to_lines();
         self.operations.push(op);
     }
