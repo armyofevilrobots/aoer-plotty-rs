@@ -1,14 +1,10 @@
-use geo_types::{CoordNum, Polygon, MultiPolygon, MultiLineString, Rect, coord, LineString};
+use geo_types::{Polygon, MultiPolygon, MultiLineString, Rect, coord, LineString};
 use geo::bounding_rect::BoundingRect;
-// use geo::GeoFloat;
 use geo::rotate::Rotate;
-// use geos::from_geo;
-// use geos::to_geo;
 use geos::{Geom, Geometry};
-// use geos::GeometryTypes::{GeometryCollection as GGeometryCollection, LineString};
-use num_traits::real::Real;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use std::rc::Rc;
 use geo_offset::Offset;
 use embed_doc_image::embed_doc_image;
 use crate::geo_types::buffer::Buffer;
@@ -36,26 +32,25 @@ impl OutlineStroke for LineString<f64> {
 /// turning  it into a series of outline LineStrings, which are in turn filled with a hatch.
 /// This trait combines those into a simple single operation.
 pub trait OutlineFillStroke {
-    fn outline_fill_stroke_with_hatch(&self, stroke_weight: f64, pen_width: f64, pattern: Box<dyn HatchPattern<f64>>, angle: f64)
+    fn outline_fill_stroke_with_hatch(&self, stroke_weight: f64, pen_width: f64, pattern: &dyn HatchPattern, angle: f64)
                                       -> Result<MultiLineString<f64>, Box<dyn Error>>;
 }
 
 impl OutlineFillStroke for MultiLineString<f64> {
-    fn outline_fill_stroke_with_hatch(&self, stroke_weight: f64, pen_width: f64, pattern: Box<dyn HatchPattern<f64>>, angle: f64)
+    fn outline_fill_stroke_with_hatch(&self, stroke_weight: f64, pen_width: f64, pattern: &dyn HatchPattern, angle: f64)
                                       -> Result<MultiLineString<f64>, Box<dyn Error>> {
         let polys = self.outline_stroke(stroke_weight)?;
         let mut lines_list: MultiLineString<f64> = MultiLineString::new(
             polys
                 .0.iter().map(|p| p.exterior().clone()).collect());
-        for poly in &polys{
-            for interior in poly.interiors(){
+        for poly in &polys {
+            for interior in poly.interiors() {
                 lines_list.0.push(interior.clone())
             }
         }
 
-
         lines_list.0.append(
-            &mut polys.hatch(LineHatch {}, angle, pen_width, pen_width * 0.5)?.0);
+            &mut polys.hatch(pattern, angle, pen_width, pen_width * 0.5)?.0);
         Ok(lines_list)
     }
 }
@@ -64,7 +59,7 @@ impl OutlineFillStroke for MultiLineString<f64> {
 /// A bunch of excuses that the hatching traits will throw ;)
 /// CouldNotGenerateHatch is just the total failure of the system.
 /// InvalidBoundary means that we couldn't create a container boundary for the hatchlines.
-/// InvalidResultGeometry means we calculated SOMETHING, but it's irrevocably broken.
+/// InvalidResultGeometry means we calculated SOMEHING, but it's irrevocably broken.
 #[derive(Debug)]
 pub enum InvalidHatchGeometry {
     CouldNotGenerateHatch,
@@ -92,9 +87,8 @@ impl Error for InvalidHatchGeometry {}
 /// Returns a MultiLineString which draws a hatch pattern which fills the entire
 /// bbox area. Set up as a trait so the developer can add new patterns at their
 /// leisure.
-pub trait HatchPattern<T>
-    where T: CoordNum, T: Real {
-    fn generate(&self, bbox: &Rect<T>, scale: T) -> MultiLineString<T>;
+pub trait HatchPattern{
+    fn generate(&self, bbox: &Rect<f64>, scale: f64) -> MultiLineString<f64>;
 }
 
 /// # Hatch
@@ -118,40 +112,56 @@ pub trait HatchPattern<T>
 ///     Wkt::<f64>::from_str("POLYGON ((350 100, 450 450, 150 400, 100 200, 350 100), (200 300, 350 350, 300 200, 200 300))")
 ///         .expect("Failed to load WKT"))
 ///     .expect("Failed to load box");
-/// let hatch = geoms.hatch(LineHatch{}, 45.0, 5.0, 2.5).expect("Got some hatches in here failin'");
+/// let hatch = geoms.hatch(&LineHatch{}, 45.0, 5.0, 2.5).expect("Got some hatches in here failin'");
 /// ```
 /// ![hatch-example-1][hatch-example-1]
 #[embed_doc_image("hatch-example-1", "images/hatch-demo-1.png")]
-pub trait Hatch<P>
-    where P: HatchPattern<f64>,
+pub trait Hatch
 {
-    fn hatch(&self, pattern: P, angle: f64, scale: f64, inset: f64)
+    fn hatch(&self, pattern: &dyn HatchPattern, angle: f64, scale: f64, inset: f64)
              -> Result<MultiLineString<f64>, InvalidHatchGeometry>;
 }
 
-/// The basic built in parallel LineHatch.
-#[derive(Clone)]
-pub struct LineHatch {}
+/// The no-hatch option
+#[derive(Debug, Clone)]
+pub struct NoHatch {}
+impl NoHatch {
+    pub fn gen() -> Rc<NoHatch> {
+        Rc::new(Self {})
+    }
+}
 
-impl<T> HatchPattern<T> for LineHatch
-    where T: CoordNum,
-          T: Real,
-          T: std::ops::AddAssign {
-    fn generate(&self, bbox: &Rect<T>, scale: T) -> MultiLineString<T> {
+impl HatchPattern for NoHatch {
+    fn generate(&self, _bbox: &Rect<f64>, _scale: f64) -> MultiLineString<f64> {
+        MultiLineString::new(vec![])
+    }
+}
+
+/// The basic built in parallel LineHatch.
+#[derive(Debug, Clone)]
+pub struct LineHatch {}
+impl LineHatch {
+    pub fn gen() -> Rc<LineHatch> {
+        Rc::new(Self {})
+    }
+}
+
+impl HatchPattern for LineHatch {
+    fn generate(&self, bbox: &Rect<f64>, scale: f64) -> MultiLineString<f64> {
         let min = bbox.min();
         let max = bbox.max();
         let mut y = min.y;
         let mut count = 0u32;
         // MultiLineString::<T>::new(
-        let mut lines: Vec<geo_types::LineString<T>> = vec![];
+        let mut lines: Vec<geo_types::LineString<f64>> = vec![];
         while y < max.y {
             if count % 2 == 0 {
-                lines.push(geo_types::LineString::<T>::new(vec![
+                lines.push(geo_types::LineString::<f64>::new(vec![
                     coord! {x: min.x, y: y},
                     coord! {x: max.x, y: y},
                 ]));
             } else {
-                lines.push(geo_types::LineString::<T>::new(vec![
+                lines.push(geo_types::LineString::<f64>::new(vec![
                     coord! {x: max.x, y: y},
                     coord! {x: min.x, y: y},
                 ]));
@@ -159,7 +169,61 @@ impl<T> HatchPattern<T> for LineHatch
             y += scale;
             count += 1;
         };
-        MultiLineString::<T>::new(lines)
+        MultiLineString::<f64>::new(lines)
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct CrossHatch {}
+impl CrossHatch {
+    pub fn gen() -> Rc<CrossHatch> {
+        Rc::new(Self {})
+    }
+}
+
+
+
+impl HatchPattern for CrossHatch {
+    fn generate(&self, bbox: &Rect<f64>, scale: f64) -> MultiLineString<f64> {
+        let min = bbox.min();
+        let max = bbox.max();
+        let mut y = min.y;
+        let mut count = 0u32;
+        let mut lines: Vec<geo_types::LineString<f64>> = vec![];
+        while y < max.y {
+            if count % 2 == 0 {
+                lines.push(geo_types::LineString::<f64>::new(vec![
+                    coord! {x: min.x, y: y},
+                    coord! {x: max.x, y: y},
+                ]));
+            } else {
+                lines.push(geo_types::LineString::<f64>::new(vec![
+                    coord! {x: max.x, y: y},
+                    coord! {x: min.x, y: y},
+                ]));
+            }
+            y += scale;
+            count += 1;
+        };
+        let mut x = min.x;
+        let mut count = 0u32;
+        while x < max.x {
+            if count % 2 == 0 {
+                lines.push(geo_types::LineString::<f64>::new(vec![
+                    coord! {x: x, y: min.y},
+                    coord! {x: x, y: max.y},
+                ]));
+            } else {
+                lines.push(geo_types::LineString::<f64>::new(vec![
+                    coord! {x: x, y: max.y},
+                    coord! {x: x, y: max.y},
+                ]));
+            }
+            x += scale;
+            count += 1;
+        };
+        MultiLineString::<f64>::new(lines)
     }
 }
 
@@ -188,10 +252,8 @@ fn gt_flatten_mlines(geo: geo_types::Geometry<f64>, mut existing: MultiLineStrin
     }
 }
 
-impl<P> Hatch<P> for MultiPolygon<f64>
-    where P: HatchPattern<f64>,
-          P: Clone {
-    fn hatch(&self, pattern: P, angle: f64, scale: f64, inset: f64)
+impl Hatch for MultiPolygon<f64> {
+    fn hatch(&self, pattern: &dyn HatchPattern, angle: f64, scale: f64, inset: f64)
              -> Result<MultiLineString<f64>, InvalidHatchGeometry> {
         let mpolys = if inset != 0.0 {
             self.offset(-inset).or(Err(InvalidHatchGeometry::InvalidBoundary))?
@@ -208,10 +270,8 @@ impl<P> Hatch<P> for MultiPolygon<f64>
     }
 }
 
-impl<P> Hatch<P> for Polygon<f64>
-    where P: HatchPattern<f64>,
-          P: Clone {
-    fn hatch(&self, pattern: P, angle: f64, scale: f64, inset: f64)
+impl Hatch for Polygon<f64> {
+    fn hatch(&self, pattern: &dyn HatchPattern, angle: f64, scale: f64, inset: f64)
              -> Result<MultiLineString<f64>, InvalidHatchGeometry> {
         let perimeter = if inset != 0.0 {
             let mpolys = self.offset(-inset)
@@ -265,8 +325,8 @@ mod test {
         let rect = Rect::<f64>::new(
             coord! {x: 0.0, y: 0.0},
             coord! {x: 100.0, y: 100.0});
-        let hatch_lines = LineHatch {}.generate(&rect, 10.0);
-        println!("LINES HATCHED: {:?}", hatch_lines);
+        //let hatch_lines =
+        LineHatch {}.generate(&rect, 10.0);
     }
 
     #[test]
@@ -291,7 +351,6 @@ mod test {
                 (hatch_line).try_into().expect("Invalid hatch lines")).collect();
         let geo_hatchlines = Geometry::create_geometry_collection(geo_hatchlines).expect("Got this far?");
         let _hatched_object = geo_perimeter.intersection(&geo_hatchlines).expect("Got this far?");
-        // println!("Hatched object is: {}", _hatched_object.to_wkt().expect("As a string!"))
     }
 
     #[test]
@@ -305,7 +364,7 @@ mod test {
                 coord! {x: 0.0, y: 20.0},
             ]),
             vec![]);
-        let hatches = poly.hatch(LineHatch {}, 0.0, 5.0, 0.0).expect("Failed to Ok the hatches.");
+        let hatches = poly.hatch(&LineHatch {}, 0.0, 5.0, 0.0).expect("Failed to Ok the hatches.");
         //println!("Hatched object is: {:?}", hatches);
         assert!(hatches.0.len() == 7);
     }
@@ -322,9 +381,9 @@ mod test {
                 coord! {x: 0.0, y: 20.0},
             ]),
             vec![]);
-        let hatches = poly.hatch(LineHatch {}, PI / 4.0, 5.0, 0.0).expect("Failed to Ok the hatches.");
-        println!("Angle-Hatched object is: {:?}", hatches);
-        // assert!(hatches.0.len() == 7);
+        let hatches = poly.hatch(&LineHatch {}, PI / 4.0, 5.0, 0.0).expect("Failed to Ok the hatches.");
+        // println!("Angle-Hatched object is: {:?}", hatches);
+        assert_eq!(hatches.0.len(), 8);
     }
 
     #[test]
@@ -348,7 +407,7 @@ mod test {
             ]),
             vec![]);
         let mpoly = MultiPolygon::<f64>::new(vec![poly1, poly2]);
-        let _hatches = mpoly.hatch(LineHatch {}, 0.0, 5.0, 0.0)
+        let _hatches = mpoly.hatch(&LineHatch {}, 0.0, 5.0, 0.0)
             .expect("Disjoint hatch failed");
         // println!("Disjoint hatch {:?}", hatches);
     }
@@ -369,7 +428,7 @@ mod test {
                 coord! {x: 0.0, y: 20.0},
             ]),
             vec![]);
-        let hatches = poly.hatch(LineHatch {},
+        let hatches = poly.hatch(&LineHatch {},
                                  0.0, 5.0, 2.0)
             .expect("Disjoint hatch failed");
         // println!("Got these {} disjointed after inset lines: {:?}", &hatches.0.len(), &hatches);
@@ -392,7 +451,8 @@ mod test {
                 coord! {x: 0.0, y: 20.0},
             ]),
             vec![]);
-        let hatches = poly.hatch(LineHatch {},
+        let hatch = LineHatch {};
+        let hatches = poly.hatch(&hatch,
                                  PI / 4.0, 5.0, 2.0)
             .expect("Disjoint hatch failed");
         // println!("Got these {} angled then disjointed after inset lines: {:?}", &hatches.0.len(), &hatches);
