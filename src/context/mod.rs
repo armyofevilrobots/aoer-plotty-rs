@@ -6,7 +6,7 @@ use embed_doc_image::embed_doc_image;
 use std::f64::consts::PI;
 use std::ops::Deref;
 use std::rc::Rc;
-use geo_types::{coord, Coordinate, Geometry, LineString, MultiLineString, Polygon, Rect};
+use geo_types::{coord, Coordinate, Geometry, GeometryCollection, LineString, MultiLineString, Polygon, Rect};
 use svg::Document;
 use crate::prelude::{Arrangement, HatchPattern, NoHatch, OutlineFillStroke, ToSvg};
 use crate::geo_types::hatch::{Hatch, LineHatch};
@@ -40,6 +40,22 @@ struct Operation {
 
 
 impl Operation {
+    fn consistent(&self, other: &Operation) -> bool {
+        if self.stroke_color == other.stroke_color &&
+            self.outline_stroke == other.outline_stroke &&
+            self.fill_color == other.fill_color &&
+            self.line_join == other.line_join &&
+            self.line_cap == other.line_cap &&
+            self.pen_width == other.pen_width &&
+            self.hatch_angle == other.hatch_angle &&
+            self.clip_previous == other.clip_previous // &&
+        {
+            true
+        } else {
+            false
+        }
+    }
+
     /// Helper function for converting polygons into sets of strings.
     fn poly2lines(poly: &Polygon<f64>, pen_width: f64,
                   hatch_angle: f64, hatch_pattern: Rc<dyn HatchPattern>)
@@ -69,28 +85,9 @@ impl Operation {
 
     fn render_to_lines(&self) -> (MultiLineString<f64>, MultiLineString<f64>) {
         // Get the transformed geo, or just this geo at 1:1
-        // let txgeo = match &self.transformation {
-        //     Some(tx) => self.content
-        //         .map_coords(|xy| Operation::xform_coord(xy, tx)),
-        //     None => self.content.clone()
-        // };
         let txgeo = self.content.clone();
-        // Then mask the geo if there is a mask.
-        let txgeo = match &self.mask {
-            Some(mask) => {
-                let ggeo = try_to_geos_geometry(&txgeo)
-                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
-                        .unwrap());
-                let mggeo = try_to_geos_geometry(mask)
-                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
-                        .unwrap());
-                let masked_geo = ggeo.intersection(&mggeo)
-                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
-                        .unwrap());
-                geo_types::Geometry::<f64>::try_from(masked_geo).unwrap_or(Geometry::GeometryCollection::<f64>(Default::default()))
-            }
-            None => txgeo
-        };
+
+        // Masking was moved into the add_operation code.
 
         // Then turn it into outlines and fills
         let (outlines, fills) = match txgeo {
@@ -393,6 +390,22 @@ impl Context {
         if let Some(tx) = &op.transformation {
             op.content = op.content.map_coords(|xy| Operation::xform_coord(xy, tx));
         }
+        op.content = match &op.mask {
+            Some(mask) => {
+                let ggeo = try_to_geos_geometry(&op.content)
+                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+                        .unwrap());
+                let mggeo = try_to_geos_geometry(mask)
+                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+                        .unwrap());
+                let masked_geo = ggeo.intersection(&mggeo)
+                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+                        .unwrap());
+                geo_types::Geometry::<f64>::try_from(masked_geo).unwrap_or(Geometry::GeometryCollection::<f64>(Default::default()))
+            }
+            None => op.content
+        };
+
         op.rendered = op.render_to_lines();
         self.operations.push(op);
     }
@@ -655,6 +668,66 @@ impl Context {
     }
 
 
+    /// Flatten will take a context and "flatten" together all polygons
+    /// of a given color and "depth". What that means is that we watch for
+    /// changes to fill/color/etc, and set those as boundaries. Then every
+    /// geometry within a set of boundaries is flattened as "unions" into
+    /// a single geometry. This is nice because overlapping polygons get
+    /// turned into a single unified polygon, and their fills are no longer
+    /// disjoint (and they don't have unexpected overlapping boundary lines).
+    /// See the 10_hello example for more details.
+    /// Unlike the other methods, this one generates an entirely new context
+    /// including a NEW HISTORY, so you can't use push/pop to go back, and
+    /// the individual operations are (obviously) lost.
+    pub fn flatten(&self) -> Self {
+        let mut new_ctx = Context::new();
+        new_ctx.add_operation(Geometry::MultiLineString(MultiLineString::new(vec![])));
+        let mut last_operation = new_ctx.operations[0].clone();
+        let tmp_gt_op = Geometry::GeometryCollection(GeometryCollection::new_from(vec![]));
+        let mut current_geometry = try_to_geos_geometry(
+            &tmp_gt_op)
+            .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+                .expect("Failed to generate default geos::geometry"));
+        for operation in self.operations.iter() {
+            if operation.consistent(&last_operation) {
+                // Union current_geometry with the operation
+                let cgeo = try_to_geos_geometry(&operation.content)
+                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+                        .expect("Failed to generate default geos::geometry"));
+                current_geometry = cgeo.union(&current_geometry)
+                    .unwrap_or(Geom::clone(&current_geometry));
+            } else {
+                // Duplicate the state into the context, and create a new current_geometry bundle
+                new_ctx.stroke_color = operation.stroke_color.clone();
+                new_ctx.outline_stroke = operation.outline_stroke.clone();
+                new_ctx.fill_color = operation.fill_color.clone();
+                new_ctx.line_join = operation.line_join.clone();
+                new_ctx.line_cap = operation.line_cap.clone();
+                new_ctx.pen_width = operation.pen_width.clone();
+                new_ctx.clip_previous = operation.clip_previous.clone();
+                new_ctx.hatch_pattern = operation.hatch_pattern.clone();
+                new_ctx.hatch_angle = operation.hatch_angle;
+
+                new_ctx.geometry(&geo_types::Geometry::try_from(current_geometry)
+                    .unwrap_or(
+                        Geometry::GeometryCollection(
+                            GeometryCollection::new_from(vec![]))));
+                last_operation = operation.clone();
+                current_geometry = try_to_geos_geometry(
+                    &operation.content)
+                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+                        .expect("If we failed to convert or fallback, something is very wrong."));
+            }
+        }
+        // get the last one.
+        new_ctx.geometry(&geo_types::Geometry::try_from(current_geometry)
+            .unwrap_or(
+                Geometry::GeometryCollection(
+                    GeometryCollection::new_from(vec![]))));
+        new_ctx
+    }
+
+
     /// Take this giant complex thing and generate and SVG Document, or an error. Whatever.
     pub fn to_svg(&self, arrangement: &Arrangement<f64>) -> Result<Document, ContextError> {
         struct OPLayer {
@@ -801,6 +874,56 @@ mod test {
             .fill("blue")
             .hatch(45.0)
             .star_poly(5, 50.0, 50.0, 20.0, 40.0, 0.0);
+    }
+
+    #[test]
+    fn test_flatten_simple() {
+        let mut context = Context::new();
+        context.stroke("red");
+        context.pen(0.5);
+        context.fill("blue");
+        context.hatch(45.0);
+        context.rect(10.0, 10.0, 30.0, 30.0);
+        context.rect(20.0, 20.0, 40.0, 40.0);
+        context = context.flatten();
+        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let svg = context.to_svg(&arrangement).unwrap();
+        assert_eq!(svg.to_string(),
+                   concat!(
+                   "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
+                   "<path d=\"M20,40 L40,40 L40,20 L30,20 L30,10 L10,10 L10,30 L20,30 L20,40\" fill=\"none\" id=\"outline-0\" stroke=\"red\" stroke-linecap=\"round\" ",
+                   "stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>"
+                   ));
+    }
+
+    #[test]
+    fn test_flatten_complex() {
+        let mut context = Context::new();
+        context.stroke("red");
+        context.pen(0.5);
+        context.fill("blue");
+        // context.hatch(45.0);
+        // context.pattern(LineHatch::gen());
+        context.rect(10.0, 10.0, 30.0, 30.0);
+        context.rect(20.0, 20.0, 40.0, 40.0);
+        context.rect(32.0, 32.0, 48.0, 48.0);
+        context.stroke("black")
+            .clip(true)
+            .rect(22.0, 22.0, 38.0, 38.0);
+
+        context = context.flatten();
+        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let svg = context.to_svg(&arrangement).unwrap();
+        println!("svg: {}", svg.to_string());
+        assert_eq!(svg.to_string(),
+                   concat!("<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
+                   "<path d=\"\" fill=\"none\" id=\"outline-0\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
+                   "<path d=\"\" fill=\"none\" id=\"fill-0\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
+                   "<path d=\"M32,48 L48,48 L48,32 L40,32 L40,20 L30,20 L30,10 L10,10 L10,30 L20,30 L20,40 L32,40 L32,48\" fill=\"none\" id=\"outline-1\" ",
+                   "stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n<path d=\"\" fill=\"none\" id=\"fill-1\" ",
+                   "stroke=\"blue\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
+                   "<path d=\"M22,22 L38,22 L38,38 L22,38 L22,22\" fill=\"none\" id=\"outline-2\" stroke=\"black\" ",
+                   "stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>"));
     }
 
     #[test]
