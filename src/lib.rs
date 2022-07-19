@@ -15,6 +15,11 @@
 //! [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 //!
 //! # Changelog
+//! * 0.1.10. Getting close to having to do a 0.2 release. Added the 'flatten'
+//!          method to [`context::Context`] so that you can merge all your
+//!          pen strokes that live on the same layer. Good for merging
+//!          overlapping polygons. Layer is defined as "exact same color, pen,
+//!          and fill configuration"
 //! * 0.1.9. Add masking to context: You can now mask the drawable area with
 //!          any [`geo_types::Geometry`] variant and only areas under the mask
 //!          will actually render. Also changed some performance and accuracy
