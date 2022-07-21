@@ -1,5 +1,6 @@
 //! Provides the [`crate::context::Context`] struct which gives us a canvas-style drawing
 //! context which provides plotter-ready SVG files. See `Context` for more details, and examples.
+use std::error::Error;
 use embed_doc_image::embed_doc_image;
 
 
@@ -516,6 +517,36 @@ impl Context {
         }
     }
 
+    /// centerpoint arc
+    /// Draw an arc around x0,y0 with the given radius, from deg0 to deg1. Arcs will always be
+    /// coords oriented clockwise from "north" on an SVG. ie: 45 to 135 will be NE to SE.
+    pub fn arc_center(&mut self, x0: f64, y0: f64, radius: f64, deg0: f64, deg1: f64) -> &mut Self {
+        let radius = radius.abs();
+        // Clamp the angle.
+        let deg0 = PI_F64 * ((deg0 % 360.0) / 180.0);
+        let deg1 = PI_F64 * ((deg1 % 360.0) / 180.0);
+        let (deg0, deg1) = if deg0 > deg1 {
+            (deg1, deg0)
+        } else {
+            (deg0, deg1)
+        };
+        let sides = 1000.min(32.max(usize::from_f64(radius).unwrap_or(1000) * 4));
+        let segments = (deg1 - deg0) * f64::from(sides as i32).floor();
+        let seg_size = (deg1 - deg0) / segments;
+        let mut ls = LineString::<f64>::new(vec![]);
+        let mut angle = deg0;
+        for _segment in 0..(segments as i32) {
+            ls.0.push(coord! {x: x0+radius*angle.sin(), y: y0+radius*angle.cos()});
+            angle += seg_size;
+        }
+        if deg1 - angle > 0.0 {
+            ls.0.push(coord! {x: x0+radius*deg1.sin(), y: y0+radius*deg1.cos()});
+        }
+        self.add_operation(Geometry::LineString(ls));
+
+        self
+    }
+
     /// What it says on the box. Draws a simple rectangle on the context.
     pub fn rect(&mut self, x0: f64, y0: f64, x1: f64, y1: f64) -> &mut Self {
         self.add_operation(
@@ -559,15 +590,6 @@ impl Context {
     /// Draws a circle. Actually just buffers a point, and returns a polygon
     /// which it draws on the context.
     pub fn circle(&mut self, x0: f64, y0: f64, radius: f64) -> &mut Self {
-        // let geo =
-        //     Geometry::MultiPolygon(Geometry::Point(Point::new(x0, y0))
-        //         .buffer(radius)
-        //         .unwrap_or(MultiPolygon::new(vec![])));
-        // self.add_operation(geo);
-        // self
-        // As the size increases, absolute deviation grows. Therefore, increase
-        // the number of sides as a linear relation to radius. Maximum of 1000 sides,
-        // but usually far fewer, minimum of 32.
         let radius = radius.abs();
         let sides = 1000.min(32.max(usize::from_f64(radius).unwrap_or(1000) * 4));
         self.regular_poly(sides, x0, y0, radius, 0.0)
@@ -727,6 +749,15 @@ impl Context {
         new_ctx
     }
 
+    pub fn to_geo(&self) -> Result<Geometry<f64>, Box<dyn Error>> {
+        let mut all: Vec<Geometry<f64>> = vec![];
+        for operation in &self.operations {
+            // all.add(GeometryCollection::<f64>::new_from(vec![operation.content.clone()]));
+            all.push(operation.content.clone().into());
+        }
+        Ok(Geometry::GeometryCollection(GeometryCollection::<f64>::new_from(all)))
+    }
+
 
     /// Take this giant complex thing and generate and SVG Document, or an error. Whatever.
     pub fn to_svg(&self, arrangement: &Arrangement<f64>) -> Result<Document, ContextError> {
@@ -836,6 +867,29 @@ mod test {
     }
 
     #[test]
+    fn test_arc_c() {
+        let mut context = Context::new();
+        context.stroke("red")
+            .pen(0.8)
+            .fill("blue")
+            .hatch(45.0)
+            .arc_center(0.0, 0.0, 10.0, 45.0, 180.0);
+        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let svg1 = context.to_svg(&arrangement).unwrap();
+        let mut context = Context::new();
+        context.stroke("red")
+            .pen(0.8)
+            .fill("blue")
+            .hatch(45.0)
+            .arc_center(0.0, 0.0, 10.0, 180.0, 45.0);
+        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let svg2 = context.to_svg(&arrangement).unwrap();
+        println!("SVG ARC IS: {}", svg2.to_string());
+        // Make sure that order of angles is irrelevant
+        assert_eq!(svg2.to_string(), svg1.to_string());
+    }
+
+    #[test]
     fn test_minimal_poly() {
         let mut context = Context::new();
         context.stroke("red");
@@ -924,6 +978,28 @@ mod test {
                    "stroke=\"blue\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
                    "<path d=\"M22,22 L38,22 L38,38 L22,38 L22,22\" fill=\"none\" id=\"outline-2\" stroke=\"black\" ",
                    "stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>"));
+    }
+
+    #[test]
+    fn test_to_geo() {
+        let mut context = Context::new();
+        context
+            .stroke("red")
+            .pen(0.8)
+            .fill("blue")
+            .hatch(45.0)
+            .rect(10.0, 10.0, 90.0, 90.0);
+
+        let foo = context.to_geo().unwrap();
+        println!("OFOO IS {:?}", &foo);
+        let mut context = Context::new();
+        context.stroke("green");
+        context.pen(0.8);
+        context.fill("purple");
+        context.geometry(&foo);
+        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let svg = context.to_svg(&arrangement).unwrap();
+        println!("svg : {}", svg.to_string());
     }
 
     #[test]
