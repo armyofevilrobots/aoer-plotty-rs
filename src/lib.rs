@@ -84,6 +84,9 @@ pub mod context;
 /// Errors
 pub mod errors;
 
+/// Elements : Reusable art components, usually designed for use with Context
+pub mod elements;
+
 /// Make your life easy! Just import prelude::* and ignore all the warnings!
 /// One stop shopping at the expense of a slightly more complex dependency graph.
 pub mod prelude {
