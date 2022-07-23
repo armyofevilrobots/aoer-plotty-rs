@@ -1,5 +1,5 @@
 use std::error::Error;
-use geo_types::{Geometry, MultiPolygon, };
+use geo_types::{Geometry, MultiPolygon};
 use geos::Geom;
 use crate::geo_types::flatten::FlattenPolygons;
 

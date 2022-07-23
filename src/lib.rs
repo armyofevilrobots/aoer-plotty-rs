@@ -15,6 +15,17 @@
 //! [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 //!
 //! # Changelog
+//! * 0.1.11. Added the first "element" (reusable sketch component) in the form
+//!          of the [`elements::CarlsonSmithTruchet`], which provides tileable
+//!          and scalable truchets which make for some very interesting patterns.
+//!          Think of them as the "goto 10" tiles on steroids.
+//!          Also added a to_geos trait which makes it easy to convert
+//!          back and forth from geo_types without fancy and unpredictable
+//!          From/Into magic.
+//!          Also added a [`geo_types::shapes`] module which provides some
+//!          additional primitives (arc, polygons, circles).
+//!          Added the [`geo_types::boolean::BooleanOp`] trait to allow for
+//!          boolean operations directly against geo_types.
 //! * 0.1.10. Getting close to having to do a 0.2 release. Added the 'flatten'
 //!          method to [`context::Context`] so that you can merge all your
 //!          pen strokes that live on the same layer. Good for merging
