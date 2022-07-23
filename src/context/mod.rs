@@ -1,5 +1,6 @@
 //! Provides the [`crate::context::Context`] struct which gives us a canvas-style drawing
 //! context which provides plotter-ready SVG files. See `Context` for more details, and examples.
+use std::error::Error;
 use embed_doc_image::embed_doc_image;
 
 
@@ -15,9 +16,9 @@ use geo::map_coords::MapCoords;
 use geos::{Geom, GeometryTypes};
 use nalgebra::{Affine2, Matrix3, Point2 as NPoint2};
 use nannou::prelude::PI_F64;
-use num_traits::FromPrimitive;
 use crate::geo_types::clip::{LineClip, try_to_geos_geometry};
 use crate::errors::ContextError;
+use crate::geo_types::shapes;
 
 /// Operations are private items used to store the operation stack
 /// consisting of a combination of Geometry and Context state.
@@ -127,6 +128,25 @@ impl Operation {
         (outlines, fills)
     }
 }
+
+
+/// OPLayer is an operation layer, rendered into lines for drawing.
+pub struct OPLayer {
+    stroke_lines: MultiLineString<f64>,
+    fill_lines: MultiLineString<f64>,
+    stroke: String,
+    fill: String,
+    stroke_width: f64,
+    stroke_linejoin: String,
+    stroke_linecap: String,
+}
+
+impl OPLayer {
+    pub fn to_lines(&self) -> (MultiLineString<f64>, MultiLineString<f64>) {
+        (self.stroke_lines.clone(), self.fill_lines.clone())
+    }
+}
+
 
 /// # Context
 ///
@@ -516,6 +536,38 @@ impl Context {
         }
     }
 
+    /// centerpoint arc
+    /// Draw an arc around x0,y0 with the given radius, from deg0 to deg1. Arcs will always be
+    /// coords oriented clockwise from "north" on an SVG. ie: 45 to 135 will be NE to SE.
+    pub fn arc_center(&mut self, x0: f64, y0: f64, radius: f64, deg0: f64, deg1: f64) -> &mut Self {
+        // let radius = radius.abs();
+        // // Clamp the angle.
+        // let deg0 = PI_F64 * ((deg0 % 360.0) / 180.0);
+        // let deg1 = PI_F64 * ((deg1 % 360.0) / 180.0);
+        // let (deg0, deg1) = if deg0 > deg1 {
+        //     (deg1, deg0)
+        // } else {
+        //     (deg0, deg1)
+        // };
+        // let sides = 1000.min(32.max(usize::from_f64(radius).unwrap_or(1000) * 4));
+        // let segments = (deg1 - deg0) * f64::from(sides as i32).floor();
+        // let seg_size = (deg1 - deg0) / segments;
+        // let mut ls = LineString::<f64>::new(vec![]);
+        // let mut angle = deg0;
+        // for _segment in 0..(segments as i32) {
+        //     ls.0.push(coord! {x: x0+radius*angle.sin(), y: y0+radius*angle.cos()});
+        //     angle += seg_size;
+        // }
+        // if deg1 - angle > 0.0 {
+        //     ls.0.push(coord! {x: x0+radius*deg1.sin(), y: y0+radius*deg1.cos()});
+        // }
+        let ls = crate::geo_types::shapes::arc_center(x0, y0, radius, deg0, deg1);
+        let ls = ls.map_coords(|(x,y)| (x.clone(), -y.clone()));
+        self.add_operation(Geometry::LineString(ls));
+
+        self
+    }
+
     /// What it says on the box. Draws a simple rectangle on the context.
     pub fn rect(&mut self, x0: f64, y0: f64, x1: f64, y1: f64) -> &mut Self {
         self.add_operation(
@@ -559,33 +611,27 @@ impl Context {
     /// Draws a circle. Actually just buffers a point, and returns a polygon
     /// which it draws on the context.
     pub fn circle(&mut self, x0: f64, y0: f64, radius: f64) -> &mut Self {
-        // let geo =
-        //     Geometry::MultiPolygon(Geometry::Point(Point::new(x0, y0))
-        //         .buffer(radius)
-        //         .unwrap_or(MultiPolygon::new(vec![])));
-        // self.add_operation(geo);
-        // self
-        // As the size increases, absolute deviation grows. Therefore, increase
-        // the number of sides as a linear relation to radius. Maximum of 1000 sides,
-        // but usually far fewer, minimum of 32.
-        let radius = radius.abs();
-        let sides = 1000.min(32.max(usize::from_f64(radius).unwrap_or(1000) * 4));
-        self.regular_poly(sides, x0, y0, radius, 0.0)
+        // let radius = radius.abs();
+        // let sides = 1000.min(32.max(usize::from_f64(radius).unwrap_or(1000) * 4));
+        // self.regular_poly(sides, x0, y0, radius, 0.0)
+        self.add_operation(shapes::circle(x0, y0, radius));
+        self
     }
 
     /// Circumscribed regular polygon. The vertices of the polygon will be situated on a
     /// circle defined by the given radius. Polygon will be centered at x,y.
     pub fn regular_poly(&mut self, sides: usize, x: f64, y: f64, radius: f64, rotation: f64) -> &mut Self {
         // all the way around to the start again, and hit the first point twice to close it.
-        if sides < 3 { return self; };
-
-        let geo = Geometry::Polygon(Polygon::new(LineString::new((0..(sides + 2))
-            .map(|i| {
-                let angle = rotation - PI_F64 / 2.0 +
-                    (f64::from(i as i32) / f64::from(sides as i32)) * (2.0 * PI_F64);
-                coord! {x: x+angle.cos() * radius, y: y+angle.sin() * radius}
-            }).collect()
-        ), vec![]));
+        // if sides < 3 { return self; };
+        //
+        // let geo = Geometry::Polygon(Polygon::new(LineString::new((0..(sides + 2))
+        //     .map(|i| {
+        //         let angle = rotation - PI_F64 / 2.0 +
+        //             (f64::from(i as i32) / f64::from(sides as i32)) * (2.0 * PI_F64);
+        //         coord! {x: x+angle.cos() * radius, y: y+angle.sin() * radius}
+        //     }).collect()
+        // ), vec![]));
+        let geo = shapes::regular_poly(sides, x, y, radius, rotation);
         self.add_operation(geo);
         self
     }
@@ -688,14 +734,17 @@ impl Context {
             &tmp_gt_op)
             .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
                 .expect("Failed to generate default geos::geometry"));
+        // let mut interim_geo = geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)?;
         for operation in self.operations.iter() {
             if operation.consistent(&last_operation) {
                 // Union current_geometry with the operation
                 let cgeo = try_to_geos_geometry(&operation.content)
                     .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
                         .expect("Failed to generate default geos::geometry"));
-                current_geometry = cgeo.union(&current_geometry)
-                    .unwrap_or(Geom::clone(&current_geometry));
+                // current_geometry = cgeo.union(&current_geometry)
+                //     .unwrap_or(Geom::clone(&current_geometry));
+                current_geometry = geos::Geometry::create_geometry_collection(vec![current_geometry, cgeo])
+                    .expect("Cannot append geometry into collection.");
             } else {
                 // Duplicate the state into the context, and create a new current_geometry bundle
                 new_ctx.stroke_color = operation.stroke_color.clone();
@@ -707,6 +756,10 @@ impl Context {
                 new_ctx.clip_previous = operation.clip_previous.clone();
                 new_ctx.hatch_pattern = operation.hatch_pattern.clone();
                 new_ctx.hatch_angle = operation.hatch_angle;
+
+                current_geometry = current_geometry
+                    .unary_union()
+                    .unwrap_or(current_geometry);
 
                 new_ctx.geometry(&geo_types::Geometry::try_from(current_geometry)
                     .unwrap_or(
@@ -720,6 +773,9 @@ impl Context {
             }
         }
         // get the last one.
+        current_geometry = current_geometry
+            .unary_union()
+            .unwrap_or(current_geometry);
         new_ctx.geometry(&geo_types::Geometry::try_from(current_geometry)
             .unwrap_or(
                 Geometry::GeometryCollection(
@@ -727,22 +783,17 @@ impl Context {
         new_ctx
     }
 
-
-    /// Take this giant complex thing and generate and SVG Document, or an error. Whatever.
-    pub fn to_svg(&self, arrangement: &Arrangement<f64>) -> Result<Document, ContextError> {
-        struct OPLayer {
-            stroke_lines: MultiLineString<f64>,
-            fill_lines: MultiLineString<f64>,
-            stroke: String,
-            fill: String,
-            stroke_width: f64,
-            stroke_linejoin: String,
-            stroke_linecap: String,
+    pub fn to_geo(&self) -> Result<Geometry<f64>, Box<dyn Error>> {
+        let mut all: Vec<Geometry<f64>> = vec![];
+        for operation in &self.operations {
+            // all.add(GeometryCollection::<f64>::new_from(vec![operation.content.clone()]));
+            all.push(operation.content.clone().into());
         }
+        Ok(Geometry::GeometryCollection(GeometryCollection::<f64>::new_from(all)))
+    }
 
-        let mut svg = arrangement
-            .create_svg_document()
-            .or(Err(ContextError::SvgGenerationError("Failed to create raw svg doc".into()).into()))?;
+    /// Generate layers of perimeters and fills
+    pub fn to_layers(&self) -> Vec<OPLayer> {
         let mut oplayers: Vec<OPLayer> = vec![];
         for op in &self.operations {
             // let (stroke, fill) = op.render_to_lines();
@@ -777,6 +828,16 @@ impl Context {
                 }
             }
         }
+        oplayers
+    }
+
+    /// Take this giant complex thing and generate and SVG Document, or an error. Whatever.
+    pub fn to_svg(&self, arrangement: &Arrangement<f64>) -> Result<Document, ContextError> {
+        let oplayers = self.to_layers();
+
+        let mut svg = arrangement
+            .create_svg_document()
+            .or(Err(ContextError::SvgGenerationError("Failed to create raw svg doc".into()).into()))?;
 
         let mut id = 0;
         for oplayer in oplayers {
@@ -836,6 +897,29 @@ mod test {
     }
 
     #[test]
+    fn test_arc_c() {
+        let mut context = Context::new();
+        context.stroke("red")
+            .pen(0.8)
+            .fill("blue")
+            .hatch(45.0)
+            .arc_center(0.0, 0.0, 10.0, 45.0, 180.0);
+        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let svg1 = context.to_svg(&arrangement).unwrap();
+        let mut context = Context::new();
+        context.stroke("red")
+            .pen(0.8)
+            .fill("blue")
+            .hatch(45.0)
+            .arc_center(0.0, 0.0, 10.0, 180.0, 45.0);
+        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let svg2 = context.to_svg(&arrangement).unwrap();
+        // println!("SVG ARC IS: {}", svg2.to_string());
+        // Make sure that order of angles is irrelevant
+        assert_eq!(svg2.to_string(), svg1.to_string());
+    }
+
+    #[test]
     fn test_minimal_poly() {
         let mut context = Context::new();
         context.stroke("red");
@@ -891,8 +975,8 @@ mod test {
         assert_eq!(svg.to_string(),
                    concat!(
                    "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
-                   "<path d=\"M20,40 L40,40 L40,20 L30,20 L30,10 L10,10 L10,30 L20,30 L20,40\" fill=\"none\" id=\"outline-0\" stroke=\"red\" stroke-linecap=\"round\" ",
-                   "stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>"
+                   "<path d=\"M30,10 L10,10 L10,30 L20,30 L20,40 L40,40 L40,20 L30,20 L30,10\" fill=\"none\" id=\"outline-0\" ",
+                   "stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>"
                    ));
     }
 
@@ -914,16 +998,40 @@ mod test {
         context = context.flatten();
         let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
         let svg = context.to_svg(&arrangement).unwrap();
-        println!("svg: {}", svg.to_string());
+        // println!("svg: {}", svg.to_string());
         assert_eq!(svg.to_string(),
-                   concat!("<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
+                   concat!(
+                   "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
                    "<path d=\"\" fill=\"none\" id=\"outline-0\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
                    "<path d=\"\" fill=\"none\" id=\"fill-0\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
-                   "<path d=\"M32,48 L48,48 L48,32 L40,32 L40,20 L30,20 L30,10 L10,10 L10,30 L20,30 L20,40 L32,40 L32,48\" fill=\"none\" id=\"outline-1\" ",
-                   "stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n<path d=\"\" fill=\"none\" id=\"fill-1\" ",
-                   "stroke=\"blue\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
-                   "<path d=\"M22,22 L38,22 L38,38 L22,38 L22,22\" fill=\"none\" id=\"outline-2\" stroke=\"black\" ",
-                   "stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>"));
+                   "<path d=\"M30,10 L10,10 L10,30 L20,30 L20,40 L32,40 L32,48 L48,48 L48,32 L40,32 L40,20 L30,20 L30,10\" fill=\"none\" id=\"outline-1\" ",
+                   "stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
+                   "<path d=\"\" fill=\"none\" id=\"fill-1\" stroke=\"blue\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
+                   "<path d=\"M22,22 L38,22 L38,38 L22,38 L22,22\" fill=\"none\" id=\"outline-2\" stroke=\"black\" stroke-linecap=\"round\" ",
+                   "stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>"
+                   ));
+    }
+
+    #[test]
+    fn test_to_geo() {
+        let mut context = Context::new();
+        context
+            .stroke("red")
+            .pen(0.8)
+            .fill("blue")
+            .hatch(45.0)
+            .rect(10.0, 10.0, 90.0, 90.0);
+
+        let foo = context.to_geo().unwrap();
+        // println!("OFOO IS {:?}", &foo);
+        let mut context = Context::new();
+        context.stroke("green");
+        context.pen(0.8);
+        context.fill("purple");
+        context.geometry(&foo);
+        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        /*let svg =*/ context.to_svg(&arrangement).unwrap();
+        // println!("svg : {}", svg.to_string());
     }
 
     #[test]
