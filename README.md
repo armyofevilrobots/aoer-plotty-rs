@@ -17,6 +17,31 @@ my days off. May spontaneously explode, might take your plotter with it.*
 [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 
 ## Changelog
+* 0.1.11. Added the first "element" (reusable sketch component) in the form
+         of the [`elements::CarlsonSmithTruchet`], which provides tileable
+         and scalable truchets which make for some very interesting patterns.
+         Thing of them as the "goto 10" tiles on steroids.
+         Also added a to_geos trait which makes it easy to convert
+         back and forth from geo_types without fancy and unpredictable
+         From/Into magic.
+         Also added a [`geo_types::shapes`] module which provides some
+         additional primitives (arc, polygons, circles).
+         Added the [`geo_types::boolean::BooleanOp`] trait to allow for
+         boolean operations directly against geo_types.
+* 0.1.10. Getting close to having to do a 0.2 release. Added the 'flatten'
+         method to [`context::Context`] so that you can merge all your
+         pen strokes that live on the same layer. Good for merging
+         overlapping polygons. Layer is defined as "exact same color, pen,
+         and fill configuration"
+* 0.1.9. Add masking to context: You can now mask the drawable area with
+         any [`geo_types::Geometry`] variant and only areas under the mask
+         will actually render. Also changed some performance and accuracy
+         related optimizations so that clipped items look clean.
+         Also added the final Generative Artistry examples. I'll miss
+         implementing those :(
+* 0.1.8. Add a bunch of new features to Context, including regular polygons
+         and tesselated polys (stars of various point counts). Circles are
+         now somewhat simpler as well.
 * 0.1.7. Another big change. Added the Context drawing library, which is HUGE,
   and contains way too much functionality to discuss here.
 * 0.1.6. Various changes:
