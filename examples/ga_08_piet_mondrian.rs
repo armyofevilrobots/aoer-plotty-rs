@@ -130,9 +130,14 @@ fn main() {
         }
     }
 
-
-    // The unit arrangement just means that we'll draw what we mean, where we mean to.
-    let arrangement = Arrangement::unit(&viewbox);
+    // We're using a new feature here: Create a FitCenterMargin Arrangement that matches
+    // the paper size we're using (8.5" square). Then, finalize it's transformation matrix
+    // to match the context's bounds, giving us back an Arrangement::Transform with the
+    // affine txform that gives us a nicely centered drawing.
+    let arrangement = ctx.finalize_arrangement(
+        &Arrangement::FitCenterMargin(25.4,
+                                      Context::viewbox(0.0, 0.0, 216.0, 216.0),
+                                      false));
 
     let document = ctx.to_svg(&arrangement).unwrap();
 

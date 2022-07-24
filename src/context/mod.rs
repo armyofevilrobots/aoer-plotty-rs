@@ -7,13 +7,15 @@ use embed_doc_image::embed_doc_image;
 use std::f64::consts::PI;
 use std::ops::Deref;
 use std::rc::Rc;
-use geo_types::{coord, Coordinate, Geometry, GeometryCollection, LineString, MultiLineString, Polygon, Rect};
+use geo_types::{coord, Coordinate, Geometry, GeometryCollection, LineString, MultiLineString, Point, Polygon, Rect};
 use svg::Document;
 use crate::prelude::{Arrangement, HatchPattern, NoHatch, OutlineFillStroke, ToSvg};
 use crate::geo_types::hatch::{Hatch, LineHatch};
 use cubic_spline::{Points, SplineOpts};
 use geo::map_coords::MapCoords;
+use geo::prelude::BoundingRect;
 use geos::{Geom, GeometryTypes};
+// use geos::GeometryTypes::Point;
 use nalgebra::{Affine2, Matrix3, Point2 as NPoint2};
 use nannou::prelude::PI_F64;
 use crate::geo_types::clip::{LineClip, try_to_geos_geometry};
@@ -231,6 +233,17 @@ pub struct Context {
 
 
 impl Context {
+
+    /// Finalize Arrangement
+    pub fn finalize_arrangement(&self, arrangement: &Arrangement<f64>) -> Arrangement<f64>{
+        if let Ok(bounds) = self.bounds() {
+            arrangement.finalize(&bounds)
+        }else{
+            Arrangement::unit(&arrangement.viewbox())
+        }
+    }
+
+
     /// Helper to create a scaling matrix
     pub fn scale_matrix(sx: f64, sy: f64) -> Affine2<f64> {
         Affine2::from_matrix_unchecked(Matrix3::new(
@@ -281,6 +294,30 @@ impl Context {
             hatch_pattern: NoHatch::gen(),
             hatch_angle: 0.0,
             stack: vec![],
+        }
+    }
+
+    /// Bounds returns a Rect defining the bounds of all operations drawn on the context.
+    /// Note: Since this has to iterate over ALL geometry in the drawing, it's kind of expensive.
+    /// I'll probably cache this per operation at some point, but for now it's pricy.
+    pub fn bounds(&self) -> Result<Rect<f64>, Box<dyn Error>>{
+        let mut pmin = Point::new(f64::MAX, f64::MAX);
+        let mut pmax = Point::new(f64::MIN, f64::MIN);
+        for operation in &self.operations{
+            let tmp_bounds = operation.content.bounding_rect();
+            if let Some(bounds) = tmp_bounds {
+                pmin = Point::new(pmin.y().min(bounds.min().y),
+                                  pmin.y().min(bounds.min().y));
+                pmax = Point::new(pmax.x().max(bounds.max().x),
+                                  pmax.y().max(bounds.max().y));
+            }
+        }
+        if pmin == Point::new(f64::MAX, f64::MAX) || pmax == Point::new(f64::MIN, f64::MIN) {
+            Err(Box::new(geo_types::Error::MismatchedGeometry{
+                expected: "Context with content",
+                found: "Empty context" }))
+        }else{
+            Ok(Rect::new(pmin.0, pmax.0))
         }
     }
 
