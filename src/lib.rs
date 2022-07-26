@@ -98,6 +98,10 @@ pub mod errors;
 /// Elements : Reusable art components, usually designed for use with Context
 pub mod elements;
 
+/// Workbench : Tooling to turn your 'sketches' into interactive UI based tools
+/// that can be used to tweak a design and generate SVG output (and eventually
+/// even to directly plot the result).
+
 /// Make your life easy! Just import prelude::* and ignore all the warnings!
 /// One stop shopping at the expense of a slightly more complex dependency graph.
 pub mod prelude {

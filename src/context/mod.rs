@@ -21,11 +21,15 @@ use nannou::prelude::PI_F64;
 use crate::geo_types::clip::{LineClip, try_to_geos_geometry};
 use crate::errors::ContextError;
 use crate::geo_types::shapes;
+pub use kurbo::BezPath;
+pub use kurbo::Point as BezPoint;
+use kurbo::PathEl;
 
 /// Operations are private items used to store the operation stack
 /// consisting of a combination of Geometry and Context state.
 #[derive(Clone)]
 struct Operation {
+    accuracy: f64,
     content: Geometry<f64>,
     rendered: (MultiLineString<f64>, MultiLineString<f64>),
     transformation: Option<Affine2<f64>>,
@@ -147,6 +151,9 @@ impl OPLayer {
     pub fn to_lines(&self) -> (MultiLineString<f64>, MultiLineString<f64>) {
         (self.stroke_lines.clone(), self.fill_lines.clone())
     }
+
+    pub fn stroke(&self) -> String { self.stroke.clone() }
+    pub fn fill(&self) -> String { self.fill.clone() }
 }
 
 
@@ -217,6 +224,7 @@ impl OPLayer {
 #[derive(Clone)]
 pub struct Context {
     operations: Vec<Operation>,
+    accuracy: f64,
     transformation: Option<Affine2<f64>>,
     stroke_color: String,
     outline_stroke: Option<f64>,
@@ -282,6 +290,7 @@ impl Context {
     pub fn new() -> Context {
         Context {
             operations: vec![],
+            accuracy: 0.1,  // 0.1mm should be close enough for anybody
             transformation: None,
             stroke_color: "black".to_string(),
             outline_stroke: None,
@@ -373,6 +382,7 @@ impl Context {
     pub fn push(&mut self) -> &mut Self {
         self.stack.push(Self {
             operations: vec![],
+            accuracy: self.accuracy.clone(),
             transformation: match self.transformation.clone() {
                 Some(transformation) => Some(transformation),
                 None => None
@@ -399,6 +409,7 @@ impl Context {
             Some(transformation) => Some(transformation),
             None => None
         };
+        self.accuracy = other.accuracy.clone();
         self.stroke_color = other.stroke_color.clone();
         self.outline_stroke = other.outline_stroke.clone();
         self.fill_color = other.fill_color.clone();
@@ -432,6 +443,7 @@ impl Context {
             content: geometry,
             rendered: (MultiLineString::new(vec![]),
                        MultiLineString::new(vec![])),
+            accuracy: self.accuracy.clone(),
             transformation: self.transformation.clone(),
             stroke_color: self.stroke_color.clone(),
             outline_stroke: self.outline_stroke.clone(),
@@ -541,6 +553,39 @@ impl Context {
         self
     }
 
+    /// Way more useful path interface. Uses Kurbo's BezierPath module.
+    pub fn path(&mut self, bezier: &BezPath) -> &mut Self{
+            // Eventually, this should generate polygons. Holes are tricky tho.
+                let mut segments: MultiLineString<f64> = MultiLineString::new(vec![]);
+                let mut lastpoint = kurbo::Point::new(0.0, 0.0);
+                let mut add_segment = | el: PathEl| {
+                    match el {
+                        PathEl::MoveTo(pos) => {
+                            segments.0.push(LineString::new(vec![coord!{x: pos.x, y: pos.y}]));
+                            lastpoint = pos.clone();
+                        }
+                        PathEl::LineTo(pos) => {
+                            if let Some(mut line) = segments.0.last_mut(){
+                                line.0.push(coord!{x: pos.x, y: pos.y});
+                            }
+                        }
+                        PathEl::ClosePath => {
+                            if let Some(mut line) = segments.0.last_mut(){
+                                line.0.push(coord!{x: lastpoint.x, y: lastpoint.y});
+                            }
+                        }
+                        _ => panic!("Unexpected/Impossible segment type interpolating a bezier path!")
+                    }
+                };
+
+                bezier.flatten(self.accuracy, add_segment);
+
+                self.add_operation(
+                    Geometry::MultiLineString(segments)
+                );
+        self
+    }
+
     /// Generates a spline from a set of points and renders as a
     /// multi line string. Doesn't do errors very well, just
     /// silently fails to draw.
@@ -577,27 +622,6 @@ impl Context {
     /// Draw an arc around x0,y0 with the given radius, from deg0 to deg1. Arcs will always be
     /// coords oriented clockwise from "north" on an SVG. ie: 45 to 135 will be NE to SE.
     pub fn arc_center(&mut self, x0: f64, y0: f64, radius: f64, deg0: f64, deg1: f64) -> &mut Self {
-        // let radius = radius.abs();
-        // // Clamp the angle.
-        // let deg0 = PI_F64 * ((deg0 % 360.0) / 180.0);
-        // let deg1 = PI_F64 * ((deg1 % 360.0) / 180.0);
-        // let (deg0, deg1) = if deg0 > deg1 {
-        //     (deg1, deg0)
-        // } else {
-        //     (deg0, deg1)
-        // };
-        // let sides = 1000.min(32.max(usize::from_f64(radius).unwrap_or(1000) * 4));
-        // let segments = (deg1 - deg0) * f64::from(sides as i32).floor();
-        // let seg_size = (deg1 - deg0) / segments;
-        // let mut ls = LineString::<f64>::new(vec![]);
-        // let mut angle = deg0;
-        // for _segment in 0..(segments as i32) {
-        //     ls.0.push(coord! {x: x0+radius*angle.sin(), y: y0+radius*angle.cos()});
-        //     angle += seg_size;
-        // }
-        // if deg1 - angle > 0.0 {
-        //     ls.0.push(coord! {x: x0+radius*deg1.sin(), y: y0+radius*deg1.cos()});
-        // }
         let ls = crate::geo_types::shapes::arc_center(x0, y0, radius, deg0, deg1);
         let ls = ls.map_coords(|(x,y)| (x.clone(), -y.clone()));
         self.add_operation(Geometry::LineString(ls));
@@ -648,9 +672,6 @@ impl Context {
     /// Draws a circle. Actually just buffers a point, and returns a polygon
     /// which it draws on the context.
     pub fn circle(&mut self, x0: f64, y0: f64, radius: f64) -> &mut Self {
-        // let radius = radius.abs();
-        // let sides = 1000.min(32.max(usize::from_f64(radius).unwrap_or(1000) * 4));
-        // self.regular_poly(sides, x0, y0, radius, 0.0)
         self.add_operation(shapes::circle(x0, y0, radius));
         self
     }
@@ -658,16 +679,6 @@ impl Context {
     /// Circumscribed regular polygon. The vertices of the polygon will be situated on a
     /// circle defined by the given radius. Polygon will be centered at x,y.
     pub fn regular_poly(&mut self, sides: usize, x: f64, y: f64, radius: f64, rotation: f64) -> &mut Self {
-        // all the way around to the start again, and hit the first point twice to close it.
-        // if sides < 3 { return self; };
-        //
-        // let geo = Geometry::Polygon(Polygon::new(LineString::new((0..(sides + 2))
-        //     .map(|i| {
-        //         let angle = rotation - PI_F64 / 2.0 +
-        //             (f64::from(i as i32) / f64::from(sides as i32)) * (2.0 * PI_F64);
-        //         coord! {x: x+angle.cos() * radius, y: y+angle.sin() * radius}
-        //     }).collect()
-        // ), vec![]));
         let geo = shapes::regular_poly(sides, x, y, radius, rotation);
         self.add_operation(geo);
         self
@@ -771,15 +782,15 @@ impl Context {
             &tmp_gt_op)
             .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
                 .expect("Failed to generate default geos::geometry"));
-        // let mut interim_geo = geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)?;
+        let mut i=0;
         for operation in self.operations.iter() {
+            println!("Flattening operation {}/{}", i, self.operations.len());
+            i+=1;
             if operation.consistent(&last_operation) {
                 // Union current_geometry with the operation
                 let cgeo = try_to_geos_geometry(&operation.content)
                     .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
                         .expect("Failed to generate default geos::geometry"));
-                // current_geometry = cgeo.union(&current_geometry)
-                //     .unwrap_or(Geom::clone(&current_geometry));
                 current_geometry = geos::Geometry::create_geometry_collection(vec![current_geometry, cgeo])
                     .expect("Cannot append geometry into collection.");
             } else {
@@ -809,6 +820,7 @@ impl Context {
                         .expect("If we failed to convert or fallback, something is very wrong."));
             }
         }
+        println!("Unary union...");
         // get the last one.
         current_geometry = current_geometry
             .unary_union()
@@ -817,13 +829,13 @@ impl Context {
             .unwrap_or(
                 Geometry::GeometryCollection(
                     GeometryCollection::new_from(vec![]))));
+        println!("Unary union complete");
         new_ctx
     }
 
     pub fn to_geo(&self) -> Result<Geometry<f64>, Box<dyn Error>> {
         let mut all: Vec<Geometry<f64>> = vec![];
         for operation in &self.operations {
-            // all.add(GeometryCollection::<f64>::new_from(vec![operation.content.clone()]));
             all.push(operation.content.clone().into());
         }
         Ok(Geometry::GeometryCollection(GeometryCollection::<f64>::new_from(all)))
@@ -833,7 +845,6 @@ impl Context {
     pub fn to_layers(&self) -> Vec<OPLayer> {
         let mut oplayers: Vec<OPLayer> = vec![];
         for op in &self.operations {
-            // let (stroke, fill) = op.render_to_lines();
             let (stroke, fill) = op.rendered.clone();
             oplayers.push(OPLayer {
                 stroke_lines: stroke,
@@ -1103,5 +1114,36 @@ mod test {
         "<path d=\"M0,0 L100,0 L100,100 L0,0\" fill=\"none\" id=\"outline-0\" stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.8\"/>\n",
         "</svg>"
         ));
+    }
+
+    #[test]
+    fn test_bezier_path() {
+        let mut context = Context::new();
+            // .path()
+        let mut path = BezPath::new();
+        path.move_to(BezPoint::new(20.0, 20.0));
+        path.line_to(BezPoint::new(80.0, 20.0));
+        path.curve_to(BezPoint::new(80.0, 40.0),
+                      BezPoint::new(90.0, 50.0),
+                      BezPoint::new(80.0, 60.0));
+        path.line_to(BezPoint::new(50.0, 80.0));
+        path.quad_to(
+            BezPoint::new(30.0, 50.0),
+            BezPoint::new(25.0, 30.0),
+        );
+        path.close_path();
+        context
+            .stroke("red")
+            .pen(0.8)
+            .fill("blue")
+            .hatch(45.0)
+            .path(&path)
+            .pattern(LineHatch::gen());
+
+
+        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let svg = context.to_svg(&arrangement).unwrap();
+        println!("SVG: {}", svg.to_string());
+
     }
 }

@@ -74,6 +74,7 @@ impl CarlsonSmithTruchet {
 
 
         }
+        println!("Len of truchet set {}", truchets.len());
         truchets
     }
 
@@ -167,7 +168,7 @@ impl CarlsonSmithTruchet {
             CarlsonSmithTruchet::UNHAPPY(false) => {
                 Ok(Geometry::GeometryCollection(
                     GeometryCollection::new_from(vec![
-                        Geometry::MultiPolygon(Geometry::Point(Point::new(0.0, 0.5))
+                        Geometry::MultiPolygon(Geometry::Point(Point::new(-0.5, 0.0))
                             .buffer(1.0f64 / 6.0f64)?),
                         Geometry::MultiPolygon(Geometry::Point(Point::new(0.0, -0.5))
                             .buffer(1.0f64 / 6.0f64)?),
@@ -266,7 +267,7 @@ impl CarlsonSmithTruchet {
                 let ac1 = Geometry::LineString(
                     arc_center(0.5, 0.5, 0.5, 180.0, 270.0))
                     .buffer(1.0f64 / 6.0f64)?; // Buffer is 1/2 of 1/3
-                let p1 = Geometry::MultiPolygon(Geometry::Point(Point::new(0.0, 0.5))
+                let p1 = Geometry::MultiPolygon(Geometry::Point(Point::new(-0.5, 0.0))
                     .buffer(1.0f64 / 6.0f64)?);
                 let p2 = Geometry::MultiPolygon(Geometry::Point(Point::new(0.0, -0.5))
                     .buffer(1.0f64 / 6.0f64)?);
