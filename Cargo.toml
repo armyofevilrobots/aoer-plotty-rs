@@ -9,6 +9,7 @@ repository = "https://github.com/armyofevilrobots/aoer-plotty-rs"
 
 [dependencies]
 anyhow = "1.0"
+font = "0.4"
 geo-types = "0.7"
 geo = "0.20"
 geos = { version = "8.1", features = ["geo", "json"] }
@@ -27,4 +28,6 @@ rand = "0.8"
 splines = "4.1"
 kurbo = "0.8"
 cubic_spline = "1.0"
+font-kit = "0.11"
+pathfinder_geometry = "0.5"
 #itertools = "0.10"

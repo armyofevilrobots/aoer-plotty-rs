@@ -1,5 +1,6 @@
 //! Provides the [`crate::context::Context`] struct which gives us a canvas-style drawing
 //! context which provides plotter-ready SVG files. See `Context` for more details, and examples.
+use std::borrow::BorrowMut;
 use std::error::Error;
 use embed_doc_image::embed_doc_image;
 
@@ -7,155 +8,37 @@ use embed_doc_image::embed_doc_image;
 use std::f64::consts::PI;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::sync::Arc;
 use geo_types::{coord, Coordinate, Geometry, GeometryCollection, LineString, MultiLineString, Point, Polygon, Rect};
 use svg::Document;
 use crate::prelude::{Arrangement, HatchPattern, NoHatch, OutlineFillStroke, ToSvg};
 use crate::geo_types::hatch::{Hatch, LineHatch};
 use cubic_spline::{Points, SplineOpts};
+use font::Glyph;
 use geo::map_coords::MapCoords;
 use geo::prelude::BoundingRect;
 use geos::{Geom, GeometryTypes};
+use geos::wkt::ToWkt;
 // use geos::GeometryTypes::Point;
 use nalgebra::{Affine2, Matrix3, Point2 as NPoint2};
 use nannou::prelude::PI_F64;
 use crate::geo_types::clip::{LineClip, try_to_geos_geometry};
 use crate::errors::ContextError;
-use crate::geo_types::shapes;
+use crate::geo_types::{shapes, ToGeos};
 pub use kurbo::BezPath;
 pub use kurbo::Point as BezPoint;
 use kurbo::PathEl;
+use font_kit::font::Font;
+use font_kit::hinting::HintingOptions;
+use wkt::TryFromWkt;
 
-/// Operations are private items used to store the operation stack
-/// consisting of a combination of Geometry and Context state.
-#[derive(Clone)]
-struct Operation {
-    accuracy: f64,
-    content: Geometry<f64>,
-    rendered: (MultiLineString<f64>, MultiLineString<f64>),
-    transformation: Option<Affine2<f64>>,
-    stroke_color: String,
-    outline_stroke: Option<f64>,
-    fill_color: String,
-    line_join: String,
-    line_cap: String,
-    pen_width: f64,
-    mask: Option<Geometry<f64>>,
-    clip_previous: bool,
-    hatch_pattern: Rc<dyn HatchPattern>,
-    hatch_angle: f64,
-}
+pub mod operation;
 
+use operation::{OPLayer, Operation};
 
-impl Operation {
-    fn consistent(&self, other: &Operation) -> bool {
-        if self.stroke_color == other.stroke_color &&
-            self.outline_stroke == other.outline_stroke &&
-            self.fill_color == other.fill_color &&
-            self.line_join == other.line_join &&
-            self.line_cap == other.line_cap &&
-            self.pen_width == other.pen_width &&
-            self.hatch_angle == other.hatch_angle &&
-            self.clip_previous == other.clip_previous // &&
-        {
-            true
-        } else {
-            false
-        }
-    }
+pub mod glyph_proxy;
 
-    /// Helper function for converting polygons into sets of strings.
-    fn poly2lines(poly: &Polygon<f64>, pen_width: f64,
-                  hatch_angle: f64, hatch_pattern: Rc<dyn HatchPattern>)
-                  -> (MultiLineString<f64>, MultiLineString<f64>)
-    {
-        let mut strokes = MultiLineString::new(vec![]);
-        let mut fills = MultiLineString::new(vec![]);
-        // Push the exterior
-        strokes.0.push(poly.exterior().clone());
-        for interior in poly.interiors() {
-            strokes.0.push(interior.clone())
-        }
-        let hatch_pattern = hatch_pattern.deref();
-        let hatches = poly
-            .hatch(hatch_pattern, hatch_angle,
-                   pen_width * 0.8, pen_width * 0.8)
-            .unwrap_or(MultiLineString::new(vec![]));
-        fills.0.append(&mut hatches.0.clone());
-        (strokes, fills)
-    }
-
-    /// Helper to transform geometry when we have an affine transform set.
-    fn xform_coord((x, y): &(f64, f64), affine: &Affine2<f64>) -> (f64, f64) {
-        let out = affine * NPoint2::new(*x, *y);
-        (out.x, out.y)
-    }
-
-    fn render_to_lines(&self) -> (MultiLineString<f64>, MultiLineString<f64>) {
-        // Get the transformed geo, or just this geo at 1:1
-        let txgeo = self.content.clone();
-
-        // Masking was moved into the add_operation code.
-
-        // Then turn it into outlines and fills
-        let (outlines, fills) = match txgeo {
-            Geometry::MultiLineString(mls) =>
-                (mls.clone(), MultiLineString::new(vec![])),
-            Geometry::LineString(ls) =>
-                (MultiLineString::new(vec![ls.clone()]),
-                 MultiLineString::new(vec![])),
-            Geometry::Polygon(poly) =>
-                Self::poly2lines(&poly, self.pen_width, self.hatch_angle,
-                                 self.hatch_pattern.clone()),
-            Geometry::MultiPolygon(polys) => {
-                let mut strokes = MultiLineString::new(vec![]);
-                let mut fills = MultiLineString::new(vec![]);
-                for poly in polys {
-                    let (new_strokes, new_fills) =
-                        Self::poly2lines(&poly, self.pen_width, self.hatch_angle,
-                                         self.hatch_pattern.clone());
-                    strokes.0.append(&mut new_strokes.0.clone());
-                    fills.0.append(&mut new_fills.0.clone());
-                }
-                (strokes, fills)
-            }
-            _ => (MultiLineString::new(vec![]), MultiLineString::new(vec![]))
-        };
-
-        // Finally, if we have outline stroke, then outline the existing strokes.
-        let outlines = match self.outline_stroke {
-            Some(stroke) => outlines
-                .outline_fill_stroke_with_hatch(stroke,
-                                                self.pen_width,
-                                                &LineHatch {},
-                                                self.hatch_angle)
-                .unwrap_or(outlines),
-            None => outlines
-        };
-        (outlines, fills)
-    }
-}
-
-
-/// OPLayer is an operation layer, rendered into lines for drawing.
-pub struct OPLayer {
-    stroke_lines: MultiLineString<f64>,
-    fill_lines: MultiLineString<f64>,
-    stroke: String,
-    fill: String,
-    stroke_width: f64,
-    stroke_linejoin: String,
-    stroke_linecap: String,
-}
-
-impl OPLayer {
-    pub fn to_lines(&self) -> (MultiLineString<f64>, MultiLineString<f64>) {
-        (self.stroke_lines.clone(), self.fill_lines.clone())
-    }
-
-    pub fn stroke(&self) -> String { self.stroke.clone() }
-    pub fn fill(&self) -> String { self.fill.clone() }
-}
-
+use glyph_proxy::GlyphProxy;
 
 /// # Context
 ///
@@ -225,6 +108,7 @@ impl OPLayer {
 pub struct Context {
     operations: Vec<Operation>,
     accuracy: f64,
+    font: Option<Font>,
     transformation: Option<Affine2<f64>>,
     stroke_color: String,
     outline_stroke: Option<f64>,
@@ -241,12 +125,17 @@ pub struct Context {
 
 
 impl Context {
+    /// Default font
+    pub fn default_font() -> Font {
+        let font_data = include_bytes!("../../resources/fonts/ReliefSingleLine-Regular.ttf").to_vec();
+        Font::from_bytes(Arc::new(font_data), 0).unwrap()  // We know this font is OK
+    }
 
     /// Finalize Arrangement
-    pub fn finalize_arrangement(&self, arrangement: &Arrangement<f64>) -> Arrangement<f64>{
+    pub fn finalize_arrangement(&self, arrangement: &Arrangement<f64>) -> Arrangement<f64> {
         if let Ok(bounds) = self.bounds() {
             arrangement.finalize(&bounds)
-        }else{
+        } else {
             Arrangement::unit(&arrangement.viewbox())
         }
     }
@@ -292,6 +181,7 @@ impl Context {
             operations: vec![],
             accuracy: 0.1,  // 0.1mm should be close enough for anybody
             transformation: None,
+            font: Some(Context::default_font()),
             stroke_color: "black".to_string(),
             outline_stroke: None,
             fill_color: "black".to_string(),
@@ -309,10 +199,10 @@ impl Context {
     /// Bounds returns a Rect defining the bounds of all operations drawn on the context.
     /// Note: Since this has to iterate over ALL geometry in the drawing, it's kind of expensive.
     /// I'll probably cache this per operation at some point, but for now it's pricy.
-    pub fn bounds(&self) -> Result<Rect<f64>, Box<dyn Error>>{
+    pub fn bounds(&self) -> Result<Rect<f64>, Box<dyn Error>> {
         let mut pmin = Point::new(f64::MAX, f64::MAX);
         let mut pmax = Point::new(f64::MIN, f64::MIN);
-        for operation in &self.operations{
+        for operation in &self.operations {
             let tmp_bounds = operation.content.bounding_rect();
             if let Some(bounds) = tmp_bounds {
                 pmin = Point::new(pmin.y().min(bounds.min().y),
@@ -322,10 +212,11 @@ impl Context {
             }
         }
         if pmin == Point::new(f64::MAX, f64::MAX) || pmax == Point::new(f64::MIN, f64::MIN) {
-            Err(Box::new(geo_types::Error::MismatchedGeometry{
+            Err(Box::new(geo_types::Error::MismatchedGeometry {
                 expected: "Context with content",
-                found: "Empty context" }))
-        }else{
+                found: "Empty context",
+            }))
+        } else {
             Ok(Rect::new(pmin.0, pmax.0))
         }
     }
@@ -383,6 +274,10 @@ impl Context {
         self.stack.push(Self {
             operations: vec![],
             accuracy: self.accuracy.clone(),
+            font: match &self.font {
+                Some(font) => Some(font.clone()),
+                None => None
+            },
             transformation: match self.transformation.clone() {
                 Some(transformation) => Some(transformation),
                 None => None
@@ -456,26 +351,27 @@ impl Context {
             hatch_pattern: self.hatch_pattern.clone(),
             hatch_angle: self.hatch_angle,
         };
-        if let Some(tx) = &op.transformation {
-            op.content = op.content.map_coords(|xy| Operation::xform_coord(xy, tx));
-        }
-        op.content = match &op.mask {
-            Some(mask) => {
-                let ggeo = try_to_geos_geometry(&op.content)
-                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
-                        .unwrap());
-                let mggeo = try_to_geos_geometry(mask)
-                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
-                        .unwrap());
-                let masked_geo = ggeo.intersection(&mggeo)
-                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
-                        .unwrap());
-                geo_types::Geometry::<f64>::try_from(masked_geo).unwrap_or(Geometry::GeometryCollection::<f64>(Default::default()))
-            }
-            None => op.content
-        };
-
-        op.rendered = op.render_to_lines();
+        // if let Some(tx) = &op.transformation {
+        //     op.content = op.content.map_coords(|xy| Operation::xform_coord(xy, tx));
+        // }
+        // op.content = match &op.mask {
+        //     Some(mask) => {
+        //         let ggeo = try_to_geos_geometry(&op.content)
+        //             .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+        //                 .unwrap());
+        //         let mggeo = try_to_geos_geometry(mask)
+        //             .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+        //                 .unwrap());
+        //         let masked_geo = ggeo.intersection(&mggeo)
+        //             .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+        //                 .unwrap());
+        //         geo_types::Geometry::<f64>::try_from(masked_geo).unwrap_or(Geometry::GeometryCollection::<f64>(Default::default()))
+        //     }
+        //     None => op.content
+        // };
+        //
+        // op.rendered = op.render_to_lines();
+        let op = op.render();
         self.operations.push(op);
     }
 
@@ -516,7 +412,9 @@ impl Context {
                 vec![],
             ))),
             Geometry::GeometryCollection(collection) => {
+                println!("Adding geom collection: {:?}", &collection);
                 for item in collection {
+                    println!("Adding geo collection item: {:?}", &item);
                     self.geometry(item);
                 }
             }
@@ -553,36 +451,94 @@ impl Context {
         self
     }
 
+
+    /// Glyph
+    /// Draws a single glyph on the Context, at 0,0
+    pub fn glyph(&mut self, glyph: char) -> &mut Self {
+        if let Some(font) = &self.font{
+            let mut proxy = GlyphProxy::new();
+            let glyph_id = font.glyph_for_char(glyph).unwrap_or(32);
+            font.outline(
+                glyph_id,
+                HintingOptions::None,
+                &mut proxy,
+            ).unwrap();
+            println!("Proxy path is: {:?}", &proxy.path());
+            self.path(&proxy.path());
+        }
+        println!("Last op: {:?}", self.operations.last().unwrap().content);
+        self
+    }
+
+    /// Text
+    /// Draws text in the desired orientation, with the current font
+    // pub fn text(&self, text: String, )
+
+
     /// Way more useful path interface. Uses Kurbo's BezierPath module.
-    pub fn path(&mut self, bezier: &BezPath) -> &mut Self{
-            // Eventually, this should generate polygons. Holes are tricky tho.
-                let mut segments: MultiLineString<f64> = MultiLineString::new(vec![]);
-                let mut lastpoint = kurbo::Point::new(0.0, 0.0);
-                let mut add_segment = | el: PathEl| {
-                    match el {
-                        PathEl::MoveTo(pos) => {
-                            segments.0.push(LineString::new(vec![coord!{x: pos.x, y: pos.y}]));
-                            lastpoint = pos.clone();
-                        }
-                        PathEl::LineTo(pos) => {
-                            if let Some(mut line) = segments.0.last_mut(){
-                                line.0.push(coord!{x: pos.x, y: pos.y});
-                            }
-                        }
-                        PathEl::ClosePath => {
-                            if let Some(mut line) = segments.0.last_mut(){
-                                line.0.push(coord!{x: lastpoint.x, y: lastpoint.y});
-                            }
-                        }
-                        _ => panic!("Unexpected/Impossible segment type interpolating a bezier path!")
+    /// After creation, uses GEOS polygonize_full to generate polygons
+    /// and line segments from the drawing, ensuring that we can have
+    /// filled geometry as an output.
+    pub fn path(&mut self, bezier: &BezPath) -> &mut Self {
+        // Eventually, this should generate polygons. Holes are tricky tho.
+        let mut segments: MultiLineString<f64> = MultiLineString::new(vec![]);
+        let mut lastpoint = kurbo::Point::new(0.0, 0.0);
+        let mut add_segment = |el: PathEl| {
+            match el {
+                PathEl::MoveTo(pos) => {
+                    segments.0.push(LineString::new(vec![coord! {x: pos.x, y: pos.y}]));
+                    lastpoint = pos.clone();
+                }
+                PathEl::LineTo(pos) => {
+                    if let Some(mut line) = segments.0.last_mut() {
+                        line.0.push(coord! {x: pos.x, y: pos.y});
                     }
-                };
+                }
+                PathEl::ClosePath => {
+                    if let Some(mut line) = segments.0.last_mut() {
+                        line.0.push(coord! {x: lastpoint.x, y: lastpoint.y});
+                    }
+                }
+                _ => panic!("Unexpected/Impossible segment type interpolating a bezier path!")
+            }
+        };
 
-                bezier.flatten(self.accuracy, add_segment);
+        bezier.flatten(self.accuracy, add_segment);
+        let tmp_gtgeo = Geometry::MultiLineString(segments);
+        let tmp_geos = tmp_gtgeo.to_geos();
+        let out_gtgeo: Geometry<f64> = match tmp_geos {
+            Ok(geos_geom) => {
+                if let Ok((poly_geo, cuts_geo, dangles_geo, invalid_geo)) = geos_geom.polygonize_full() {
+                    if let Some(dangles) = &dangles_geo {println!("Dangles: {:?}", dangles.to_wkt().unwrap());}
+                    if let Some(cuts) = &cuts_geo {println!("Cuts: {:?}", cuts.to_wkt().unwrap());}
+                    if let Some(invalid) = &invalid_geo {
+                        println!("Invalid: {:?}", invalid.to_wkt().unwrap());
+                    }
+                    let out_gtgeo = match invalid_geo {
+                        None => Geometry::try_from(&poly_geo).unwrap_or(tmp_gtgeo.clone()),
+                        Some(invalid) => {
+                            println!("Invalid: {:?}", invalid.to_wkt().unwrap());
+                            Geometry::GeometryCollection(GeometryCollection::new_from(vec![
+                                Geometry::try_from(&poly_geo).unwrap_or(tmp_gtgeo.clone()),
+                                Geometry::try_from(&invalid).unwrap_or(Geometry::GeometryCollection(GeometryCollection::new_from(vec![])))
+                            ]))
+                        }
+                    };
+                    println!("Polygonzed: {:?}", &out_gtgeo);
+                    out_gtgeo
+                } else {
+                    println!("Couldn't convert to geos polys");
+                    tmp_gtgeo.clone()
+                }
+            }
+            Err(err) => {
+                println!("Couldn't convert to geos at all");
+                tmp_gtgeo.clone()
+            }
+        };
 
-                self.add_operation(
-                    Geometry::MultiLineString(segments)
-                );
+        println!("Out GTGEO is {:?}", &out_gtgeo);
+        self.add_operation(out_gtgeo);
         self
     }
 
@@ -623,7 +579,7 @@ impl Context {
     /// coords oriented clockwise from "north" on an SVG. ie: 45 to 135 will be NE to SE.
     pub fn arc_center(&mut self, x0: f64, y0: f64, radius: f64, deg0: f64, deg1: f64) -> &mut Self {
         let ls = crate::geo_types::shapes::arc_center(x0, y0, radius, deg0, deg1);
-        let ls = ls.map_coords(|(x,y)| (x.clone(), -y.clone()));
+        let ls = ls.map_coords(|(x, y)| (x.clone(), -y.clone()));
         self.add_operation(Geometry::LineString(ls));
 
         self
@@ -782,10 +738,9 @@ impl Context {
             &tmp_gt_op)
             .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
                 .expect("Failed to generate default geos::geometry"));
-        let mut i=0;
+        let mut i = 0;
         for operation in self.operations.iter() {
-            println!("Flattening operation {}/{}", i, self.operations.len());
-            i+=1;
+            i += 1;
             if operation.consistent(&last_operation) {
                 // Union current_geometry with the operation
                 let cgeo = try_to_geos_geometry(&operation.content)
@@ -820,7 +775,6 @@ impl Context {
                         .expect("If we failed to convert or fallback, something is very wrong."));
             }
         }
-        println!("Unary union...");
         // get the last one.
         current_geometry = current_geometry
             .unary_union()
@@ -829,7 +783,6 @@ impl Context {
             .unwrap_or(
                 Geometry::GeometryCollection(
                     GeometryCollection::new_from(vec![]))));
-        println!("Unary union complete");
         new_ctx
     }
 
@@ -962,7 +915,6 @@ mod test {
             .arc_center(0.0, 0.0, 10.0, 180.0, 45.0);
         let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
         let svg2 = context.to_svg(&arrangement).unwrap();
-        // println!("SVG ARC IS: {}", svg2.to_string());
         // Make sure that order of angles is irrelevant
         assert_eq!(svg2.to_string(), svg1.to_string());
     }
@@ -1119,7 +1071,7 @@ mod test {
     #[test]
     fn test_bezier_path() {
         let mut context = Context::new();
-            // .path()
+        // .path()
         let mut path = BezPath::new();
         path.move_to(BezPoint::new(20.0, 20.0));
         path.line_to(BezPoint::new(80.0, 20.0));
@@ -1136,14 +1088,36 @@ mod test {
             .stroke("red")
             .pen(0.8)
             .fill("blue")
+            .pattern(LineHatch::gen())
             .hatch(45.0)
             .path(&path)
-            .pattern(LineHatch::gen());
+        ;
+
+
+        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let svg = context.to_svg(&arrangement).unwrap();
+        // println!("SVG: {}", svg.to_string());
+    }
+
+
+    #[test]
+    fn test_single_glyph() {
+        let mut context = Context::new();
+        // .path()
+        context
+            .stroke("red")
+            .pen(0.8)
+            .fill("blue")
+            .pattern(LineHatch::gen())
+            .hatch(45.0)
+            .glyph('X')
+            .glyph('O')
+        ;
 
 
         let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
         let svg = context.to_svg(&arrangement).unwrap();
         println!("SVG: {}", svg.to_string());
-
     }
+
 }
