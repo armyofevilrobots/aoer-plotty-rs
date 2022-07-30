@@ -58,6 +58,10 @@ fn main(){
         .stroke("green")
         .regular_poly(8, 80.0, 80.0, 20.0, 0.0)
         .star_poly(5, 30.0, 80.0, 10.0, 20.0, 0.0)
+        .transform(Some(&(Context::translate_matrix(50.0,50.0) * Context::scale_matrix(0.02, -0.02))))
+        .pattern(NoHatch::gen())
+        .pattern(LineHatch::gen())
+        .glyph('Q')
     ;
 
     let svg = ctx.to_svg(

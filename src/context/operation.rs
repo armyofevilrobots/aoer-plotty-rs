@@ -153,7 +153,7 @@ impl Operation {
                 let mut strokes = MultiLineString::new(vec![]);
                 let mut fills = MultiLineString::new(vec![]);
                 for item in collection {
-                    println!("Adding geo collection item: {:?}", &item);
+                    // println!("Adding geo collection item: {:?}", &item);
                     let (mut tmpstrokes, mut tmpfills) = Operation::help_render_geo(
                         item,
                         pen_width,
@@ -163,7 +163,7 @@ impl Operation {
                     fills.0.append(tmpfills.0.borrow_mut());
 
                 }
-                println!("Got strokes, fills of: \n{:?}, \n{:?}\n\n", &strokes, &fills);
+                // println!("Got strokes, fills of: \n{:?}, \n{:?}\n\n", &strokes, &fills);
                 (strokes, fills)
             }
 

@@ -1,6 +1,7 @@
 use std::error::Error;
-use geo_types::{Point, CoordNum, Geometry, Polygon, coord, LineString};
-use geos::CoordSeq;
+use geo_types::{Point, CoordNum, Geometry, Polygon, coord, LineString, MultiLineString, GeometryCollection};
+use geos::{CoordSeq, Geom, Geometry as GeosGeometry};
+use kurbo::{PathEl, PathSeg};
 use num_traits::real::Real;
 
 /// Helper module for converting geo-types geometry into something useful
@@ -37,6 +38,89 @@ pub trait PointDistance<T: CoordNum> {
 
     /// Treat a [`geo_types::Point`] as a Vector and return its scalar length.
     fn length(&self) -> T;
+}
+
+pub trait ToGTGeometry{
+    fn to_gt_geometry(&self) -> Result<Geometry<f64>, Box<dyn Error>>;
+}
+
+impl ToGTGeometry for kurbo::BezPath {
+    fn to_gt_geometry(&self) -> Result<Geometry<f64>, Box<dyn Error>> {
+        let mut segments: MultiLineString<f64> = MultiLineString::new(vec![]);
+        let mut lastpoint = kurbo::Point::new(0.0, 0.0);
+        let mut add_segment = |el: PathEl| {
+            match el {
+                PathEl::MoveTo(pos) => {
+                    segments.0.push(LineString::new(vec![coord! {x: pos.x, y: pos.y}]));
+                    lastpoint = pos.clone();
+                }
+                PathEl::LineTo(pos) => {
+                    if let Some(mut line) = segments.0.last_mut() {
+                        line.0.push(coord! {x: pos.x, y: pos.y});
+                    }
+                }
+                PathEl::ClosePath => {
+                    if let Some(mut line) = segments.0.last_mut() {
+                        line.0.push(coord! {x: lastpoint.x, y: lastpoint.y});
+                    }
+                }
+                _ => panic!("Unexpected/Impossible segment type interpolating a bezier path!")
+            }
+        };
+        // println!("Pre-flatten geo is: {:?}", self.segments().map(|s| s).collect::<Vec<PathSeg>>());
+        // self.segments().for_each(|s| println!("Segment: {:?}", s));
+        self.flatten(0.1, add_segment);
+        let tmp_gtgeo = Geometry::MultiLineString(segments);
+        let tmp_geos = tmp_gtgeo.to_geos();
+        Ok(match tmp_geos {
+            Ok(geos_geom) => {
+                if let Ok((poly_geo, cuts_geo, dangles_geo, invalid_geo)) = geos_geom.polygonize_full() {
+                    // if let Some(cuts) = &cuts_geo {
+                    //     println!("Cuts: {:?}", cuts.to_wkt().unwrap());
+                    // }
+                    // if let Some(invalid) = &invalid_geo {
+                    //     println!("Invalid: {:?}", invalid.to_wkt().unwrap());
+                    // }
+                    // if let Some(dangles) = &dangles_geo {
+                    //     println!("Dangles: {:?}", dangles.to_wkt().unwrap());
+                    // }
+                    // let mut out_gtgeo = match invalid_geo {
+                    //     None => Geometry::try_from(&poly_geo).unwrap_or(tmp_gtgeo.clone()),
+                    //     Some(invalid) => {
+                    //         println!("Invalid: {:?}", invalid.to_wkt().unwrap());
+                    //         Geometry::GeometryCollection(GeometryCollection::new_from(vec![
+                    //             Geometry::try_from(&poly_geo).unwrap_or(tmp_gtgeo.clone()),
+                    //             Geometry::try_from(&invalid).unwrap_or(Geometry::GeometryCollection(GeometryCollection::new_from(vec![]))),
+                    //         ]))
+                    //     }
+                    // };
+                    let out_gtgeo = Geometry::GeometryCollection(GeometryCollection::new_from(vec![
+                        Geometry::try_from(&poly_geo)
+                            .unwrap_or(Geometry::GeometryCollection(GeometryCollection::new_from(vec![]))),
+                        match invalid_geo {
+                            Some(invalid) => Geometry::try_from(&invalid)
+                                .unwrap_or(Geometry::GeometryCollection(GeometryCollection::new_from(vec![]))),
+                            None => Geometry::GeometryCollection(GeometryCollection::new_from(vec![]))
+                        },
+                        match dangles_geo {
+                            Some(dangles) => Geometry::try_from(&dangles)
+                                .unwrap_or(Geometry::GeometryCollection(GeometryCollection::new_from(vec![]))),
+                            None => Geometry::GeometryCollection(GeometryCollection::new_from(vec![]))
+                        },
+                    ]));
+                    // println!("Polygonzed: {:?}", &out_gtgeo);
+                    out_gtgeo
+                } else {
+                    // println!("Couldn't convert to geos polys");
+                    tmp_gtgeo.clone()
+                }
+            }
+            Err(err) => {
+                // println!("Couldn't convert to geos at all");
+                tmp_gtgeo.clone()
+            }
+        })
+    }
 }
 
 /// Kinda weird that arc features are missing from geo_types, but ok, here is one.
@@ -99,7 +183,7 @@ pub mod shapes {
         #[test]
         fn test_arc_c() {
             let arc = arc_center(0.0f64, 0.0f64, 10.0f64, 90.0f64, 135f64);
-            println!("ARC: {:?}", &arc);
+            // println!("ARC: {:?}", &arc);
         }
     }
 }
@@ -121,9 +205,10 @@ pub trait ToGeos {
     fn to_geos(&self) -> Result<geos::Geometry, Box<dyn Error>>;
 }
 
+
 impl ToGeos for geo_types::Geometry<f64> {
     fn to_geos(&self) -> Result<geos::Geometry, Box<dyn Error>> {
-        if let Geometry::GeometryCollection(collection) = self{
+        if let Geometry::GeometryCollection(collection) = self {
             let geomap: Vec<geos::Geometry> = collection.iter()
                 .map(|item|
                     item
@@ -136,10 +221,10 @@ impl ToGeos for geo_types::Geometry<f64> {
                 )
                 // .map_ok(|x|x)
                 .collect();
-            if let Ok(geosmap) = geos::Geometry::create_geometry_collection(geomap){
+            if let Ok(geosmap) = geos::Geometry::create_geometry_collection(geomap) {
                 return Ok(geosmap);
             } else {
-                return Err(Box::new(geos::Error::InvalidGeometry("Wrong type of geometry".into())))
+                return Err(Box::new(geos::Error::InvalidGeometry("Wrong type of geometry".into())));
             }
         }
         Ok(match self {
@@ -155,9 +240,9 @@ impl ToGeos for geo_types::Geometry<f64> {
                 Polygon::new(LineString::from(
                     vec![
                         rect.min(),
-                        coord!{x: rect.max().x, y: rect.min().y},
+                        coord! {x: rect.max().x, y: rect.min().y},
                         rect.max(),
-                        coord!{x: rect.min().x, y: rect.max().y},
+                        coord! {x: rect.min().x, y: rect.max().y},
                         rect.min(),
                     ]),
                              vec![])),
@@ -173,11 +258,12 @@ impl ToGeos for geo_types::Geometry<f64> {
                             .unwrap_or(geos::Geometry::create_empty_line_string().unwrap())
                     })
                     .collect())
-            },
+            }
             _ => Err(geos::Error::InvalidGeometry("Wrong type of geometry".into()))
         }?)
     }
 }
+
 
 #[cfg(test)]
 mod tests {

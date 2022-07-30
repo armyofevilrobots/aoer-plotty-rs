@@ -40,6 +40,10 @@ pub mod glyph_proxy;
 
 use glyph_proxy::GlyphProxy;
 
+pub mod typography;
+
+use typography::Typography;
+
 /// # Context
 ///
 /// A Context is a _drawing_ context, used to perform operations against a
@@ -351,26 +355,6 @@ impl Context {
             hatch_pattern: self.hatch_pattern.clone(),
             hatch_angle: self.hatch_angle,
         };
-        // if let Some(tx) = &op.transformation {
-        //     op.content = op.content.map_coords(|xy| Operation::xform_coord(xy, tx));
-        // }
-        // op.content = match &op.mask {
-        //     Some(mask) => {
-        //         let ggeo = try_to_geos_geometry(&op.content)
-        //             .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
-        //                 .unwrap());
-        //         let mggeo = try_to_geos_geometry(mask)
-        //             .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
-        //                 .unwrap());
-        //         let masked_geo = ggeo.intersection(&mggeo)
-        //             .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
-        //                 .unwrap());
-        //         geo_types::Geometry::<f64>::try_from(masked_geo).unwrap_or(Geometry::GeometryCollection::<f64>(Default::default()))
-        //     }
-        //     None => op.content
-        // };
-        //
-        // op.rendered = op.render_to_lines();
         let op = op.render();
         self.operations.push(op);
     }
@@ -412,9 +396,9 @@ impl Context {
                 vec![],
             ))),
             Geometry::GeometryCollection(collection) => {
-                println!("Adding geom collection: {:?}", &collection);
+                // println!("Adding geom collection: {:?}", &collection);
                 for item in collection {
-                    println!("Adding geo collection item: {:?}", &item);
+                    // println!("Adding geo collection item: {:?}", &item);
                     self.geometry(item);
                 }
             }
@@ -451,28 +435,36 @@ impl Context {
         self
     }
 
+    /// Draws a line of text
+    pub fn typography(&mut self, text: &String, x0: f64, y0: f64, typography: &Typography) -> &mut Self{
+        let mut typ = typography.clone();
+        let geo = typ.render(text)
+            .unwrap_or(Geometry::GeometryCollection(GeometryCollection(vec![])))
+            .map_coords(|(x,y)| (x0+x.clone(), y0-(y.clone())));
+        // println!("The geo is: {:?}", &geo);
+        self.geometry(&geo);
+        self
+
+    }
 
     /// Glyph
     /// Draws a single glyph on the Context, at 0,0
-    pub fn glyph(&mut self, glyph: char) -> &mut Self {
+    pub fn glyph(&mut self, glyph: char, close: bool) -> &mut Self {
         if let Some(font) = &self.font{
-            let mut proxy = GlyphProxy::new();
+            let mut proxy = GlyphProxy::new(close);
             let glyph_id = font.glyph_for_char(glyph).unwrap_or(32);
             font.outline(
                 glyph_id,
                 HintingOptions::None,
                 &mut proxy,
             ).unwrap();
-            println!("Proxy path is: {:?}", &proxy.path());
+            // println!("Proxy path is: {:?}", &proxy.path());
             self.path(&proxy.path());
         }
-        println!("Last op: {:?}", self.operations.last().unwrap().content);
+        // println!("Last op: {:?}", self.operations.last().unwrap().content);
         self
     }
 
-    /// Text
-    /// Draws text in the desired orientation, with the current font
-    // pub fn text(&self, text: String, )
 
 
     /// Way more useful path interface. Uses Kurbo's BezierPath module.
@@ -509,35 +501,35 @@ impl Context {
         let out_gtgeo: Geometry<f64> = match tmp_geos {
             Ok(geos_geom) => {
                 if let Ok((poly_geo, cuts_geo, dangles_geo, invalid_geo)) = geos_geom.polygonize_full() {
-                    if let Some(dangles) = &dangles_geo {println!("Dangles: {:?}", dangles.to_wkt().unwrap());}
-                    if let Some(cuts) = &cuts_geo {println!("Cuts: {:?}", cuts.to_wkt().unwrap());}
-                    if let Some(invalid) = &invalid_geo {
-                        println!("Invalid: {:?}", invalid.to_wkt().unwrap());
-                    }
+                    // if let Some(dangles) = &dangles_geo {println!("Dangles: {:?}", dangles.to_wkt().unwrap());}
+                    // if let Some(cuts) = &cuts_geo {println!("Cuts: {:?}", cuts.to_wkt().unwrap());}
+                    // if let Some(invalid) = &invalid_geo {
+                        // println!("Invalid: {:?}", invalid.to_wkt().unwrap());
+                    // }
                     let out_gtgeo = match invalid_geo {
                         None => Geometry::try_from(&poly_geo).unwrap_or(tmp_gtgeo.clone()),
                         Some(invalid) => {
-                            println!("Invalid: {:?}", invalid.to_wkt().unwrap());
+                            // println!("Invalid: {:?}", invalid.to_wkt().unwrap());
                             Geometry::GeometryCollection(GeometryCollection::new_from(vec![
                                 Geometry::try_from(&poly_geo).unwrap_or(tmp_gtgeo.clone()),
                                 Geometry::try_from(&invalid).unwrap_or(Geometry::GeometryCollection(GeometryCollection::new_from(vec![])))
                             ]))
                         }
                     };
-                    println!("Polygonzed: {:?}", &out_gtgeo);
+                    // println!("Polygonzed: {:?}", &out_gtgeo);
                     out_gtgeo
                 } else {
-                    println!("Couldn't convert to geos polys");
+                    // println!("Couldn't convert to geos polys");
                     tmp_gtgeo.clone()
                 }
             }
             Err(err) => {
-                println!("Couldn't convert to geos at all");
+                // println!("Couldn't convert to geos at all");
                 tmp_gtgeo.clone()
             }
         };
 
-        println!("Out GTGEO is {:?}", &out_gtgeo);
+        // println!("Out GTGEO is {:?}", &out_gtgeo);
         self.add_operation(out_gtgeo);
         self
     }
@@ -1117,7 +1109,7 @@ mod test {
 
         let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
         let svg = context.to_svg(&arrangement).unwrap();
-        println!("SVG: {}", svg.to_string());
+        // println!("SVG: {}", svg.to_string());
     }
 
 }
