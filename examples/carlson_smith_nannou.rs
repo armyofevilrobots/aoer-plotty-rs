@@ -13,6 +13,8 @@ use nannou::lyon::lyon_tessellation::LineJoin;
 use nannou::lyon::tessellation::LineCap;
 use nannou_egui::{self, egui, Egui, Input};
 use aoer_plotty_rs::context::Context as AOERCTX;
+use aoer_plotty_rs::context::typography::TextAlignment::Center;
+use aoer_plotty_rs::context::typography::Typography;
 use aoer_plotty_rs::elements::CarlsonSmithTruchet;
 use aoer_plotty_rs::prelude::LineHatch;
 
@@ -54,29 +56,49 @@ fn generate(settings: &Settings) -> AOERCTX {
 
     ctx.pen(1.0)
         .pattern(LineHatch::gen());
+    let mut typo = Typography::new();
+    typo.size(4.5)
+        .align(Center);
+
 
     for (name, geo) in CarlsonSmithTruchet::full_set(false) {
         println!("Plotting {}", name);
-        let yofs: f64 = -128.0f64 + 64.0f64 * <f64 as From<i32>>::from((count / 6) as i32);
-        let xofs: f64 = -128.0f64 + 64.0f64 * <f64 as From<i32>>::from((count % 6) as i32);
+        let yofs: f64 = -256.0f64 + 128.0f64 * <f64 as From<i32>>::from((count / 6) as i32);
+        let xofs: f64 = -512.0f64 + 96.0f64 * <f64 as From<i32>>::from((count % 6) as i32);
+        println!("xy is {},{}", xofs, yofs);
         let tx =
             AOERCTX::translate_matrix(xofs, yofs) *
                 AOERCTX::scale_matrix(64.0, 64.0);
         count += 1;
         ctx.transform(Some(&tx))
             .geometry(&geo);
+        let tx =
+            AOERCTX::translate_matrix(xofs, yofs) * AOERCTX::scale_matrix(1.0, -1.0);
+
+        ctx.transform(Some(&tx))
+            .typography(&name, 0.0,60.0, &typo);
+
+
     }
     count = 0;
     for (name, geo) in CarlsonSmithTruchet::full_set(true) {
         println!("Plotting inverse scale/2 {}", name);
-        let yofs: f64 = -128.0f64 - 16.0f64 + 32.0f64 * <f64 as From<i32>>::from((count / 6) as i32);
-        let xofs: f64 = -128.0f64 - 16.0f64 + (64.0f64 * 6.0f64) + 32.0f64 * <f64 as From<i32>>::from((count % 6) as i32);
+        let yofs: f64 = -256.0f64 - 16.0f64 + 128.0f64 * <f64 as From<i32>>::from((count / 6) as i32);
+        let xofs: f64 = -512.0f64  + (96.0f64 * 6.0f64) + 96.0f64 * <f64 as From<i32>>::from((count % 6) as i32);
         let tx =
             AOERCTX::translate_matrix(xofs, yofs) *
                 AOERCTX::scale_matrix(32.0, 32.0);
         count += 1;
         ctx.transform(Some(&tx))
             .geometry(&geo);
+        ctx.transform(Some(&tx))
+            .geometry(&geo);
+        let tx =
+            AOERCTX::translate_matrix(xofs, yofs) * AOERCTX::scale_matrix(1.0, -1.0);
+
+        ctx.transform(Some(&tx))
+            .typography(&name, 0.0,40.0, &typo);
+
     }
     ctx
 
@@ -238,6 +260,7 @@ fn main() {
     nannou::app(model)
         .update(update)
         .simple_window(view)
+        .size(1280, 1024)
         .run();
 }
 
