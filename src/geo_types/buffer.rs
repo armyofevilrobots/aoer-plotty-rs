@@ -32,7 +32,7 @@ impl Buffer for Geometry<f64> {
             }
             _ => Err(geos::Error::InvalidGeometry("Wrong type of geometry".into()))
         }?;
-        let buffered_self = geo_self.buffer(distance, 8)?;
+        let buffered_self = geo_self.buffer(distance, 6)?;
 
         let gt_out: geo_types::Geometry<f64> = geo_types::Geometry::try_from(buffered_self)?;
         // flatten_gt_geom_to_multipolygon(&gt_out)

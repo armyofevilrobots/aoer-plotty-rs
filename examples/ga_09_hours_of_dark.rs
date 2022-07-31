@@ -17,12 +17,6 @@ fn main() {
 
     let mut ctx = Context::new();
 
-    // Define our viewbox/canvas (in mm)
-    let viewbox = Context::viewbox(
-        0.0, 0.0,
-        f64::from(size), f64::from(size));
-
-
     // Set the default stroke/hatch/pen.
     ctx.stroke("black")
         .hatch(45.0)
@@ -48,8 +42,6 @@ fn main() {
         let w = scale * w;
         let h = scale * h;
 
-
-
         ctx.push()
             .transform(Some(&(Context::translate_matrix(x, y))))
             .mask_box(cellw * -0.5, cellh * -0.5,
@@ -60,11 +52,14 @@ fn main() {
             .pop().expect("Somehow lost track of my internal stack");
     }
 
-
-    // The unit arrangement just means that we'll draw what we mean, where we mean to.
-    let arrangement = Arrangement::unit(&viewbox);
-    // let arrangement = Arrangement::FitCenterMargin(235.0-f64::from(size)/2.0,
-    //                                                viewbox.clone(), false);
+    // We're using a new feature here: Create a FitCenterMargin Arrangement that matches
+    // the paper size we're using (8.5" square). Then, finalize it's transformation matrix
+    // to match the context's bounds, giving us back an Arrangement::Transform with the
+    // affine txform that gives us a nicely centered drawing.
+    let arrangement = ctx.finalize_arrangement(
+        &Arrangement::FitCenterMargin(25.4,
+                                      Context::viewbox(0.0, 0.0, 216.0, 216.0),
+                                      false));
 
     let document = ctx.to_svg(&arrangement).unwrap();
 

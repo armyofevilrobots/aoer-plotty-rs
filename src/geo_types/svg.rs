@@ -26,6 +26,103 @@ pub enum Arrangement<T>
 }
 
 impl<T: RealField + Float> Arrangement<T> {
+
+    /// Generates a final Arrangement in the form of an [`Arrangement::Transform`] which can be
+    /// use to consistently generate an SVG.
+    pub fn finalize(&self, geo_bounds: &Rect<T>) -> Arrangement<T> {
+        let viewbox = match self{
+            Arrangement::Center(viewbox, _invert) => viewbox,
+            Arrangement::FitCenter(viewbox, _invert) => viewbox,
+            Arrangement::FitCenterMargin(_margin, viewbox, _invert) => viewbox,
+            Arrangement::Transform(viewbox, _affine) => viewbox
+        };
+        Arrangement::<T>::Transform(viewbox.clone(), self.affine(geo_bounds))
+    }
+
+    pub fn viewbox(&self) -> Rect<T> {
+        match self{
+            Arrangement::Center(viewbox, _invert) => viewbox.clone(),
+            Arrangement::FitCenter(viewbox, _invert) => viewbox.clone(),
+            Arrangement::FitCenterMargin(_margin, viewbox, _invert) => viewbox.clone(),
+            Arrangement::Transform(viewbox, _affine) => viewbox.clone()
+        }
+    }
+
+    pub fn affine(&self, geo_bounds: &Rect<T>) -> Affine2<T> {
+        match self {
+            Arrangement::Transform(_viewbox, affine) => affine.clone(),
+            Arrangement::Center(bounds, invert) => {
+                let bcenter = bounds.min() + (bounds.max() - bounds.min()).div(T::from(2.0).unwrap()); // / (2.0 as T);
+                let gcenter = geo_bounds.min() + (geo_bounds.max() - geo_bounds.min()).div(T::from(2.0).unwrap());
+                let delta = bcenter - gcenter;
+                let tx = Affine2::from_matrix_unchecked(
+                    Matrix3::<T>::new(
+                        T::from(1.0).unwrap(), T::zero(), delta.x as T,
+                        T::zero(), T::one(), delta.y as T,
+                        T::zero(), T::zero(), T::one(),
+                    )
+                );
+                if *invert {
+                    Affine2::from_matrix_unchecked(Matrix3::<T>::new(
+                        T::from(1.0).unwrap(), T::zero(), T::zero(),
+                        T::zero(), -T::one(), bounds.height(),
+                        T::zero(), T::zero(), T::one(),
+                    )) * tx
+                } else {
+                    tx
+                }
+            }
+            Arrangement::FitCenter(bounds, invert) => {
+                let scale = <T as Real>::min(bounds.width() / geo_bounds.width(), bounds.height() / geo_bounds.height());
+                let bcenter = bounds.min() + (bounds.max() - bounds.min()).div(T::from(2.0).unwrap()); // / (2.0 as T);
+                let gcenter = geo_bounds.center() * scale; // This is post scaling now.
+                let delta = bcenter - gcenter;
+                let tx = Affine2::from_matrix_unchecked(
+                    Matrix3::new(
+                        scale, T::zero(), delta.x,
+                        T::zero(), scale, delta.y,
+                        T::zero(), T::zero(), T::one(),
+                    )
+                );
+                if *invert {
+                    Affine2::from_matrix_unchecked(Matrix3::<T>::new(
+                        T::from(1.0).unwrap(), T::zero(), T::zero(),
+                        T::zero(), -T::one(), bounds.height(),
+                        T::zero(), T::zero(), T::one(),
+                    )) * tx
+                } else {
+                    tx
+                }
+            }
+            Arrangement::FitCenterMargin(margin, bounds, invert) => {
+                let scale = <T as Real>::min(
+                    (bounds.width() - T::from(2.0).unwrap() * *margin) / geo_bounds.width(),
+                    (bounds.height() - T::from(2.0).unwrap() * *margin) / geo_bounds.height());
+                let bcenter = bounds.min() +
+                    (bounds.max() - bounds.min())
+                        .div(T::from(2.0).unwrap()); // / (2.0 as T);
+                let gcenter = geo_bounds.center() * scale; // This is post scaling now.
+                let delta = bcenter - gcenter;
+                let tx = Affine2::from_matrix_unchecked(
+                    Matrix3::new(
+                        scale, T::zero(), delta.x,
+                        T::zero(), scale, delta.y,
+                        T::zero(), T::zero(), T::one(),
+                    )
+                );
+                if *invert {
+                    Affine2::from_matrix_unchecked(Matrix3::<T>::new(
+                        T::from(1.0).unwrap(), T::zero(), T::zero(),
+                        T::zero(), -T::one(), bounds.height(),
+                        T::zero(), T::zero(), T::one(),
+                    )) * tx
+                } else {
+                    tx
+                }
+            }
+        }
+    }
+
     pub fn unit(window: &Rect<T>) -> Arrangement<T> {
         Arrangement::Transform(
             window.clone(),
@@ -109,80 +206,8 @@ impl<T> ToSvg<T> for MultiLineString<T>
             Some(gbox) => gbox,
             None => return Err(SvgCreationError::UndefinedViewBox),
         };
-        let transformation = match arrangement {
-            Arrangement::Transform(_viewbox, affine) => affine.clone(),
-            Arrangement::Center(bounds, invert) => {
-                let bcenter = bounds.min() + (bounds.max() - bounds.min()).div(T::from(2.0).unwrap()); // / (2.0 as T);
-                let gcenter = gbox.min() + (gbox.max() - gbox.min()).div(T::from(2.0).unwrap());
-                let delta = bcenter - gcenter;
-                let tx = Affine2::from_matrix_unchecked(
-                    Matrix3::<T>::new(
-                        T::from(1.0).unwrap(), T::zero(), delta.x as T,
-                        T::zero(), T::one(), delta.y as T,
-                        T::zero(), T::zero(), T::one(),
-                    )
-                );
-                if *invert {
-                    Affine2::from_matrix_unchecked(Matrix3::<T>::new(
-                        T::from(1.0).unwrap(), T::zero(), T::zero(),
-                        T::zero(), -T::one(), bounds.height(),
-                        T::zero(), T::zero(), T::one(),
-                    )) * tx
-                } else {
-                    tx
-                }
-            }
-            Arrangement::FitCenter(bounds, invert) => {
-                let scale = <T as Real>::min(bounds.width() / gbox.width(), bounds.height() / gbox.height());
-                let bcenter = bounds.min() + (bounds.max() - bounds.min()).div(T::from(2.0).unwrap()); // / (2.0 as T);
-                let gcenter = gbox.center() * scale; // This is post scaling now.
-                let delta = bcenter - gcenter;
-                let tx = Affine2::from_matrix_unchecked(
-                    Matrix3::new(
-                        scale, T::zero(), delta.x,
-                        T::zero(), scale, delta.y,
-                        T::zero(), T::zero(), T::one(),
-                    )
-                );
-                if *invert {
-                    Affine2::from_matrix_unchecked(Matrix3::<T>::new(
-                        T::from(1.0).unwrap(), T::zero(), T::zero(),
-                        T::zero(), -T::one(), bounds.height(),
-                        T::zero(), T::zero(), T::one(),
-                    )) * tx
-                } else {
-                    tx
-                }
-            }
-            Arrangement::FitCenterMargin(margin, bounds, invert) => {
-                let scale = <T as Real>::min(
-                    (bounds.width() - T::from(2.0).unwrap() * *margin) / gbox.width(),
-                    (bounds.height() - T::from(2.0).unwrap() * *margin) / gbox.height());
-                let bcenter = bounds.min() +
-                    (bounds.max() - bounds.min())
-                        .div(T::from(2.0).unwrap()); // / (2.0 as T);
-                let gcenter = gbox.center() * scale; // This is post scaling now.
-                let delta = bcenter - gcenter;
-                let tx = Affine2::from_matrix_unchecked(
-                    Matrix3::new(
-                        scale, T::zero(), delta.x,
-                        T::zero(), scale, delta.y,
-                        T::zero(), T::zero(), T::one(),
-                    )
-                );
-                if *invert {
-                    Affine2::from_matrix_unchecked(Matrix3::<T>::new(
-                        T::from(1.0).unwrap(), T::zero(), T::zero(),
-                        T::zero(), -T::one(), bounds.height(),
-                        T::zero(), T::zero(), T::one(),
-                    )) * tx
-                } else {
-                    tx
-                }
-            }
-        };
+        let transformation = arrangement.affine(&gbox);
         let linestrings: Vec<LineString<T>> = self.iter().map(|linestring| {
-            // linestring.clone()
             linestring.coords().map(|coord| {
                 let pt = transformation * NPoint2::<T>::new(coord.x, coord.y);
                 Coordinate::<T>::from((pt.x, pt.y))

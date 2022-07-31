@@ -74,6 +74,7 @@ impl CarlsonSmithTruchet {
 
 
         }
+        // println!("Len of truchet set {}", truchets.len());
         truchets
     }
 
@@ -167,7 +168,7 @@ impl CarlsonSmithTruchet {
             CarlsonSmithTruchet::UNHAPPY(false) => {
                 Ok(Geometry::GeometryCollection(
                     GeometryCollection::new_from(vec![
-                        Geometry::MultiPolygon(Geometry::Point(Point::new(0.0, 0.5))
+                        Geometry::MultiPolygon(Geometry::Point(Point::new(-0.5, 0.0))
                             .buffer(1.0f64 / 6.0f64)?),
                         Geometry::MultiPolygon(Geometry::Point(Point::new(0.0, -0.5))
                             .buffer(1.0f64 / 6.0f64)?),
@@ -190,8 +191,14 @@ impl CarlsonSmithTruchet {
                 Ok(out)
             },
             CarlsonSmithTruchet::HUGS(true) => {
-                Ok(Geometry::GeometryCollection(
+                // println!("HUGS TRUE");
+                let negative = CarlsonSmithTruchet::HUGS(false).draw()?;
+                let positive = Geometry::GeometryCollection(
                     GeometryCollection::new_from(vec![
+                        Geometry::Rect(Rect::<f64>::new(
+                            coord! {x:-0.5, y:-0.5},
+                            coord! {x: 0.5, y: 0.5},
+                        )),
                         Geometry::MultiPolygon(Geometry::Point(Point::new(0.5, 0.5))
                             .buffer(1.0f64 / 3.0f64)
                             .unwrap()),
@@ -204,7 +211,8 @@ impl CarlsonSmithTruchet {
                         Geometry::MultiPolygon(Geometry::Point(Point::new(-0.5, -0.5))
                             .buffer(1.0f64 / 3.0f64)
                             .unwrap()),
-                    ])))
+                    ])).unary_union()?;
+                Ok(positive.difference(&negative)?)
             },
             CarlsonSmithTruchet::TLBR(true) => {
                 // let dots = CarlsonSmithTruchet::DOTS(false).draw()?;
@@ -266,7 +274,7 @@ impl CarlsonSmithTruchet {
                 let ac1 = Geometry::LineString(
                     arc_center(0.5, 0.5, 0.5, 180.0, 270.0))
                     .buffer(1.0f64 / 6.0f64)?; // Buffer is 1/2 of 1/3
-                let p1 = Geometry::MultiPolygon(Geometry::Point(Point::new(0.0, 0.5))
+                let p1 = Geometry::MultiPolygon(Geometry::Point(Point::new(-0.5, 0.0))
                     .buffer(1.0f64 / 6.0f64)?);
                 let p2 = Geometry::MultiPolygon(Geometry::Point(Point::new(0.0, -0.5))
                     .buffer(1.0f64 / 6.0f64)?);
