@@ -1,10 +1,8 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
-use std::rc::Rc;
 use std::sync::Arc;
 use font_kit::font::Font;
 use font_kit::hinting::HintingOptions;
-use font_kit::metrics::Metrics;
 use geo::bounding_rect::BoundingRect;
 use geo::map_coords::MapCoords;
 use geo::translate::Translate;
@@ -12,7 +10,6 @@ use geo_types::{coord, Geometry, GeometryCollection, Rect};
 
 use pathfinder_geometry::vector::Vector2F;
 use pathfinder_geometry::rect::RectF;
-use tera::ast::Node::Text;
 use crate::context::glyph_proxy::GlyphProxy;
 use crate::geo_types::ToGTGeometry;
 
@@ -105,7 +102,7 @@ impl Typography {
         self
     }
 
-    pub fn render(& self, text: &String) -> Result<Geometry<f64>, Box<dyn Error>> {
+    pub fn render(& self, text: &String, accuracy: f64) -> Result<Geometry<f64>, Box<dyn Error>> {
         let font = match &self.font {
             None => return Err(Box::new(TypographyError::NoFontSet)),
             Some(font) => font.clone()
@@ -118,8 +115,8 @@ impl Typography {
             let glyph = font.glyph_for_char(char).or(Some(32)).unwrap();
             font.outline(glyph, self.hinting, &mut gp)?;
             let thisadvance = font.advance(glyph)?;
-            let gtgeo = gp.path().to_gt_geometry()?;
-            let gbounds = font.typographic_bounds(glyph)?;
+            let gtgeo = gp.path().to_gt_geometry(accuracy)?;
+            // let gbounds = font.typographic_bounds(glyph)?;
             // println!("Advancing: {:?} for {:?} which has bounds: {:?} and self-advance of {:?}", advance.x(), char, gbounds.0.x(), thisadvance.x());
             let rglyph = RenderedGlyph{
                 geo: gtgeo.translate(advance.x().into(), advance.y().into()),
@@ -165,9 +162,9 @@ pub mod tests{
         let fdata = include_bytes!("../../resources/fonts/ReliefSingleLine-Regular.ttf").to_vec();
         let f = Font::from_bytes(Arc::new(fdata), 0).unwrap();  // We know this font is OK
         let mut t = Typography::new();
-        let geo = t.size(2.0)
+        let _geo = t.size(2.0)
             .font(&f)
-            .render(&"YES: This is some text XXX".to_string());
+            .render(&"YES: This is some text XXX".to_string(), 0.1);
 
 
     }

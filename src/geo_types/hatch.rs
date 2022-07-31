@@ -3,7 +3,7 @@ use geo::bounding_rect::BoundingRect;
 use geo::rotate::Rotate;
 use geos::{Geom, Geometry};
 use std::error::Error;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 use geo_offset::Offset;
 use embed_doc_image::embed_doc_image;
@@ -87,8 +87,14 @@ impl Error for InvalidHatchGeometry {}
 /// Returns a MultiLineString which draws a hatch pattern which fills the entire
 /// bbox area. Set up as a trait so the developer can add new patterns at their
 /// leisure.
-pub trait HatchPattern{
+pub trait HatchPattern {
     fn generate(&self, bbox: &Rect<f64>, scale: f64) -> MultiLineString<f64>;
+}
+
+impl Debug for dyn HatchPattern {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "HatchPattern{:?}", self)
+    }
 }
 
 /// # Hatch
@@ -273,24 +279,27 @@ impl Hatch for MultiPolygon<f64> {
 impl Hatch for Polygon<f64> {
     fn hatch(&self, pattern: &dyn HatchPattern, angle: f64, scale: f64, inset: f64)
              -> Result<MultiLineString<f64>, InvalidHatchGeometry> {
-        let perimeter = if inset != 0.0 {
+        let bbox = self.bounding_rect()
+            .ok_or(InvalidHatchGeometry::CouldNotGenerateHatch)?
+            .to_polygon().rotate_around_centroid(angle).bounding_rect()
+            .ok_or(InvalidHatchGeometry::CouldNotGenerateHatch)?;
+        let hatch_lines: Vec<geo_types::LineString<f64>> = pattern
+            .generate(&bbox, scale)
+            .rotate_around_centroid(angle)
+            .iter().map(|x| x.to_owned())
+            .collect();
+        if hatch_lines.is_empty(){
+            return Ok(MultiLineString::new(vec![]));
+        }
+        let _perimeter = if inset != 0.0 {
             let mpolys = self.offset(-inset)
                 .or(Err(InvalidHatchGeometry::InvalidBoundary))?;
             return mpolys.hatch(pattern.clone(), angle, scale, 0.0);
         } else {
             self
         };
-        let bbox = perimeter.bounding_rect()
-            .ok_or(InvalidHatchGeometry::CouldNotGenerateHatch)?
-            .to_polygon().rotate_around_centroid(angle).bounding_rect()
-            .ok_or(InvalidHatchGeometry::CouldNotGenerateHatch)?;
         let geo_perimeter: geos::Geometry = self.try_into()
             .or(Err(InvalidHatchGeometry::InvalidBoundary))?;
-        let hatch_lines: Vec<geo_types::LineString<f64>> = pattern
-            .generate(&bbox, scale)
-            .rotate_around_centroid(angle)
-            .iter().map(|x| x.to_owned())
-            .collect();
         let geo_hatchlines = Geometry::create_geometry_collection(
             hatch_lines.iter().map(|hatch_line| {
                 hatch_line.clone()

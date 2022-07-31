@@ -1,7 +1,7 @@
 use std::error::Error;
 use geo_types::{Point, CoordNum, Geometry, Polygon, coord, LineString, MultiLineString, GeometryCollection};
-use geos::{CoordSeq, Geom, Geometry as GeosGeometry};
-use kurbo::{PathEl, PathSeg};
+use geos::{CoordSeq, Geom};
+use kurbo::PathEl;
 use num_traits::real::Real;
 
 /// Helper module for converting geo-types geometry into something useful
@@ -41,26 +41,26 @@ pub trait PointDistance<T: CoordNum> {
 }
 
 pub trait ToGTGeometry{
-    fn to_gt_geometry(&self) -> Result<Geometry<f64>, Box<dyn Error>>;
+    fn to_gt_geometry(&self, accuracy: f64) -> Result<Geometry<f64>, Box<dyn Error>>;
 }
 
 impl ToGTGeometry for kurbo::BezPath {
-    fn to_gt_geometry(&self) -> Result<Geometry<f64>, Box<dyn Error>> {
+    fn to_gt_geometry(&self, accuracy: f64) -> Result<Geometry<f64>, Box<dyn Error>> {
         let mut segments: MultiLineString<f64> = MultiLineString::new(vec![]);
         let mut lastpoint = kurbo::Point::new(0.0, 0.0);
-        let mut add_segment = |el: PathEl| {
+        let add_segment = |el: PathEl| {
             match el {
                 PathEl::MoveTo(pos) => {
                     segments.0.push(LineString::new(vec![coord! {x: pos.x, y: pos.y}]));
                     lastpoint = pos.clone();
                 }
                 PathEl::LineTo(pos) => {
-                    if let Some(mut line) = segments.0.last_mut() {
+                    if let Some(line) = segments.0.last_mut() {
                         line.0.push(coord! {x: pos.x, y: pos.y});
                     }
                 }
                 PathEl::ClosePath => {
-                    if let Some(mut line) = segments.0.last_mut() {
+                    if let Some(line) = segments.0.last_mut() {
                         line.0.push(coord! {x: lastpoint.x, y: lastpoint.y});
                     }
                 }
@@ -69,12 +69,12 @@ impl ToGTGeometry for kurbo::BezPath {
         };
         // println!("Pre-flatten geo is: {:?}", self.segments().map(|s| s).collect::<Vec<PathSeg>>());
         // self.segments().for_each(|s| println!("Segment: {:?}", s));
-        self.flatten(0.1, add_segment);
+        self.flatten(accuracy.into(), add_segment);
         let tmp_gtgeo = Geometry::MultiLineString(segments);
         let tmp_geos = tmp_gtgeo.to_geos();
         Ok(match tmp_geos {
             Ok(geos_geom) => {
-                if let Ok((poly_geo, cuts_geo, dangles_geo, invalid_geo)) = geos_geom.polygonize_full() {
+                if let Ok((poly_geo, _cuts_geo, dangles_geo, invalid_geo)) = geos_geom.polygonize_full() {
                     // if let Some(cuts) = &cuts_geo {
                     //     println!("Cuts: {:?}", cuts.to_wkt().unwrap());
                     // }
@@ -115,7 +115,7 @@ impl ToGTGeometry for kurbo::BezPath {
                     tmp_gtgeo.clone()
                 }
             }
-            Err(err) => {
+            Err(_err) => {
                 // println!("Couldn't convert to geos at all");
                 tmp_gtgeo.clone()
             }
@@ -182,7 +182,7 @@ pub mod shapes {
 
         #[test]
         fn test_arc_c() {
-            let arc = arc_center(0.0f64, 0.0f64, 10.0f64, 90.0f64, 135f64);
+            let _arc = arc_center(0.0f64, 0.0f64, 10.0f64, 90.0f64, 135f64);
             // println!("ARC: {:?}", &arc);
         }
     }

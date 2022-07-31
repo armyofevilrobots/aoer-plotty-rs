@@ -17,12 +17,6 @@ fn main() {
 
     let mut ctx = Context::new();
 
-    // Define our viewbox/canvas (in mm)
-    let viewbox = Context::viewbox(
-        0.0, 0.0,
-        f64::from(size), f64::from(size));
-
-
     // Set the default stroke/hatch/pen.
     ctx.stroke("black")
         .hatch(45.0)

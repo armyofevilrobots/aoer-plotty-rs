@@ -1,11 +1,9 @@
 use std::path::Path;
 use geo_types::{coord, Rect};
-use kurbo::PathSeg::Line;
-use nannou_egui::egui::TextBuffer;
 use aoer_plotty_rs::context::Context;
 use aoer_plotty_rs::context::typography::{TextAlignment, Typography};
 use aoer_plotty_rs::geo_types::svg::Arrangement;
-use aoer_plotty_rs::prelude::{LineHatch, NoHatch};
+use aoer_plotty_rs::prelude::NoHatch;
 
 
 fn main(){

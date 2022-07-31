@@ -74,7 +74,7 @@ impl CarlsonSmithTruchet {
 
 
         }
-        println!("Len of truchet set {}", truchets.len());
+        // println!("Len of truchet set {}", truchets.len());
         truchets
     }
 
@@ -191,8 +191,14 @@ impl CarlsonSmithTruchet {
                 Ok(out)
             },
             CarlsonSmithTruchet::HUGS(true) => {
-                Ok(Geometry::GeometryCollection(
+                // println!("HUGS TRUE");
+                let negative = CarlsonSmithTruchet::HUGS(false).draw()?;
+                let positive = Geometry::GeometryCollection(
                     GeometryCollection::new_from(vec![
+                        Geometry::Rect(Rect::<f64>::new(
+                            coord! {x:-0.5, y:-0.5},
+                            coord! {x: 0.5, y: 0.5},
+                        )),
                         Geometry::MultiPolygon(Geometry::Point(Point::new(0.5, 0.5))
                             .buffer(1.0f64 / 3.0f64)
                             .unwrap()),
@@ -205,7 +211,8 @@ impl CarlsonSmithTruchet {
                         Geometry::MultiPolygon(Geometry::Point(Point::new(-0.5, -0.5))
                             .buffer(1.0f64 / 3.0f64)
                             .unwrap()),
-                    ])))
+                    ])).unary_union()?;
+                Ok(positive.difference(&negative)?)
             },
             CarlsonSmithTruchet::TLBR(true) => {
                 // let dots = CarlsonSmithTruchet::DOTS(false).draw()?;

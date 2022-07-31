@@ -15,6 +15,9 @@ pub trait BooleanOp
 
     /// Returns only the portion of self that overlaps other
     fn intersection(&self, other: &Self) -> Result<Self, Box<dyn Error>>;
+
+    /// Unary union; faster method of unioning a whole geometry collection
+    fn unary_union(&self) -> Result<Self, Box<dyn Error>>;
 }
 
 impl BooleanOp for Geometry<f64> {
@@ -35,5 +38,12 @@ impl BooleanOp for Geometry<f64> {
         let geos_other = other.to_geos()?;
         Ok(Geometry::try_from(geos_self.intersection(&geos_other)?)?)
     }
+
+    fn unary_union(&self) -> Result<Self, Box<dyn Error>> {
+        let geos_self = self.to_geos()?;
+        Ok(Geometry::try_from(geos_self.unary_union()?)?)
+
+    }
+
 }
 

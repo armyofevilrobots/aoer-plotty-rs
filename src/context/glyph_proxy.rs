@@ -1,7 +1,5 @@
 pub use kurbo::BezPath;
 pub use kurbo::Point as BezPoint;
-use kurbo::PathEl;
-use font_kit::font::Font;
 use font_kit::outline::OutlineSink;
 use pathfinder_geometry::line_segment::LineSegment2F;
 use pathfinder_geometry::vector::Vector2F;

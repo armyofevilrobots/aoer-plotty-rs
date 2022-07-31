@@ -1,28 +1,16 @@
 use std::borrow::BorrowMut;
-use std::f64::consts::PI;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::Arc;
-use geo_types::{coord, Coordinate, Geometry, GeometryCollection, LineString, MultiLineString, Point, Polygon, Rect};
-use svg::Document;
-use crate::prelude::{Arrangement, HatchPattern, NoHatch, OutlineFillStroke, ToSvg};
-use crate::geo_types::hatch::{Hatch, LineHatch};
-use cubic_spline::{Points, SplineOpts};
+use geo_types::{Geometry, MultiLineString, Polygon};
+use crate::prelude::{HatchPattern, LineHatch, OutlineFillStroke, Hatch};
 use geo::map_coords::MapCoords;
-use geo::prelude::BoundingRect;
 use geos::{Geom, GeometryTypes};
-use geos::wkt::ToWkt;
 // use geos::GeometryTypes::Point;
-use nalgebra::{Affine2, Matrix3, Point2 as NPoint2};
-use nannou::prelude::PI_F64;
-use crate::geo_types::clip::{LineClip, try_to_geos_geometry};
-use crate::errors::ContextError;
-use crate::geo_types::{shapes, ToGeos};
+use nalgebra::{Affine2, Point2 as NPoint2};
+use crate::geo_types::clip::{try_to_geos_geometry};
 pub use kurbo::BezPath;
 pub use kurbo::Point as BezPoint;
-use kurbo::PathEl;
-use font_kit::font::Font;
-use wkt::TryFromWkt;
+use geo::simplify::Simplify;
 
 
 /// Operations are private items used to store the operation stack
@@ -47,19 +35,17 @@ pub struct Operation {
 
 
 impl Operation {
-
     /// Transform content by my transformation
-    pub fn transformed(&self, content: &Geometry<f64>) -> Geometry<f64>{
+    pub fn transformed(&self, content: &Geometry<f64>) -> Geometry<f64> {
         if let Some(tx) = &self.transformation.clone() {
             // let mut content = content.clone();
             content.map_coords(|xy| Operation::xform_coord(xy, tx))
-        }else{
+        } else {
             content.clone()
         }
-
     }
 
-    pub fn render(mut self) -> Self{
+    pub fn render(mut self) -> Self {
         if let Some(tx) = &self.transformation {
             self.content = self.content.map_coords(|xy| Operation::xform_coord(xy, tx));
         }
@@ -74,7 +60,8 @@ impl Operation {
                 let masked_geo = ggeo.intersection(&mggeo)
                     .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
                         .unwrap());
-                geo_types::Geometry::<f64>::try_from(masked_geo).unwrap_or(Geometry::GeometryCollection::<f64>(Default::default()))
+                geo_types::Geometry::<f64>::try_from(masked_geo)
+                    .unwrap_or(Geometry::GeometryCollection::<f64>(Default::default()))
             }
             None => self.content
         };
@@ -105,19 +92,20 @@ impl Operation {
                   -> (MultiLineString<f64>, MultiLineString<f64>)
     {
         let mut strokes = MultiLineString::new(vec![]);
-        let mut fills = MultiLineString::new(vec![]);
+        // let mut fills = MultiLineString::new(vec![]);
         // Push the exterior
         strokes.0.push(poly.exterior().clone());
         for interior in poly.interiors() {
             strokes.0.push(interior.clone())
         }
         let hatch_pattern = hatch_pattern.deref();
+        // println!("Hatching with pattern: {:?}", &hatch_pattern);
         let hatches = poly
             .hatch(hatch_pattern, hatch_angle,
-                   pen_width * 0.8, pen_width * 0.8)
+                   pen_width, pen_width)
             .unwrap_or(MultiLineString::new(vec![]));
-        fills.0.append(&mut hatches.0.clone());
-        (strokes, fills)
+        // fills.0.append(&mut hatches.0.clone());
+        (strokes, hatches)
     }
 
     /// Helper to transform geometry when we have an affine transform set.
@@ -161,7 +149,6 @@ impl Operation {
                         hatch_pattern.clone());
                     strokes.0.append(tmpstrokes.0.borrow_mut());
                     fills.0.append(tmpfills.0.borrow_mut());
-
                 }
                 // println!("Got strokes, fills of: \n{:?}, \n{:?}\n\n", &strokes, &fills);
                 (strokes, fills)
@@ -193,7 +180,7 @@ impl Operation {
                 .unwrap_or(outlines),
             None => outlines
         };
-        (outlines, fills)
+        (outlines.simplify(&self.accuracy), fills.simplify(&self.accuracy))
     }
 }
 

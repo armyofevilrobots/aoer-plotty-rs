@@ -1,26 +1,20 @@
 //! Provides the [`crate::context::Context`] struct which gives us a canvas-style drawing
 //! context which provides plotter-ready SVG files. See `Context` for more details, and examples.
-use std::borrow::BorrowMut;
 use std::error::Error;
 use embed_doc_image::embed_doc_image;
 
 
 use std::f64::consts::PI;
-use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 use geo_types::{coord, Coordinate, Geometry, GeometryCollection, LineString, MultiLineString, Point, Polygon, Rect};
 use svg::Document;
-use crate::prelude::{Arrangement, HatchPattern, NoHatch, OutlineFillStroke, ToSvg};
-use crate::geo_types::hatch::{Hatch, LineHatch};
+use crate::prelude::{Arrangement, HatchPattern, NoHatch, LineHatch, ToSvg};
 use cubic_spline::{Points, SplineOpts};
-use font::Glyph;
 use geo::map_coords::MapCoords;
 use geo::prelude::BoundingRect;
 use geos::{Geom, GeometryTypes};
-use geos::wkt::ToWkt;
-// use geos::GeometryTypes::Point;
-use nalgebra::{Affine2, Matrix3, Point2 as NPoint2};
+use nalgebra::{Affine2, Matrix3};
 use nannou::prelude::PI_F64;
 use crate::geo_types::clip::{LineClip, try_to_geos_geometry};
 use crate::errors::ContextError;
@@ -30,7 +24,6 @@ pub use kurbo::Point as BezPoint;
 use kurbo::PathEl;
 use font_kit::font::Font;
 use font_kit::hinting::HintingOptions;
-use wkt::TryFromWkt;
 
 pub mod operation;
 
@@ -43,6 +36,7 @@ use glyph_proxy::GlyphProxy;
 pub mod typography;
 
 use typography::Typography;
+use crate::geo_types::flatten::FlattenPolygons;
 
 /// # Context
 ///
@@ -129,6 +123,13 @@ pub struct Context {
 
 
 impl Context {
+
+    /// Set accuracy (allowed tolerance) in mm
+    pub fn accuracy(&mut self, accuracy: f64) -> &mut Self {
+        self.accuracy = accuracy;
+        self
+    }
+
     /// Default font
     pub fn default_font() -> Font {
         let font_data = include_bytes!("../../resources/fonts/ReliefSingleLine-Regular.ttf").to_vec();
@@ -338,7 +339,8 @@ impl Context {
 
     /// Adds any arbitrary Geometry type (geo_types geometry)
     fn add_operation(&mut self, geometry: Geometry<f64>) {
-        let mut op = Operation {
+        let geometry = geometry.flatten();
+        let op = Operation {
             content: geometry,
             rendered: (MultiLineString::new(vec![]),
                        MultiLineString::new(vec![])),
@@ -437,8 +439,8 @@ impl Context {
 
     /// Draws a line of text
     pub fn typography(&mut self, text: &String, x0: f64, y0: f64, typography: &Typography) -> &mut Self{
-        let mut typ = typography.clone();
-        let geo = typ.render(text)
+        let typ = typography.clone();
+        let geo = typ.render(text, self.accuracy)
             .unwrap_or(Geometry::GeometryCollection(GeometryCollection(vec![])))
             .map_coords(|(x,y)| (x0+x.clone(), y0-(y.clone())));
         // println!("The geo is: {:?}", &geo);
@@ -475,19 +477,19 @@ impl Context {
         // Eventually, this should generate polygons. Holes are tricky tho.
         let mut segments: MultiLineString<f64> = MultiLineString::new(vec![]);
         let mut lastpoint = kurbo::Point::new(0.0, 0.0);
-        let mut add_segment = |el: PathEl| {
+        let add_segment = |el: PathEl| {
             match el {
                 PathEl::MoveTo(pos) => {
                     segments.0.push(LineString::new(vec![coord! {x: pos.x, y: pos.y}]));
                     lastpoint = pos.clone();
                 }
                 PathEl::LineTo(pos) => {
-                    if let Some(mut line) = segments.0.last_mut() {
+                    if let Some(line) = segments.0.last_mut() {
                         line.0.push(coord! {x: pos.x, y: pos.y});
                     }
                 }
                 PathEl::ClosePath => {
-                    if let Some(mut line) = segments.0.last_mut() {
+                    if let Some(line) = segments.0.last_mut() {
                         line.0.push(coord! {x: lastpoint.x, y: lastpoint.y});
                     }
                 }
@@ -500,7 +502,9 @@ impl Context {
         let tmp_geos = tmp_gtgeo.to_geos();
         let out_gtgeo: Geometry<f64> = match tmp_geos {
             Ok(geos_geom) => {
-                if let Ok((poly_geo, cuts_geo, dangles_geo, invalid_geo)) = geos_geom.polygonize_full() {
+                // TODO: Copy the improved implementation from the typography module, maybe
+                // generalize it as well.
+                if let Ok((poly_geo, _cuts_geo, _dangles_geo, invalid_geo)) = geos_geom.polygonize_full() {
                     // if let Some(dangles) = &dangles_geo {println!("Dangles: {:?}", dangles.to_wkt().unwrap());}
                     // if let Some(cuts) = &cuts_geo {println!("Cuts: {:?}", cuts.to_wkt().unwrap());}
                     // if let Some(invalid) = &invalid_geo {
@@ -523,7 +527,7 @@ impl Context {
                     tmp_gtgeo.clone()
                 }
             }
-            Err(err) => {
+            Err(_err) => {
                 // println!("Couldn't convert to geos at all");
                 tmp_gtgeo.clone()
             }
@@ -1087,7 +1091,7 @@ mod test {
 
 
         let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
-        let svg = context.to_svg(&arrangement).unwrap();
+        let _svg = context.to_svg(&arrangement).unwrap();
         // println!("SVG: {}", svg.to_string());
     }
 
@@ -1102,14 +1106,13 @@ mod test {
             .fill("blue")
             .pattern(LineHatch::gen())
             .hatch(45.0)
-            .glyph('X')
-            .glyph('O')
+            .glyph('X', false)
+            .glyph('O', false)
         ;
 
 
         let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
-        let svg = context.to_svg(&arrangement).unwrap();
-        // println!("SVG: {}", svg.to_string());
+        let _svg = context.to_svg(&arrangement).unwrap();
     }
 
 }

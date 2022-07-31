@@ -61,7 +61,7 @@ fn main(){
         .transform(Some(&(Context::translate_matrix(50.0,50.0) * Context::scale_matrix(0.02, -0.02))))
         .pattern(NoHatch::gen())
         .pattern(LineHatch::gen())
-        .glyph('Q')
+        .glyph('Q', false)
     ;
 
     let svg = ctx.to_svg(

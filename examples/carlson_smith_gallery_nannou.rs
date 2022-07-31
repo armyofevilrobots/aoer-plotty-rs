@@ -1,22 +1,15 @@
-use std::borrow::{Borrow, BorrowMut};
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ops::Deref;
-use std::sync::{Arc, Mutex};
-use std::thread::{JoinHandle, spawn, Thread};
-use geo_types::{MultiLineString, MultiPolygon};
-use nalgebra::DimAdd;
+use geo_types::MultiLineString;
 use aoer_plotty_rs::geo_types::nannou::NannouDrawer;
 use nannou::prelude::*;
-use nannou::color;
 use nannou::lyon::lyon_tessellation::LineJoin;
 use nannou::lyon::tessellation::LineCap;
-use nannou_egui::{self, egui, Egui, Input};
+use nannou_egui::{self, egui, Egui};
 use aoer_plotty_rs::context::Context as AOERCTX;
 use aoer_plotty_rs::context::typography::TextAlignment::Center;
 use aoer_plotty_rs::context::typography::Typography;
 use aoer_plotty_rs::elements::CarlsonSmithTruchet;
-use aoer_plotty_rs::prelude::LineHatch;
+use aoer_plotty_rs::prelude::{LineHatch, NoHatch};
 
 
 /// All the stuff we want in the egui component
@@ -24,11 +17,11 @@ use aoer_plotty_rs::prelude::LineHatch;
 struct Settings {
     rotation: f32,
     color: Srgb<u8>,
-    draft: bool
+    draft: bool,
 }
 
 impl Settings {
-    fn changed(&self, other: &Self) -> bool{
+    fn changed(&self, other: &Self) -> bool {
         self.draft != other.draft
     }
 }
@@ -45,7 +38,7 @@ struct Model {
     egui: Egui,
     pub settings: Settings,
     generate: fn(&Settings) -> AOERCTX,
-    on_change: fn(&fn(&Settings)->AOERCTX, &Settings) -> Layers,
+    on_change: fn(&fn(&Settings) -> AOERCTX, &Settings) -> Layers,
 }
 
 
@@ -54,8 +47,13 @@ fn generate(settings: &Settings) -> AOERCTX {
     let mut ctx = AOERCTX::new();
     let mut count = 0;
 
-    ctx.pen(1.0)
-        .pattern(LineHatch::gen());
+    ctx.pen(1.5)
+        .accuracy(0.3);
+    if settings.draft {
+        ctx.pattern(NoHatch::gen());
+    } else {
+        ctx.pattern(LineHatch::gen());
+    }
     let mut typo = Typography::new();
     typo.size(4.5)
         .align(Center);
@@ -65,7 +63,7 @@ fn generate(settings: &Settings) -> AOERCTX {
         println!("Plotting {}", name);
         let yofs: f64 = -256.0f64 + 128.0f64 * <f64 as From<i32>>::from((count / 6) as i32);
         let xofs: f64 = -512.0f64 + 96.0f64 * <f64 as From<i32>>::from((count % 6) as i32);
-        println!("xy is {},{}", xofs, yofs);
+        // println!("xy is {},{}", xofs, yofs);
         let tx =
             AOERCTX::translate_matrix(xofs, yofs) *
                 AOERCTX::scale_matrix(64.0, 64.0);
@@ -76,15 +74,13 @@ fn generate(settings: &Settings) -> AOERCTX {
             AOERCTX::translate_matrix(xofs, yofs) * AOERCTX::scale_matrix(1.0, -1.0);
 
         ctx.transform(Some(&tx))
-            .typography(&name, 0.0,60.0, &typo);
-
-
+            .typography(&name, 0.0, 60.0, &typo);
     }
     count = 0;
     for (name, geo) in CarlsonSmithTruchet::full_set(true) {
         println!("Plotting inverse scale/2 {}", name);
         let yofs: f64 = -256.0f64 - 16.0f64 + 128.0f64 * <f64 as From<i32>>::from((count / 6) as i32);
-        let xofs: f64 = -512.0f64  + (96.0f64 * 6.0f64) + 96.0f64 * <f64 as From<i32>>::from((count % 6) as i32);
+        let xofs: f64 = -512.0f64 + (96.0f64 * 6.0f64) + 96.0f64 * <f64 as From<i32>>::from((count % 6) as i32);
         let tx =
             AOERCTX::translate_matrix(xofs, yofs) *
                 AOERCTX::scale_matrix(32.0, 32.0);
@@ -97,19 +93,17 @@ fn generate(settings: &Settings) -> AOERCTX {
             AOERCTX::translate_matrix(xofs, yofs) * AOERCTX::scale_matrix(1.0, -1.0);
 
         ctx.transform(Some(&tx))
-            .typography(&name, 0.0,40.0, &typo);
-
+            .typography(&name, 0.0, 40.0, &typo);
     }
     ctx
-
 }
 
-fn on_change(generate: &fn(&Settings)->AOERCTX, settings: &Settings) -> Layers {
+fn on_change(generate: &fn(&Settings) -> AOERCTX, settings: &Settings) -> Layers {
     let ctx = (generate)(&settings.clone());
     println!("Flattening...");
     let layers = if settings.draft {
         ctx.flatten().to_layers()
-    }else{
+    } else {
         ctx.to_layers()
     };
     println!("Done flattening");
@@ -117,23 +111,22 @@ fn on_change(generate: &fn(&Settings)->AOERCTX, settings: &Settings) -> Layers {
     let mut out = Layers::new();
     for layer in &layers {
         let (strokes, fills) = layer.to_lines();
-        if settings.draft{
-            if out.contains_key(&layer.stroke()){
+        if settings.draft {
+            if out.contains_key(&layer.stroke()) {
                 let (mut orig_stroke, _orig_fill) = out.get_mut(&layer.stroke()).unwrap().clone();
                 orig_stroke.0.append(&mut strokes.0.clone());
                 out.insert(layer.stroke().clone(), (orig_stroke.clone(), MultiLineString::new(vec![])));
-            }else{
+            } else {
                 out.insert(layer.stroke().clone(), (strokes.clone(), MultiLineString::new(vec![])));
             }
-        }else{
+        } else {
             if out.contains_key(&layer.stroke()) {
                 let (mut orig_stroke, mut orig_fill) = out.get_mut(&layer.stroke()).unwrap().clone();
                 orig_stroke.0.append(&mut strokes.0.clone());
                 orig_fill.0.append(&mut fills.0.clone());
                 out.insert(layer.stroke(), (orig_stroke.clone(), orig_fill.clone()));
-            }else{
+            } else {
                 out.insert(layer.stroke(), (strokes.clone(), fills.clone()));
-
             }
         }
     }
@@ -165,10 +158,10 @@ fn model(app: &App) -> Model {
         settings: Settings {
             rotation: 0.0,
             color: WHITE,
-            draft: true
+            draft: true,
         },
         on_change,
-        generate
+        generate,
     }
 }
 
@@ -200,36 +193,29 @@ fn update(_app: &App, model: &mut Model, update: Update) {
 
         if model.dirty {
             ui.label("Building");
-            ui.add(egui::ProgressBar::new(<f32 as From<f32>>::from((model.loops % 15) as f32)/15.0));
+            ui.add(egui::ProgressBar::new(<f32 as From<f32>>::from((model.loops % 15) as f32) / 15.0));
             model.layers = (model.on_change)(&model.generate, settings);
             model.dirty = false;
         }
-
-
-
-
-
-
     });
-    if model.settings.changed(&orig_settings){
+    if model.settings.changed(&orig_settings) {
         model.dirty = true
     }
-
 }
 
 fn raw_window_event(_app: &App, model: &mut Model, event: &nannou::winit::event::WindowEvent) {
     // Let egui handle things like keyboard and mouse input.
-        model.egui.handle_raw_event(event);
+    model.egui.handle_raw_event(event);
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
     // Broilerplate Nannou
     // And slowly spin it
-    let draw = app.draw().rotate(model.settings.rotation*PI/180.0);//(_model.loops as f32) * PI/180.0);
+    let draw = app.draw().rotate(model.settings.rotation * PI / 180.0);//(_model.loops as f32) * PI/180.0);
     frame.clear(PURPLE);
 
-    for (color, (outlines, fills)) in &model.layers { //model.layers.clone().get_mut().expect("FOO") {
-        for outline in outlines{
+    for (_color, (outlines, fills)) in &model.layers { //model.layers.clone().get_mut().expect("FOO") {
+        for outline in outlines {
             draw.polyline()
                 .stroke_weight(1.0)
                 .caps(LineCap::Round)
@@ -237,8 +223,8 @@ fn view(app: &App, model: &Model, frame: Frame) {
                 .polyline_from_linestring(outline)
                 .color(model.settings.color);
         }
-        if !model.settings.draft{
-            for fill in fills{
+        if !model.settings.draft {
+            for fill in fills {
                 draw.polyline()
                     .stroke_weight(1.0)
                     .caps(LineCap::Round)
