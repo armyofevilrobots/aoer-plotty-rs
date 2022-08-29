@@ -1,29 +1,30 @@
 //! Provides the [`crate::context::Context`] struct which gives us a canvas-style drawing
 //! context which provides plotter-ready SVG files. See `Context` for more details, and examples.
-use std::error::Error;
 use embed_doc_image::embed_doc_image;
+use std::error::Error;
 
-
-use std::f64::consts::PI;
-use std::rc::Rc;
-use std::sync::Arc;
-use geo_types::{coord, Coordinate, Geometry, GeometryCollection, LineString, MultiLineString, Point, Polygon, Rect};
-use svg::Document;
-use crate::prelude::{Arrangement, HatchPattern, NoHatch, LineHatch, ToSvg};
-use cubic_spline::{Points, SplineOpts};
-use geo::map_coords::MapCoords;
-use geo::prelude::BoundingRect;
-use geos::{Geom, GeometryTypes};
-use nalgebra::{Affine2, Matrix3};
-use nannou::prelude::PI_F64;
-use crate::geo_types::clip::{LineClip, try_to_geos_geometry};
 use crate::errors::ContextError;
+use crate::geo_types::clip::{try_to_geos_geometry, LineClip};
 use crate::geo_types::{shapes, ToGeos};
-pub use kurbo::BezPath;
-pub use kurbo::Point as BezPoint;
-use kurbo::PathEl;
+use crate::prelude::{Arrangement, Hatches, ToSvg};
+use cubic_spline::{Points, SplineOpts};
 use font_kit::font::Font;
 use font_kit::hinting::HintingOptions;
+use geo::map_coords::MapCoords;
+use geo::prelude::BoundingRect;
+use geo_types::{
+    coord, Coordinate, Geometry, GeometryCollection, LineString, MultiLineString, Point, Polygon,
+    Rect,
+};
+use geos::{Geom, GeometryTypes};
+pub use kurbo::BezPath;
+use kurbo::PathEl;
+pub use kurbo::Point as BezPoint;
+use nalgebra::{Affine2, Matrix3};
+use nannou::prelude::PI_F64;
+use std::f64::consts::PI;
+use std::sync::Arc;
+use svg::Document;
 
 pub mod operation;
 
@@ -35,8 +36,8 @@ use glyph_proxy::GlyphProxy;
 
 pub mod typography;
 
-use typography::Typography;
 use crate::geo_types::flatten::FlattenPolygons;
+use typography::Typography;
 
 /// # Context
 ///
@@ -116,14 +117,12 @@ pub struct Context {
     pen_width: f64,
     mask: Option<Geometry<f64>>,
     clip_previous: bool,
-    hatch_pattern: Rc<dyn HatchPattern>,
+    hatch_pattern: Hatches,
     hatch_angle: f64,
     stack: Vec<Context>,
 }
 
-
 impl Context {
-
     /// Set accuracy (allowed tolerance) in mm
     pub fn accuracy(&mut self, accuracy: f64) -> &mut Self {
         self.accuracy = accuracy;
@@ -132,8 +131,9 @@ impl Context {
 
     /// Default font
     pub fn default_font() -> Font {
-        let font_data = include_bytes!("../../resources/fonts/ReliefSingleLine-Regular.ttf").to_vec();
-        Font::from_bytes(Arc::new(font_data), 0).unwrap()  // We know this font is OK
+        let font_data =
+            include_bytes!("../../resources/fonts/ReliefSingleLine-Regular.ttf").to_vec();
+        Font::from_bytes(Arc::new(font_data), 0).unwrap() // We know this font is OK
     }
 
     /// Finalize Arrangement
@@ -145,29 +145,25 @@ impl Context {
         }
     }
 
-
-    /// Helper to create a scaling matrix
-    pub fn scale_matrix(sx: f64, sy: f64) -> Affine2<f64> {
-        Affine2::from_matrix_unchecked(Matrix3::new(
-            sx, 0.0, 0.0,
-            0.0, sy, 0.0,
-            0.0, 0.0, 1.0))
-    }
-
     /// Viewbox helper. Useful to create an arbitrary viewbox for
     /// your SVGs.
     pub fn viewbox(x0: f64, y0: f64, x1: f64, y1: f64) -> Rect<f64> {
-        Rect::new(
-            coord! {x: x0, y: y0},
-            coord! {x: x1, y: y1})
+        Rect::new(coord! {x: x0, y: y0}, coord! {x: x1, y: y1})
+    }
+
+    /// Helper to create a scaling matrix
+    pub fn scale_matrix(sx: f64, sy: f64) -> Affine2<f64> {
+        Affine2::from_matrix_unchecked(Matrix3::new(sx, 0.0, 0.0, 0.0, sy, 0.0, 0.0, 0.0, 1.0))
+    }
+
+    /// Unit matrix. Basically a no-op
+    pub fn unit_matrix() -> Affine2<f64> {
+        Affine2::from_matrix_unchecked(Matrix3::new(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
     }
 
     /// Helper to create a translation matrix
     pub fn translate_matrix(tx: f64, ty: f64) -> Affine2<f64> {
-        Affine2::from_matrix_unchecked(Matrix3::new(
-            1.0, 0.0, tx,
-            0.0, 1.0, ty,
-            0.0, 0.0, 1.0))
+        Affine2::from_matrix_unchecked(Matrix3::new(1.0, 0.0, tx, 0.0, 1.0, ty, 0.0, 0.0, 1.0))
     }
 
     /// Angle is in degrees because I am a terrible person.
@@ -175,16 +171,23 @@ impl Context {
     pub fn rotate_matrix(degrees: f64) -> Affine2<f64> {
         let angle = PI * (degrees / 180.0);
         Affine2::from_matrix_unchecked(Matrix3::new(
-            angle.cos(), -angle.sin(), 0.0,
-            angle.sin(), angle.cos(), 0.0,
-            0.0, 0.0, 1.0))
+            angle.cos(),
+            -angle.sin(),
+            0.0,
+            angle.sin(),
+            angle.cos(),
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+        ))
     }
 
     /// I can haz a new default drawing context?
     pub fn new() -> Context {
         Context {
             operations: vec![],
-            accuracy: 0.1,  // 0.1mm should be close enough for anybody
+            accuracy: 0.1, // 0.1mm should be close enough for anybody
             transformation: None,
             font: Some(Context::default_font()),
             stroke_color: "black".to_string(),
@@ -195,7 +198,7 @@ impl Context {
             pen_width: 0.5,
             mask: None,
             clip_previous: false,
-            hatch_pattern: NoHatch::gen(),
+            hatch_pattern: Hatches::line(),
             hatch_angle: 0.0,
             stack: vec![],
         }
@@ -210,10 +213,8 @@ impl Context {
         for operation in &self.operations {
             let tmp_bounds = operation.content.bounding_rect();
             if let Some(bounds) = tmp_bounds {
-                pmin = Point::new(pmin.y().min(bounds.min().y),
-                                  pmin.y().min(bounds.min().y));
-                pmax = Point::new(pmax.x().max(bounds.max().x),
-                                  pmax.y().max(bounds.max().y));
+                pmin = Point::new(pmin.y().min(bounds.min().y), pmin.y().min(bounds.min().y));
+                pmax = Point::new(pmax.x().max(bounds.max().x), pmax.y().max(bounds.max().y));
             }
         }
         if pmin == Point::new(f64::MAX, f64::MAX) || pmax == Point::new(f64::MIN, f64::MIN) {
@@ -228,48 +229,44 @@ impl Context {
 
     /// Masks any further operations with a clipping polygon. Only items
     /// inside the clipping poly will be used.
-    pub fn mask_poly(&mut self, exterior: Vec<(f64, f64)>, interiors: Vec<Vec<(f64, f64)>>) -> &mut Self {
-        let mask = Geometry::Polygon(
-            Polygon::<f64>::new(
-                LineString::new(
-                    exterior
-                        .iter()
-                        .map(|(x, y)| coord! {x:*x, y:*y})
-                        .collect()
-                ),
-                interiors
-                    .iter()
-                    .map(|interior| {
-                        LineString::<f64>::new(interior
+    pub fn mask_poly(
+        &mut self,
+        exterior: Vec<(f64, f64)>,
+        interiors: Vec<Vec<(f64, f64)>>,
+    ) -> &mut Self {
+        let mask = Geometry::Polygon(Polygon::<f64>::new(
+            LineString::new(exterior.iter().map(|(x, y)| coord! {x:*x, y:*y}).collect()),
+            interiors
+                .iter()
+                .map(|interior| {
+                    LineString::<f64>::new(
+                        interior
                             .iter()
                             .map(|(x, y)| coord! {x:*x, y:*y})
-                            .collect::<Vec<Coordinate<f64>>>())
-                    })
-                    .collect(),
-            ));
+                            .collect::<Vec<Coordinate<f64>>>(),
+                    )
+                })
+                .collect(),
+        ));
         self.set_mask(&Some(mask));
         self
     }
 
     pub fn mask_box(&mut self, x0: f64, y0: f64, x1: f64, y1: f64) -> &mut Self {
-        self.mask_poly(vec![
-            (x0, y0),
-            (x1, y0),
-            (x1, y1),
-            (x0, y1),
-            (x0, y0),
-        ], vec![])
+        self.mask_poly(
+            vec![(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)],
+            vec![],
+        )
     }
 
     /// Sets the mask to Geometry, or None.
     pub fn set_mask(&mut self, mask: &Option<Geometry<f64>>) -> &mut Self {
         self.mask = match mask {
             Some(maskgeo) => Some(match &self.transformation {
-                Some(affine) => maskgeo.map_coords(
-                    |xy| Operation::xform_coord(xy, affine)),
-                None => maskgeo.clone()
+                Some(affine) => maskgeo.map_coords(|xy| Operation::xform_coord(xy, affine)),
+                None => maskgeo.clone(),
             }),
-            None => mask.clone()
+            None => mask.clone(),
         };
         self
     }
@@ -281,11 +278,11 @@ impl Context {
             accuracy: self.accuracy.clone(),
             font: match &self.font {
                 Some(font) => Some(font.clone()),
-                None => None
+                None => None,
             },
             transformation: match self.transformation.clone() {
                 Some(transformation) => Some(transformation),
-                None => None
+                None => None,
             },
             stroke_color: self.stroke_color.clone(),
             outline_stroke: self.outline_stroke.clone(),
@@ -307,7 +304,7 @@ impl Context {
         let other = self.stack.pop().ok_or(ContextError::PoppedEmptyStack)?;
         self.transformation = match other.transformation.clone() {
             Some(transformation) => Some(transformation),
-            None => None
+            None => None,
         };
         self.accuracy = other.accuracy.clone();
         self.stroke_color = other.stroke_color.clone();
@@ -332,8 +329,23 @@ impl Context {
     pub fn transform(&mut self, transformation: Option<&Affine2<f64>>) -> &mut Self {
         self.transformation = match transformation {
             Some(tx) => Some(tx.clone()),
-            None => None
+            None => None,
         };
+        self
+    }
+
+    /// Similar to transform, but multiplies the CURRENT transformation matrix by the
+    /// new one. If the current matrix is None, then multiplies by the UNIT matrix.
+    /// This is really useful for stepping through relative positions, or rotations.
+    /// Couples well with push/pop to make an addition relative to current matrix,
+    /// then resetting to origin.
+    pub fn mul_transform(&mut self, transformation: &Affine2<f64>) -> &mut Self {
+        let base = match self.transformation.clone() {
+            Some(tx) => tx,
+            None => Context::unit_matrix(),
+        };
+
+        self.transformation = Some(transformation * base);
         self
     }
 
@@ -342,8 +354,7 @@ impl Context {
         let geometry = geometry.flatten();
         let op = Operation {
             content: geometry,
-            rendered: (MultiLineString::new(vec![]),
-                       MultiLineString::new(vec![])),
+            rendered: (MultiLineString::new(vec![]), MultiLineString::new(vec![])),
             accuracy: self.accuracy.clone(),
             transformation: self.transformation.clone(),
             stroke_color: self.stroke_color.clone(),
@@ -360,7 +371,6 @@ impl Context {
         let op = op.render();
         self.operations.push(op);
     }
-
 
     /// Adds a geometry to the operations list. Has some checking to make it safe
     /// for general users.
@@ -404,21 +414,16 @@ impl Context {
                     self.geometry(item);
                 }
             }
-            Geometry::Line(line) => self.add_operation(
-                Geometry::LineString(LineString(vec![
-                    coord! {x: line.start.x, y: line.start.y},
-                    coord! {x: line.end.x, y: line.end.y},
-                ]))),
+            Geometry::Line(line) => self.add_operation(Geometry::LineString(LineString(vec![
+                coord! {x: line.start.x, y: line.start.y},
+                coord! {x: line.end.x, y: line.end.y},
+            ]))),
             Geometry::Point(pt) => {
-                self.circle(
-                    pt.0.x, pt.0.y, self.pen_width / 2.0,
-                );
+                self.circle(pt.0.x, pt.0.y, self.pen_width / 2.0);
             }
             Geometry::MultiPoint(points) => {
                 for pt in points {
-                    self.circle(
-                        pt.0.x, pt.0.y, self.pen_width / 2.0,
-                    );
+                    self.circle(pt.0.x, pt.0.y, self.pen_width / 2.0);
                 }
             }
         };
@@ -427,47 +432,45 @@ impl Context {
 
     /// Draws a simple line from x0,y0 to x1,y1
     pub fn line(&mut self, x0: f64, y0: f64, x1: f64, y1: f64) -> &mut Self {
-        self.add_operation(
-            Geometry::LineString(
-                LineString::<f64>::new(
-                    vec![
-                        coord! {x: x0, y: y0},
-                        coord! {x: x1, y: y1},
-                    ])));
+        self.add_operation(Geometry::LineString(LineString::<f64>::new(vec![
+            coord! {x: x0, y: y0},
+            coord! {x: x1, y: y1},
+        ])));
         self
     }
 
     /// Draws a line of text
-    pub fn typography(&mut self, text: &String, x0: f64, y0: f64, typography: &Typography) -> &mut Self{
+    pub fn typography(
+        &mut self,
+        text: &String,
+        x0: f64,
+        y0: f64,
+        typography: &Typography,
+    ) -> &mut Self {
         let typ = typography.clone();
-        let geo = typ.render(text, self.accuracy)
+        let geo = typ
+            .render(text, self.accuracy)
             .unwrap_or(Geometry::GeometryCollection(GeometryCollection(vec![])))
-            .map_coords(|(x,y)| (x0+x.clone(), y0-(y.clone())));
+            .map_coords(|(x, y)| (x0 + x.clone(), y0 - (y.clone())));
         // println!("The geo is: {:?}", &geo);
         self.geometry(&geo);
         self
-
     }
 
     /// Glyph
     /// Draws a single glyph on the Context, at 0,0
     pub fn glyph(&mut self, glyph: char, close: bool) -> &mut Self {
-        if let Some(font) = &self.font{
+        if let Some(font) = &self.font {
             let mut proxy = GlyphProxy::new(close);
             let glyph_id = font.glyph_for_char(glyph).unwrap_or(32);
-            font.outline(
-                glyph_id,
-                HintingOptions::None,
-                &mut proxy,
-            ).unwrap();
+            font.outline(glyph_id, HintingOptions::None, &mut proxy)
+                .unwrap();
             // println!("Proxy path is: {:?}", &proxy.path());
             self.path(&proxy.path());
         }
         // println!("Last op: {:?}", self.operations.last().unwrap().content);
         self
     }
-
-
 
     /// Way more useful path interface. Uses Kurbo's BezierPath module.
     /// After creation, uses GEOS polygonize_full to generate polygons
@@ -477,24 +480,24 @@ impl Context {
         // Eventually, this should generate polygons. Holes are tricky tho.
         let mut segments: MultiLineString<f64> = MultiLineString::new(vec![]);
         let mut lastpoint = kurbo::Point::new(0.0, 0.0);
-        let add_segment = |el: PathEl| {
-            match el {
-                PathEl::MoveTo(pos) => {
-                    segments.0.push(LineString::new(vec![coord! {x: pos.x, y: pos.y}]));
-                    lastpoint = pos.clone();
-                }
-                PathEl::LineTo(pos) => {
-                    if let Some(line) = segments.0.last_mut() {
-                        line.0.push(coord! {x: pos.x, y: pos.y});
-                    }
-                }
-                PathEl::ClosePath => {
-                    if let Some(line) = segments.0.last_mut() {
-                        line.0.push(coord! {x: lastpoint.x, y: lastpoint.y});
-                    }
-                }
-                _ => panic!("Unexpected/Impossible segment type interpolating a bezier path!")
+        let add_segment = |el: PathEl| match el {
+            PathEl::MoveTo(pos) => {
+                segments
+                    .0
+                    .push(LineString::new(vec![coord! {x: pos.x, y: pos.y}]));
+                lastpoint = pos.clone();
             }
+            PathEl::LineTo(pos) => {
+                if let Some(line) = segments.0.last_mut() {
+                    line.0.push(coord! {x: pos.x, y: pos.y});
+                }
+            }
+            PathEl::ClosePath => {
+                if let Some(line) = segments.0.last_mut() {
+                    line.0.push(coord! {x: lastpoint.x, y: lastpoint.y});
+                }
+            }
+            _ => panic!("Unexpected/Impossible segment type interpolating a bezier path!"),
         };
 
         bezier.flatten(self.accuracy, add_segment);
@@ -504,11 +507,13 @@ impl Context {
             Ok(geos_geom) => {
                 // TODO: Copy the improved implementation from the typography module, maybe
                 // generalize it as well.
-                if let Ok((poly_geo, _cuts_geo, _dangles_geo, invalid_geo)) = geos_geom.polygonize_full() {
+                if let Ok((poly_geo, _cuts_geo, _dangles_geo, invalid_geo)) =
+                    geos_geom.polygonize_full()
+                {
                     // if let Some(dangles) = &dangles_geo {println!("Dangles: {:?}", dangles.to_wkt().unwrap());}
                     // if let Some(cuts) = &cuts_geo {println!("Cuts: {:?}", cuts.to_wkt().unwrap());}
                     // if let Some(invalid) = &invalid_geo {
-                        // println!("Invalid: {:?}", invalid.to_wkt().unwrap());
+                    // println!("Invalid: {:?}", invalid.to_wkt().unwrap());
                     // }
                     let out_gtgeo = match invalid_geo {
                         None => Geometry::try_from(&poly_geo).unwrap_or(tmp_gtgeo.clone()),
@@ -516,7 +521,11 @@ impl Context {
                             // println!("Invalid: {:?}", invalid.to_wkt().unwrap());
                             Geometry::GeometryCollection(GeometryCollection::new_from(vec![
                                 Geometry::try_from(&poly_geo).unwrap_or(tmp_gtgeo.clone()),
-                                Geometry::try_from(&invalid).unwrap_or(Geometry::GeometryCollection(GeometryCollection::new_from(vec![])))
+                                Geometry::try_from(&invalid).unwrap_or(
+                                    Geometry::GeometryCollection(GeometryCollection::new_from(
+                                        vec![],
+                                    )),
+                                ),
                             ]))
                         }
                     };
@@ -543,30 +552,31 @@ impl Context {
     /// silently fails to draw.
     /// First and last point in points are NOT drawn, and set the 'tension'
     /// points which the line pulls from.
-    pub fn spline(&mut self, points: &Vec<(f64, f64)>,
-                  num_interpolated_segments: u32, tension: f64) -> &mut Self {
+    pub fn spline(
+        &mut self,
+        points: &Vec<(f64, f64)>,
+        num_interpolated_segments: u32,
+        tension: f64,
+    ) -> &mut Self {
         let spline_opts = SplineOpts::new()
             .num_of_segments(num_interpolated_segments)
             .tension(tension);
         let points = match Points::try_from(points) {
             Ok(pts) => pts,
-            Err(_e) => return self
+            Err(_e) => return self,
         };
         let spline = cubic_spline::calc_spline(&points, &spline_opts);
         match spline {
             Ok(spts) => {
-                self.add_operation(
-                    Geometry::LineString(
-                        LineString::<f64>::new(
-                            spts
-                                .get_ref()
-                                .iter()
-                                .map(|pt| coord! {x: pt.x, y: pt.y})
-                                .collect()
-                        )));
+                self.add_operation(Geometry::LineString(LineString::<f64>::new(
+                    spts.get_ref()
+                        .iter()
+                        .map(|pt| coord! {x: pt.x, y: pt.y})
+                        .collect(),
+                )));
                 self
             }
-            Err(_e) => self
+            Err(_e) => self,
         }
     }
 
@@ -583,41 +593,39 @@ impl Context {
 
     /// What it says on the box. Draws a simple rectangle on the context.
     pub fn rect(&mut self, x0: f64, y0: f64, x1: f64, y1: f64) -> &mut Self {
-        self.add_operation(
-            Geometry::Polygon(
-                Polygon::<f64>::new(
-                    LineString::new(vec![
-                        coord! {x: x0, y: y0},
-                        coord! {x: x1, y: y0},
-                        coord! {x: x1, y: y1},
-                        coord! {x: x0, y: y1},
-                        coord! {x: x0, y: y0},
-                    ]),
-                    vec![])));
+        self.add_operation(Geometry::Polygon(Polygon::<f64>::new(
+            LineString::new(vec![
+                coord! {x: x0, y: y0},
+                coord! {x: x1, y: y0},
+                coord! {x: x1, y: y1},
+                coord! {x: x0, y: y1},
+                coord! {x: x0, y: y0},
+            ]),
+            vec![],
+        )));
         self
     }
 
     /// Draws a polygon
-    pub fn poly(&mut self, exterior: Vec<(f64, f64)>, interiors: Vec<Vec<(f64, f64)>>) -> &mut Self {
-        self.add_operation(
-            Geometry::Polygon(
-                Polygon::<f64>::new(
-                    LineString::new(
-                        exterior
+    pub fn poly(
+        &mut self,
+        exterior: Vec<(f64, f64)>,
+        interiors: Vec<Vec<(f64, f64)>>,
+    ) -> &mut Self {
+        self.add_operation(Geometry::Polygon(Polygon::<f64>::new(
+            LineString::new(exterior.iter().map(|(x, y)| coord! {x:*x, y:*y}).collect()),
+            interiors
+                .iter()
+                .map(|interior| {
+                    LineString::<f64>::new(
+                        interior
                             .iter()
                             .map(|(x, y)| coord! {x:*x, y:*y})
-                            .collect()
-                    ),
-                    interiors
-                        .iter()
-                        .map(|interior| {
-                            LineString::<f64>::new(interior
-                                .iter()
-                                .map(|(x, y)| coord! {x:*x, y:*y})
-                                .collect::<Vec<Coordinate<f64>>>())
-                        })
-                        .collect(),
-                )));
+                            .collect::<Vec<Coordinate<f64>>>(),
+                    )
+                })
+                .collect(),
+        )));
         self
     }
 
@@ -630,7 +638,14 @@ impl Context {
 
     /// Circumscribed regular polygon. The vertices of the polygon will be situated on a
     /// circle defined by the given radius. Polygon will be centered at x,y.
-    pub fn regular_poly(&mut self, sides: usize, x: f64, y: f64, radius: f64, rotation: f64) -> &mut Self {
+    pub fn regular_poly(
+        &mut self,
+        sides: usize,
+        x: f64,
+        y: f64,
+        radius: f64,
+        rotation: f64,
+    ) -> &mut Self {
         let geo = shapes::regular_poly(sides, x, y, radius, rotation);
         self.add_operation(geo);
         self
@@ -641,25 +656,35 @@ impl Context {
     /// respectively. Note: this is not a star polygon in the strict mathematical sense. This is
     /// just a polygon that is in the shape of a star. I may or may not get to regular star polygons
     /// (in the canonical mathematical sense) at some point.
-    pub fn star_poly(&mut self, sides: usize, x: f64, y: f64, inner_radius: f64, outer_radius: f64, rotation: f64) -> &mut Self {
-        if sides < 3 { return self; };
+    pub fn star_poly(
+        &mut self,
+        sides: usize,
+        x: f64,
+        y: f64,
+        inner_radius: f64,
+        outer_radius: f64,
+        rotation: f64,
+    ) -> &mut Self {
+        if sides < 3 {
+            return self;
+        };
         let mut exterior = LineString::<f64>::new(vec![]);
         for i in 0..sides {
-            let angle_a = rotation - PI_F64 / 2.0 +
-                (f64::from(i as i32) / f64::from(sides as i32)) * (2.0 * PI_F64);
-            let angle_b = rotation - PI_F64 / 2.0 +
-                ((f64::from(i as i32) + 0.5) / f64::from(sides as i32)) * (2.0 * PI_F64);
+            let angle_a = rotation - PI_F64 / 2.0
+                + (f64::from(i as i32) / f64::from(sides as i32)) * (2.0 * PI_F64);
+            let angle_b = rotation - PI_F64 / 2.0
+                + ((f64::from(i as i32) + 0.5) / f64::from(sides as i32)) * (2.0 * PI_F64);
             exterior.0.push(coord! {
-                x: x+angle_a.cos() * outer_radius,
-                y: y+angle_a.sin() * outer_radius});
+            x: x+angle_a.cos() * outer_radius,
+            y: y+angle_a.sin() * outer_radius});
             exterior.0.push(coord! {
-                x: x+angle_b.cos() * inner_radius,
-                y: y+angle_b.sin() * inner_radius});
+            x: x+angle_b.cos() * inner_radius,
+            y: y+angle_b.sin() * inner_radius});
         }
         // and close it...
         exterior.0.push(coord! {
-            x: x+(rotation - PI_F64/2.0).cos() * outer_radius,
-            y: y+(rotation - PI_F64/2.0).sin() * outer_radius});
+        x: x+(rotation - PI_F64/2.0).cos() * outer_radius,
+        y: y+(rotation - PI_F64/2.0).sin() * outer_radius});
         self.add_operation(Geometry::Polygon(Polygon::new(exterior, vec![])));
         self
     }
@@ -699,7 +724,7 @@ impl Context {
     }
 
     /// Set the hatch pattern
-    pub fn pattern(&mut self, pattern: Rc<dyn HatchPattern>) -> &mut Self {
+    pub fn pattern(&mut self, pattern: Hatches) -> &mut Self {
         self.hatch_pattern = pattern.clone();
         self
     }
@@ -712,7 +737,6 @@ impl Context {
         self.outline_stroke = stroke;
         self
     }
-
 
     /// Flatten will take a context and "flatten" together all polygons
     /// of a given color and "depth". What that means is that we watch for
@@ -730,20 +754,20 @@ impl Context {
         new_ctx.add_operation(Geometry::MultiLineString(MultiLineString::new(vec![])));
         let mut last_operation = new_ctx.operations[0].clone();
         let tmp_gt_op = Geometry::GeometryCollection(GeometryCollection::new_from(vec![]));
-        let mut current_geometry = try_to_geos_geometry(
-            &tmp_gt_op)
-            .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
-                .expect("Failed to generate default geos::geometry"));
-        let mut i = 0;
+        let mut current_geometry = try_to_geos_geometry(&tmp_gt_op).unwrap_or(
+            geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+                .expect("Failed to generate default geos::geometry"),
+        );
         for operation in self.operations.iter() {
-            i += 1;
             if operation.consistent(&last_operation) {
                 // Union current_geometry with the operation
-                let cgeo = try_to_geos_geometry(&operation.content)
-                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
-                        .expect("Failed to generate default geos::geometry"));
-                current_geometry = geos::Geometry::create_geometry_collection(vec![current_geometry, cgeo])
-                    .expect("Cannot append geometry into collection.");
+                let cgeo = try_to_geos_geometry(&operation.content).unwrap_or(
+                    geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+                        .expect("Failed to generate default geos::geometry"),
+                );
+                current_geometry =
+                    geos::Geometry::create_geometry_collection(vec![current_geometry, cgeo])
+                        .expect("Cannot append geometry into collection.");
             } else {
                 // Duplicate the state into the context, and create a new current_geometry bundle
                 new_ctx.stroke_color = operation.stroke_color.clone();
@@ -756,29 +780,23 @@ impl Context {
                 new_ctx.hatch_pattern = operation.hatch_pattern.clone();
                 new_ctx.hatch_angle = operation.hatch_angle;
 
-                current_geometry = current_geometry
-                    .unary_union()
-                    .unwrap_or(current_geometry);
+                current_geometry = current_geometry.unary_union().unwrap_or(current_geometry);
 
-                new_ctx.geometry(&geo_types::Geometry::try_from(current_geometry)
-                    .unwrap_or(
-                        Geometry::GeometryCollection(
-                            GeometryCollection::new_from(vec![]))));
+                new_ctx.geometry(&geo_types::Geometry::try_from(current_geometry).unwrap_or(
+                    Geometry::GeometryCollection(GeometryCollection::new_from(vec![])),
+                ));
                 last_operation = operation.clone();
-                current_geometry = try_to_geos_geometry(
-                    &operation.content)
-                    .unwrap_or(geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
-                        .expect("If we failed to convert or fallback, something is very wrong."));
+                current_geometry = try_to_geos_geometry(&operation.content).unwrap_or(
+                    geos::Geometry::create_empty_collection(GeometryTypes::GeometryCollection)
+                        .expect("If we failed to convert or fallback, something is very wrong."),
+                );
             }
         }
         // get the last one.
-        current_geometry = current_geometry
-            .unary_union()
-            .unwrap_or(current_geometry);
-        new_ctx.geometry(&geo_types::Geometry::try_from(current_geometry)
-            .unwrap_or(
-                Geometry::GeometryCollection(
-                    GeometryCollection::new_from(vec![]))));
+        current_geometry = current_geometry.unary_union().unwrap_or(current_geometry);
+        new_ctx.geometry(&geo_types::Geometry::try_from(current_geometry).unwrap_or(
+            Geometry::GeometryCollection(GeometryCollection::new_from(vec![])),
+        ));
         new_ctx
     }
 
@@ -787,7 +805,9 @@ impl Context {
         for operation in &self.operations {
             all.push(operation.content.clone().into());
         }
-        Ok(Geometry::GeometryCollection(GeometryCollection::<f64>::new_from(all)))
+        Ok(Geometry::GeometryCollection(
+            GeometryCollection::<f64>::new_from(all),
+        ))
     }
 
     /// Generate layers of perimeters and fills
@@ -813,14 +833,14 @@ impl Context {
             for i in 0..(self.operations.len() - 1) {
                 for j in (i + 1)..self.operations.len() {
                     if self.operations[j].clip_previous {
-                        oplayers[i].stroke_lines = Geometry::MultiLineString(
-                            oplayers[i].stroke_lines.clone())
-                            .clipwith(&self.operations[j].content)
-                            .unwrap_or(MultiLineString::<f64>::new(vec![]));
-                        oplayers[i].fill_lines = Geometry::MultiLineString(
-                            oplayers[i].fill_lines.clone())
-                            .clipwith(&self.operations[j].content)
-                            .unwrap_or(oplayers[i].fill_lines.clone());
+                        oplayers[i].stroke_lines =
+                            Geometry::MultiLineString(oplayers[i].stroke_lines.clone())
+                                .clipwith(&self.operations[j].content)
+                                .unwrap_or(MultiLineString::<f64>::new(vec![]));
+                        oplayers[i].fill_lines =
+                            Geometry::MultiLineString(oplayers[i].fill_lines.clone())
+                                .clipwith(&self.operations[j].content)
+                                .unwrap_or(oplayers[i].fill_lines.clone());
                     }
                 }
             }
@@ -832,45 +852,50 @@ impl Context {
     pub fn to_svg(&self, arrangement: &Arrangement<f64>) -> Result<Document, ContextError> {
         let oplayers = self.to_layers();
 
-        let mut svg = arrangement
-            .create_svg_document()
-            .or(Err(ContextError::SvgGenerationError("Failed to create raw svg doc".into()).into()))?;
+        let mut svg =
+            arrangement
+                .create_svg_document()
+                .or(Err(ContextError::SvgGenerationError(
+                    "Failed to create raw svg doc".into(),
+                )
+                .into()))?;
 
         let mut id = 0;
         for oplayer in oplayers {
             if !oplayer.stroke_lines.0.is_empty() {
                 let slines = oplayer.stroke_lines.to_path(&arrangement);
-                svg = svg.add(slines
-                    .set("id", format!("outline-{}", id))
-                    .set("fill", "none")
-                    .set("stroke", oplayer.stroke.clone())
-                    .set("stroke-width", oplayer.stroke_width)
-                    .set("stroke-linejoin", oplayer.stroke_linejoin.clone())
-                    .set("stroke-linecap", oplayer.stroke_linecap.clone())
+                svg = svg.add(
+                    slines
+                        .set("id", format!("outline-{}", id))
+                        .set("fill", "none")
+                        .set("stroke", oplayer.stroke.clone())
+                        .set("stroke-width", oplayer.stroke_width)
+                        .set("stroke-linejoin", oplayer.stroke_linejoin.clone())
+                        .set("stroke-linecap", oplayer.stroke_linecap.clone()),
                 );
             }
             if !oplayer.fill_lines.0.is_empty() {
                 let flines = oplayer.fill_lines.to_path(&arrangement);
-                svg = svg.add(flines
-                    .set("id", format!("fill-{}", id))
-                    .set("fill", "none")
-                    .set("stroke", oplayer.fill.clone())
-                    .set("stroke-width", oplayer.stroke_width)
-                    .set("stroke-linejoin", oplayer.stroke_linejoin.clone())
-                    .set("stroke-linecap", oplayer.stroke_linecap.clone())
+                svg = svg.add(
+                    flines
+                        .set("id", format!("fill-{}", id))
+                        .set("fill", "none")
+                        .set("stroke", oplayer.fill.clone())
+                        .set("stroke-width", oplayer.stroke_width)
+                        .set("stroke-linejoin", oplayer.stroke_linejoin.clone())
+                        .set("stroke-linecap", oplayer.stroke_linecap.clone()),
                 );
                 id = id + 1;
             }
-        };
+        }
         Ok(svg)
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use geo_types::{Rect, Triangle};
     use super::*;
+    use geo_types::{Rect, Triangle};
 
     #[test]
     fn test_context_new() {
@@ -881,7 +906,8 @@ mod test {
     #[test]
     fn test_minimal_rect() {
         let mut context = Context::new();
-        context.stroke("red")
+        context
+            .stroke("red")
             .pen(0.8)
             .fill("blue")
             .hatch(45.0)
@@ -889,27 +915,36 @@ mod test {
         let arrangement = Arrangement::FitCenterMargin(
             10.0,
             Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}),
-            false);
+            false,
+        );
         context.to_svg(&arrangement).unwrap();
     }
 
     #[test]
     fn test_arc_c() {
         let mut context = Context::new();
-        context.stroke("red")
+        context
+            .stroke("red")
             .pen(0.8)
             .fill("blue")
             .hatch(45.0)
             .arc_center(0.0, 0.0, 10.0, 45.0, 180.0);
-        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let arrangement = Arrangement::unit(&Rect::new(
+            coord! {x: 0.0, y: 0.0},
+            coord! {x:100.0, y:100.0},
+        ));
         let svg1 = context.to_svg(&arrangement).unwrap();
         let mut context = Context::new();
-        context.stroke("red")
+        context
+            .stroke("red")
             .pen(0.8)
             .fill("blue")
             .hatch(45.0)
             .arc_center(0.0, 0.0, 10.0, 180.0, 45.0);
-        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let arrangement = Arrangement::unit(&Rect::new(
+            coord! {x: 0.0, y: 0.0},
+            coord! {x:100.0, y:100.0},
+        ));
         let svg2 = context.to_svg(&arrangement).unwrap();
         // Make sure that order of angles is irrelevant
         assert_eq!(svg2.to_string(), svg1.to_string());
@@ -922,12 +957,12 @@ mod test {
         context.pen(0.8);
         context.fill("blue");
         context.hatch(45.0);
-        context.poly(vec![(10.0, 10.0), (50.0, 10.0), (25.0, 25.0)],
-                     vec![]);
+        context.poly(vec![(10.0, 10.0), (50.0, 10.0), (25.0, 25.0)], vec![]);
         let arrangement = Arrangement::FitCenterMargin(
             10.0,
             Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}),
-            false);
+            false,
+        );
         context.to_svg(&arrangement).unwrap();
     }
 
@@ -942,14 +977,16 @@ mod test {
         let arrangement = Arrangement::FitCenterMargin(
             10.0,
             Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}),
-            false);
+            false,
+        );
         context.to_svg(&arrangement).unwrap();
     }
 
     #[test]
     fn test_5_pointed_star() {
         let mut context = Context::new();
-        context.stroke("red")
+        context
+            .stroke("red")
             .pen(0.8)
             .fill("blue")
             .hatch(45.0)
@@ -962,11 +999,15 @@ mod test {
         context.stroke("red");
         context.pen(0.5);
         context.fill("blue");
+        context.pattern(Hatches::none());
         context.hatch(45.0);
         context.rect(10.0, 10.0, 30.0, 30.0);
         context.rect(20.0, 20.0, 40.0, 40.0);
         context = context.flatten();
-        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let arrangement = Arrangement::unit(&Rect::new(
+            coord! {x: 0.0, y: 0.0},
+            coord! {x:100.0, y:100.0},
+        ));
         let svg = context.to_svg(&arrangement).unwrap();
         assert_eq!(svg.to_string(),
                    concat!(
@@ -984,15 +1025,20 @@ mod test {
         context.fill("blue");
         // context.hatch(45.0);
         // context.pattern(LineHatch::gen());
+        context.pattern(Hatches::none());
         context.rect(10.0, 10.0, 30.0, 30.0);
         context.rect(20.0, 20.0, 40.0, 40.0);
         context.rect(32.0, 32.0, 48.0, 48.0);
-        context.stroke("black")
+        context
+            .stroke("black")
             .clip(true)
             .rect(22.0, 22.0, 38.0, 38.0);
 
         context = context.flatten();
-        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let arrangement = Arrangement::unit(&Rect::new(
+            coord! {x: 0.0, y: 0.0},
+            coord! {x:100.0, y:100.0},
+        ));
         let svg = context.to_svg(&arrangement).unwrap();
         // println!("svg: {}", svg.to_string());
         assert_eq!(svg.to_string(),
@@ -1025,8 +1071,12 @@ mod test {
         context.pen(0.8);
         context.fill("purple");
         context.geometry(&foo);
-        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
-        /*let svg =*/ context.to_svg(&arrangement).unwrap();
+        let arrangement = Arrangement::unit(&Rect::new(
+            coord! {x: 0.0, y: 0.0},
+            coord! {x:100.0, y:100.0},
+        ));
+        /*let svg =*/
+        context.to_svg(&arrangement).unwrap();
         // println!("svg : {}", svg.to_string());
     }
 
@@ -1036,25 +1086,28 @@ mod test {
         context.stroke("red");
         context.pen(0.8);
         context.fill("blue");
-        context.hatch(45.0)
-            .geometry(
-                &Geometry::Polygon(
-                    Polygon::new(
-                        LineString::new(
-                            vec![
-                                coord! {x: 0.0, y:0.0},
-                                coord! {x: 100.0, y:0.0},
-                                coord! {x:100.0, y:100.0},
-                                coord! {x:0.0, y:100.0},
-                                coord! {x: 0.0, y:0.0},
-                            ]), vec![])))
-            .geometry(
-                &Geometry::Triangle(
-                    Triangle::new(
-                        coord! {x: 0.0, y:0.0},
-                        coord! {x: 100.0, y:0.0},
-                        coord! {x:100.0, y:100.0})));
-        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        context.pattern(Hatches::none());
+        context
+            .hatch(45.0)
+            .geometry(&Geometry::Polygon(Polygon::new(
+                LineString::new(vec![
+                    coord! {x: 0.0, y:0.0},
+                    coord! {x: 100.0, y:0.0},
+                    coord! {x:100.0, y:100.0},
+                    coord! {x:0.0, y:100.0},
+                    coord! {x: 0.0, y:0.0},
+                ]),
+                vec![],
+            )))
+            .geometry(&Geometry::Triangle(Triangle::new(
+                coord! {x: 0.0, y:0.0},
+                coord! {x: 100.0, y:0.0},
+                coord! {x:100.0, y:100.0},
+            )));
+        let arrangement = Arrangement::unit(&Rect::new(
+            coord! {x: 0.0, y: 0.0},
+            coord! {x:100.0, y:100.0},
+        ));
         let svg = context.to_svg(&arrangement).unwrap();
         assert_eq!(svg.to_string(), concat!(
         "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
@@ -1071,30 +1124,29 @@ mod test {
         let mut path = BezPath::new();
         path.move_to(BezPoint::new(20.0, 20.0));
         path.line_to(BezPoint::new(80.0, 20.0));
-        path.curve_to(BezPoint::new(80.0, 40.0),
-                      BezPoint::new(90.0, 50.0),
-                      BezPoint::new(80.0, 60.0));
-        path.line_to(BezPoint::new(50.0, 80.0));
-        path.quad_to(
-            BezPoint::new(30.0, 50.0),
-            BezPoint::new(25.0, 30.0),
+        path.curve_to(
+            BezPoint::new(80.0, 40.0),
+            BezPoint::new(90.0, 50.0),
+            BezPoint::new(80.0, 60.0),
         );
+        path.line_to(BezPoint::new(50.0, 80.0));
+        path.quad_to(BezPoint::new(30.0, 50.0), BezPoint::new(25.0, 30.0));
         path.close_path();
         context
             .stroke("red")
             .pen(0.8)
             .fill("blue")
-            .pattern(LineHatch::gen())
+            .pattern(Hatches::line())
             .hatch(45.0)
-            .path(&path)
-        ;
+            .path(&path);
 
-
-        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let arrangement = Arrangement::unit(&Rect::new(
+            coord! {x: 0.0, y: 0.0},
+            coord! {x:100.0, y:100.0},
+        ));
         let _svg = context.to_svg(&arrangement).unwrap();
         // println!("SVG: {}", svg.to_string());
     }
-
 
     #[test]
     fn test_single_glyph() {
@@ -1104,15 +1156,15 @@ mod test {
             .stroke("red")
             .pen(0.8)
             .fill("blue")
-            .pattern(LineHatch::gen())
+            .pattern(Hatches::line())
             .hatch(45.0)
             .glyph('X', false)
-            .glyph('O', false)
-        ;
+            .glyph('O', false);
 
-
-        let arrangement = Arrangement::unit(&Rect::new(coord! {x: 0.0, y: 0.0}, coord! {x:100.0, y:100.0}));
+        let arrangement = Arrangement::unit(&Rect::new(
+            coord! {x: 0.0, y: 0.0},
+            coord! {x:100.0, y:100.0},
+        ));
         let _svg = context.to_svg(&arrangement).unwrap();
     }
-
 }

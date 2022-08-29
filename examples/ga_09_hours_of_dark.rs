@@ -1,10 +1,9 @@
+use aoer_plotty_rs::context::Context;
+use aoer_plotty_rs::prelude::{Arrangement, Hatches};
 use std::f64::consts::PI;
 use std::path::Path;
-use aoer_plotty_rs::prelude::{Arrangement, LineHatch};
-use aoer_plotty_rs::context::Context;
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/hours-of-dark/
-
 
 fn main() {
     let pen_width = 0.3;
@@ -21,9 +20,8 @@ fn main() {
     ctx.stroke("black")
         .hatch(45.0)
         .pen(pen_width)
-        .pattern(LineHatch::gen())
+        .pattern(Hatches::line())
         .fill("black");
-
 
     for day in 0..days {
         let col = f64::from(day / rows);
@@ -44,22 +42,25 @@ fn main() {
 
         ctx.push()
             .transform(Some(&(Context::translate_matrix(x, y))))
-            .mask_box(cellw * -0.5, cellh * -0.5,
-                      cellw * 0.5, cellh * 0.5)
-            .transform(Some(&(Context::translate_matrix(x, y)*Context::rotate_matrix(theta))))
+            .mask_box(cellw * -0.5, cellh * -0.5, cellw * 0.5, cellh * 0.5)
+            .transform(Some(
+                &(Context::translate_matrix(x, y) * Context::rotate_matrix(theta)),
+            ))
             .hatch(-90.0 + theta)
             .rect(w * -0.5, h * -0.5, w * 0.5, h * 0.5)
-            .pop().expect("Somehow lost track of my internal stack");
+            .pop()
+            .expect("Somehow lost track of my internal stack");
     }
 
     // We're using a new feature here: Create a FitCenterMargin Arrangement that matches
     // the paper size we're using (8.5" square). Then, finalize it's transformation matrix
     // to match the context's bounds, giving us back an Arrangement::Transform with the
     // affine txform that gives us a nicely centered drawing.
-    let arrangement = ctx.finalize_arrangement(
-        &Arrangement::FitCenterMargin(25.4,
-                                      Context::viewbox(0.0, 0.0, 216.0, 216.0),
-                                      false));
+    let arrangement = ctx.finalize_arrangement(&Arrangement::FitCenterMargin(
+        25.4,
+        Context::viewbox(0.0, 0.0, 216.0, 216.0),
+        false,
+    ));
 
     let document = ctx.to_svg(&arrangement).unwrap();
 

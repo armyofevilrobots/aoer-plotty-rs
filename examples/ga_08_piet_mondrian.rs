@@ -1,8 +1,8 @@
-use std::path::Path;
-use geo_types::{coord, Coordinate, Geometry, Rect};
-use aoer_plotty_rs::prelude::{Arrangement, LineHatch, NoHatch};
-use rand::prelude::*;
 use aoer_plotty_rs::context::Context;
+use aoer_plotty_rs::prelude::{Arrangement, Hatches};
+use geo_types::{coord, Coordinate, Geometry, Rect};
+use rand::prelude::*;
+use std::path::Path;
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/piet-mondrian/
 
@@ -11,10 +11,12 @@ fn split_on_x(square: &Rect<f64>, x: f64) -> Vec<Rect<f64>> {
     vec![
         Rect::new(
             coord! {x: square.min().x, y: square.min().y},
-            coord! {x: x, y: square.max().y}),
+            coord! {x: x, y: square.max().y},
+        ),
         Rect::new(
             coord! {x: x, y: square.min().y},
-            coord! {x: square.max().x, y: square.max().y}),
+            coord! {x: square.max().x, y: square.max().y},
+        ),
     ]
 }
 
@@ -23,27 +25,28 @@ fn split_on_y(square: &Rect<f64>, y: f64) -> Vec<Rect<f64>> {
     vec![
         Rect::new(
             coord! {x: square.min().x, y: square.min().y},
-            coord! {x: square.max().x, y: y}),
+            coord! {x: square.max().x, y: y},
+        ),
         Rect::new(
             coord! {x: square.min().x, y: y},
-            coord! {x: square.max().x, y: square.max().y}),
+            coord! {x: square.max().x, y: square.max().y},
+        ),
     ]
 }
 
 /// Iterates the squares, splitting them where appropriate
-fn split_squares_at(squares: &mut Vec<Rect<f64>>, coord: Coordinate<f64>, rng: &mut rand::rngs::SmallRng) {
+fn split_squares_at(
+    squares: &mut Vec<Rect<f64>>,
+    coord: Coordinate<f64>,
+    rng: &mut rand::rngs::SmallRng,
+) {
     for i in (0..squares.len()).rev() {
         let square = squares[i].clone();
-        if coord.x > square.min().x &&
-            coord.x < square.max().x &&
-            rng.gen::<f64>() > 0.5
-        {
+        if coord.x > square.min().x && coord.x < square.max().x && rng.gen::<f64>() > 0.5 {
             squares.remove(i);
             squares.append(&mut split_on_x(&square, coord.x));
         }
-        if coord.y > square.min().y &&
-            coord.y < square.max().y &&
-            rng.gen::<f64>() > 0.5 {
+        if coord.y > square.min().y && coord.y < square.max().y && rng.gen::<f64>() > 0.5 {
             squares.remove(i);
             squares.append(&mut split_on_y(&square, coord.y));
         }
@@ -63,9 +66,10 @@ fn main() {
     let mut rng = SmallRng::seed_from_u64(1234567);
     let mut ctx = Context::new();
 
-    let mut squares: Vec<Rect<f64>> = vec![
-        Rect::new(coord! {x:0.0, y:0.0},
-                  coord! {x: f64::from(size), y: f64::from(size)})];
+    let mut squares: Vec<Rect<f64>> = vec![Rect::new(
+        coord! {x:0.0, y:0.0},
+        coord! {x: f64::from(size), y: f64::from(size)},
+    )];
 
     // split_squares_at(&mut squares, coord!{x: f64::from(size)/2.0, y: -1.0});
     // split_squares_at(&mut squares, coord!{x:-1.0, y: f64::from(size)/2.0});
@@ -75,9 +79,7 @@ fn main() {
     }
 
     // Create an array of the same length as the squares array, and fill it with "white"
-    let mut square_colors: Vec<&str> = squares.iter()
-        .map(|_s| white.clone())
-        .collect();
+    let mut square_colors: Vec<&str> = squares.iter().map(|_s| white.clone()).collect();
 
     for color in colors.clone() {
         // Note, this might overlap an existing colored square. More often than you'd think actually.
@@ -85,9 +87,7 @@ fn main() {
     }
 
     // Set the default stroke/hatch/pen.
-    ctx.stroke("black")
-        .hatch(45.0)
-        .pen(pen_width);
+    ctx.stroke("black").hatch(45.0).pen(pen_width);
 
     // for square in squares {
     for i in 0..squares.len() {
@@ -96,20 +96,21 @@ fn main() {
 
         // Don't bother hatching if it's white.
         if color != white {
-            ctx.pattern(LineHatch::gen());
+            ctx.pattern(Hatches::line());
         } else {
-            ctx.pattern(NoHatch::gen());
+            ctx.pattern(Hatches::none());
         }
 
         // And set the fill color.
-        ctx.fill(color)
-            .rect(
-                square.min().x + square_weight, square.min().y + square_weight,
-                square.max().x - square_weight, square.max().y - square_weight,
-            );
+        ctx.fill(color).rect(
+            square.min().x + square_weight,
+            square.min().y + square_weight,
+            square.max().x - square_weight,
+            square.max().y - square_weight,
+        );
 
         // Now we just draw the rest of the outlines, inside to outside, no fill.
-        ctx.pattern(NoHatch::gen());
+        ctx.pattern(Hatches::none());
         let mut remaining_width = square_weight - (pen_width / 2.0);
         let s = squares[i].clone();
         while remaining_width >= 0.0 {
@@ -125,10 +126,11 @@ fn main() {
     // the paper size we're using (8.5" square). Then, finalize it's transformation matrix
     // to match the context's bounds, giving us back an Arrangement::Transform with the
     // affine txform that gives us a nicely centered drawing.
-    let arrangement = ctx.finalize_arrangement(
-        &Arrangement::FitCenterMargin(25.4,
-                                      Context::viewbox(0.0, 0.0, 216.0, 216.0),
-                                      false));
+    let arrangement = ctx.finalize_arrangement(&Arrangement::FitCenterMargin(
+        25.4,
+        Context::viewbox(0.0, 0.0, 216.0, 216.0),
+        false,
+    ));
 
     let document = ctx.to_svg(&arrangement).unwrap();
 

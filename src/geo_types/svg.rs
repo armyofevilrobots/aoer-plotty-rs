@@ -1,24 +1,26 @@
-use std::ops::Div;
 use geo::bounding_rect::BoundingRect;
-use geo_types::{Coordinate, CoordNum, LineString, MultiLineString, Point, Rect};
-use nalgebra::{Affine2, RealField, Point2 as NPoint2, Matrix3};
-use num_traits::{AsPrimitive, Float, FromPrimitive, ToPrimitive};
+use geo_types::{CoordNum, Coordinate, LineString, MultiLineString, Point, Rect};
+use nalgebra::{Affine2, Matrix3, Point2 as NPoint2, RealField};
 use num_traits::real::Real;
-use svg::Document;
-use svg::node::element::Path;
+use num_traits::{AsPrimitive, Float, FromPrimitive, ToPrimitive};
+use std::ops::Div;
 use svg::node::element::path::Data;
+use svg::node::element::Path;
+use svg::Document;
 
 /// Generic error
 #[derive(Debug)]
 pub enum SvgCreationError {
-    UndefinedViewBox
+    UndefinedViewBox,
 }
 
 /// An arrangement is a plan for transformation of an SVG
 pub enum Arrangement<T>
-    where T: Real,
-          T: CoordNum,
-          T: RealField {
+where
+    T: Real,
+    T: CoordNum,
+    T: RealField,
+{
     Center(Rect<T>, bool),
     FitCenter(Rect<T>, bool),
     FitCenterMargin(T, Rect<T>, bool),
@@ -26,25 +28,24 @@ pub enum Arrangement<T>
 }
 
 impl<T: RealField + Float> Arrangement<T> {
-
     /// Generates a final Arrangement in the form of an [`Arrangement::Transform`] which can be
     /// use to consistently generate an SVG.
     pub fn finalize(&self, geo_bounds: &Rect<T>) -> Arrangement<T> {
-        let viewbox = match self{
+        let viewbox = match self {
             Arrangement::Center(viewbox, _invert) => viewbox,
             Arrangement::FitCenter(viewbox, _invert) => viewbox,
             Arrangement::FitCenterMargin(_margin, viewbox, _invert) => viewbox,
-            Arrangement::Transform(viewbox, _affine) => viewbox
+            Arrangement::Transform(viewbox, _affine) => viewbox,
         };
         Arrangement::<T>::Transform(viewbox.clone(), self.affine(geo_bounds))
     }
 
     pub fn viewbox(&self) -> Rect<T> {
-        match self{
+        match self {
             Arrangement::Center(viewbox, _invert) => viewbox.clone(),
             Arrangement::FitCenter(viewbox, _invert) => viewbox.clone(),
             Arrangement::FitCenterMargin(_margin, viewbox, _invert) => viewbox.clone(),
-            Arrangement::Transform(viewbox, _affine) => viewbox.clone()
+            Arrangement::Transform(viewbox, _affine) => viewbox.clone(),
         }
     }
 
@@ -52,43 +53,69 @@ impl<T: RealField + Float> Arrangement<T> {
         match self {
             Arrangement::Transform(_viewbox, affine) => affine.clone(),
             Arrangement::Center(bounds, invert) => {
-                let bcenter = bounds.min() + (bounds.max() - bounds.min()).div(T::from(2.0).unwrap()); // / (2.0 as T);
-                let gcenter = geo_bounds.min() + (geo_bounds.max() - geo_bounds.min()).div(T::from(2.0).unwrap());
+                let bcenter =
+                    bounds.min() + (bounds.max() - bounds.min()).div(T::from(2.0).unwrap()); // / (2.0 as T);
+                let gcenter = geo_bounds.min()
+                    + (geo_bounds.max() - geo_bounds.min()).div(T::from(2.0).unwrap());
                 let delta = bcenter - gcenter;
-                let tx = Affine2::from_matrix_unchecked(
-                    Matrix3::<T>::new(
-                        T::from(1.0).unwrap(), T::zero(), delta.x as T,
-                        T::zero(), T::one(), delta.y as T,
-                        T::zero(), T::zero(), T::one(),
-                    )
-                );
+                let tx = Affine2::from_matrix_unchecked(Matrix3::<T>::new(
+                    T::one(),
+                    T::zero(),
+                    delta.x as T,
+                    T::zero(),
+                    T::one(),
+                    delta.y as T,
+                    T::zero(),
+                    T::zero(),
+                    T::one(),
+                ));
                 if *invert {
                     Affine2::from_matrix_unchecked(Matrix3::<T>::new(
-                        T::from(1.0).unwrap(), T::zero(), T::zero(),
-                        T::zero(), -T::one(), bounds.height(),
-                        T::zero(), T::zero(), T::one(),
+                        T::one(),
+                        T::zero(),
+                        T::zero(),
+                        T::zero(),
+                        -T::one(),
+                        bounds.height(),
+                        T::zero(),
+                        T::zero(),
+                        T::one(),
                     )) * tx
                 } else {
                     tx
                 }
             }
             Arrangement::FitCenter(bounds, invert) => {
-                let scale = <T as Real>::min(bounds.width() / geo_bounds.width(), bounds.height() / geo_bounds.height());
-                let bcenter = bounds.min() + (bounds.max() - bounds.min()).div(T::from(2.0).unwrap()); // / (2.0 as T);
+                let scale = <T as Real>::min(
+                    bounds.width() / geo_bounds.width(),
+                    bounds.height() / geo_bounds.height(),
+                );
+                let bcenter =
+                    bounds.min() + (bounds.max() - bounds.min()).div(T::from(2.0).unwrap()); // / (2.0 as T);
                 let gcenter = geo_bounds.center() * scale; // This is post scaling now.
                 let delta = bcenter - gcenter;
-                let tx = Affine2::from_matrix_unchecked(
-                    Matrix3::new(
-                        scale, T::zero(), delta.x,
-                        T::zero(), scale, delta.y,
-                        T::zero(), T::zero(), T::one(),
-                    )
-                );
+                let tx = Affine2::from_matrix_unchecked(Matrix3::new(
+                    scale,
+                    T::zero(),
+                    delta.x,
+                    T::zero(),
+                    scale,
+                    delta.y,
+                    T::zero(),
+                    T::zero(),
+                    T::one(),
+                ));
                 if *invert {
                     Affine2::from_matrix_unchecked(Matrix3::<T>::new(
-                        T::from(1.0).unwrap(), T::zero(), T::zero(),
-                        T::zero(), -T::one(), bounds.height(),
-                        T::zero(), T::zero(), T::one(),
+                        T::one(),
+                        T::zero(),
+                        T::zero(),
+                        T::zero(),
+                        -T::one(),
+                        bounds.height(),
+                        T::zero(),
+                        T::zero(),
+                        T::one(),
                     )) * tx
                 } else {
                     tx
@@ -97,24 +124,34 @@ impl<T: RealField + Float> Arrangement<T> {
             Arrangement::FitCenterMargin(margin, bounds, invert) => {
                 let scale = <T as Real>::min(
                     (bounds.width() - T::from(2.0).unwrap() * *margin) / geo_bounds.width(),
-                    (bounds.height() - T::from(2.0).unwrap() * *margin) / geo_bounds.height());
-                let bcenter = bounds.min() +
-                    (bounds.max() - bounds.min())
-                        .div(T::from(2.0).unwrap()); // / (2.0 as T);
+                    (bounds.height() - T::from(2.0).unwrap() * *margin) / geo_bounds.height(),
+                );
+                let bcenter =
+                    bounds.min() + (bounds.max() - bounds.min()).div(T::from(2.0).unwrap()); // / (2.0 as T);
                 let gcenter = geo_bounds.center() * scale; // This is post scaling now.
                 let delta = bcenter - gcenter;
-                let tx = Affine2::from_matrix_unchecked(
-                    Matrix3::new(
-                        scale, T::zero(), delta.x,
-                        T::zero(), scale, delta.y,
-                        T::zero(), T::zero(), T::one(),
-                    )
-                );
+                let tx = Affine2::from_matrix_unchecked(Matrix3::new(
+                    scale,
+                    T::zero(),
+                    delta.x,
+                    T::zero(),
+                    scale,
+                    delta.y,
+                    T::zero(),
+                    T::zero(),
+                    T::one(),
+                ));
                 if *invert {
                     Affine2::from_matrix_unchecked(Matrix3::<T>::new(
-                        T::from(1.0).unwrap(), T::zero(), T::zero(),
-                        T::zero(), -T::one(), bounds.height(),
-                        T::zero(), T::zero(), T::one(),
+                        T::one(),
+                        T::zero(),
+                        T::zero(),
+                        T::zero(),
+                        -T::one(),
+                        bounds.height(),
+                        T::zero(),
+                        T::zero(),
+                        T::one(),
                     )) * tx
                 } else {
                     tx
@@ -126,60 +163,93 @@ impl<T: RealField + Float> Arrangement<T> {
     pub fn unit(window: &Rect<T>) -> Arrangement<T> {
         Arrangement::Transform(
             window.clone(),
-            Affine2::from_matrix_unchecked(
-                Matrix3::<T>::new(
-                    T::one(), T::zero(), T::zero(),
-                    T::zero(), T::one(), T::zero(),
-                    T::zero(), T::zero(), T::one(),
-                )))
+            Affine2::from_matrix_unchecked(Matrix3::<T>::new(
+                T::one(),
+                T::zero(),
+                T::zero(),
+                T::zero(),
+                T::one(),
+                T::zero(),
+                T::zero(),
+                T::zero(),
+                T::one(),
+            )),
+        )
     }
 
     pub fn create_svg_document(&self) -> Result<Document, SvgCreationError>
-        where T: Real,
-              T: CoordNum,
-              T: RealField,
-              T: ToPrimitive,
-              T: FromPrimitive,
-              f64: From<T> {
+    where
+        T: Real,
+        T: CoordNum,
+        T: RealField,
+        T: ToPrimitive,
+        T: FromPrimitive,
+        f64: From<T>,
+    {
         match self {
             Arrangement::Transform(viewbox, _affine) => Ok(Document::new()
-                .set("viewBox", (f64::from(viewbox.min().x.into()), f64::from(viewbox.min().y.into()),
-                                 f64::from(viewbox.max().x.into()), f64::from(viewbox.max().y.into())))
+                .set(
+                    "viewBox",
+                    (
+                        f64::from(viewbox.min().x.into()),
+                        f64::from(viewbox.min().y.into()),
+                        f64::from(viewbox.max().x.into()),
+                        f64::from(viewbox.max().y.into()),
+                    ),
+                )
                 .set("width", format!("{}mm", viewbox.width()))
-                .set("height", format!("{}mm", viewbox.height()))
-            ),// Err(SvgCreationError::UndefinedViewBox),
+                .set("height", format!("{}mm", viewbox.height()))), // Err(SvgCreationError::UndefinedViewBox),
             Arrangement::Center(viewbox, _invert) => Ok(Document::new()
-                .set("viewBox", (f64::from(viewbox.min().x.into()), f64::from(viewbox.min().y.into()),
-                                 f64::from(viewbox.max().x.into()), f64::from(viewbox.max().y.into())))
+                .set(
+                    "viewBox",
+                    (
+                        f64::from(viewbox.min().x.into()),
+                        f64::from(viewbox.min().y.into()),
+                        f64::from(viewbox.max().x.into()),
+                        f64::from(viewbox.max().y.into()),
+                    ),
+                )
                 .set("width", format!("{}mm", viewbox.width()))
-                .set("height", format!("{}mm", viewbox.height()))
-            ),
+                .set("height", format!("{}mm", viewbox.height()))),
             Arrangement::FitCenter(viewbox, _invert) => Ok(Document::new()
-                .set("viewBox", (f64::from(viewbox.min().x.into()), f64::from(viewbox.min().y.into()),
-                                 f64::from(viewbox.max().x.into()), f64::from(viewbox.max().y.into())))
+                .set(
+                    "viewBox",
+                    (
+                        f64::from(viewbox.min().x.into()),
+                        f64::from(viewbox.min().y.into()),
+                        f64::from(viewbox.max().x.into()),
+                        f64::from(viewbox.max().y.into()),
+                    ),
+                )
                 .set("width", format!("{}mm", viewbox.width()))
-                .set("height", format!("{}mm", viewbox.height()))
-            ),
+                .set("height", format!("{}mm", viewbox.height()))),
             Arrangement::FitCenterMargin(_margin, viewbox, _invert) => Ok(Document::new()
-                .set("viewBox", (
-                    f64::from(viewbox.min().x.into()),
-                    f64::from(viewbox.min().y.into()),
-                    f64::from(viewbox.max().x.into()),
-                    f64::from(viewbox.max().y.into())))
+                .set(
+                    "viewBox",
+                    (
+                        f64::from(viewbox.min().x.into()),
+                        f64::from(viewbox.min().y.into()),
+                        f64::from(viewbox.max().x.into()),
+                        f64::from(viewbox.max().y.into()),
+                    ),
+                )
                 .set("width", format!("{}mm", viewbox.width()))
-                .set("height", format!("{}mm", viewbox.height()))
-            ),
+                .set("height", format!("{}mm", viewbox.height()))),
         }
     }
 }
 
 pub trait ToSvg<T>
-    where T: CoordNum,
-          T: Real,
-          T: RealField {
+where
+    T: CoordNum,
+    T: Real,
+    T: RealField,
+{
     /// Given an [Arrangement] as a transformation strategy, transform the geometry to
     /// fit the bounds, or just run the transformation without bounds if None
-    fn arrange(&self, arrangement: &Arrangement<T>) -> Result<Self, SvgCreationError> where Self: Sized;
+    fn arrange(&self, arrangement: &Arrangement<T>) -> Result<Self, SvgCreationError>
+    where
+        Self: Sized;
 
     /// Utility function returns a viewbox tuple for the geometry.
     /// Should be used AFTER calling arrange on the geo.
@@ -193,32 +263,45 @@ pub trait ToSvg<T>
 }
 
 impl<T> ToSvg<T> for MultiLineString<T>
-    where T: CoordNum,
-          T: Real,
-          T: RealField,
-          T: Float,
-          T: AsPrimitive<T>,
-          T: ToPrimitive,
-          T: FromPrimitive,
-          f64: From<T> {
+where
+    T: CoordNum,
+    T: Real,
+    T: RealField,
+    T: Float,
+    T: AsPrimitive<T>,
+    T: ToPrimitive,
+    T: FromPrimitive,
+    f64: From<T>,
+{
     fn arrange(&self, arrangement: &Arrangement<T>) -> Result<Self, SvgCreationError> {
         let gbox = match self.bounding_rect() {
             Some(gbox) => gbox,
             None => return Err(SvgCreationError::UndefinedViewBox),
         };
         let transformation = arrangement.affine(&gbox);
-        let linestrings: Vec<LineString<T>> = self.iter().map(|linestring| {
-            linestring.coords().map(|coord| {
-                let pt = transformation * NPoint2::<T>::new(coord.x, coord.y);
-                Coordinate::<T>::from((pt.x, pt.y))
-            }).collect()
-        }).collect();
+        let linestrings: Vec<LineString<T>> = self
+            .iter()
+            .map(|linestring| {
+                linestring
+                    .coords()
+                    .map(|coord| {
+                        let pt = transformation * NPoint2::<T>::new(coord.x, coord.y);
+                        Coordinate::<T>::from((pt.x, pt.y))
+                    })
+                    .collect()
+            })
+            .collect();
         Ok(MultiLineString::<T>::new(linestrings))
     }
 
     fn viewbox(&self) -> Option<(T, T, T, T)> {
         let bounds = self.bounding_rect()?;
-        Some((bounds.min().x, bounds.min().y, bounds.max().x, bounds.max().y))
+        Some((
+            bounds.min().x,
+            bounds.min().y,
+            bounds.max().x,
+            bounds.max().y,
+        ))
     }
 
     fn to_path_data(&self) -> Data {
@@ -239,23 +322,19 @@ impl<T> ToSvg<T> for MultiLineString<T>
     fn to_path(&self, arrangement: &Arrangement<T>) -> Path {
         let path_result = (&self).arrange(arrangement);
         match path_result {
-            Ok(pathval) =>
-                Path::new()
-                    .set("d", pathval.to_path_data()),
-            Err(_) =>
-                Path::new()
-                    .set("d", "")
+            Ok(pathval) => Path::new().set("d", pathval.to_path_data()),
+            Err(_) => Path::new().set("d", ""),
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::str::FromStr;
+    use super::*;
     use geo_types::{coord, LineString, MultiLineString, Polygon};
     use nalgebra::{Affine2, Matrix3};
+    use std::str::FromStr;
     use wkt::Wkt;
-    use super::*;
 
     #[test]
     fn test_load_wkt() {
@@ -267,144 +346,165 @@ mod test {
 
     #[test]
     fn test_arrange_center() {
-        let mls = MultiLineString::new(
-            vec![LineString::new(
-                vec![
-                    coord! {x: 0.0f64, y: 0.0f64},
-                    coord! {x: 0.0f64, y: 100.0f64},
-                    coord! {x: 100.0f64, y: 100.0f64},
-                    coord! {x: 100.0f64, y: 0.0f64},
-                    coord! {x: 0.0f64, y: 0.0f64},
-                ])]);
-        let txmls = mls.arrange(
-            &Arrangement::Center(
+        let mls = MultiLineString::new(vec![LineString::new(vec![
+            coord! {x: 0.0f64, y: 0.0f64},
+            coord! {x: 0.0f64, y: 100.0f64},
+            coord! {x: 100.0f64, y: 100.0f64},
+            coord! {x: 100.0f64, y: 0.0f64},
+            coord! {x: 0.0f64, y: 0.0f64},
+        ])]);
+        let txmls = mls
+            .arrange(&Arrangement::Center(
                 Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
-                false)).unwrap();
-        assert_eq!(txmls.bounding_rect()
-                       .expect("Should have been able to get brect")
-                       .center(),
-                   coord! {x: 200.0f64, y:200.0f64});
-        assert_eq!(txmls.bounding_rect()
-                       .expect("Should have been able to get brect for mlines")
-                       .width(), 100.0f64);
-        assert_eq!(txmls.bounding_rect()
-                       .expect("Should have been able to get brect for mlines")
-                       .height(), 100.0f64);
-        assert_eq!(txmls.bounding_rect()
-                       .expect("Couldn't get bounding rect on second attempt?")
-                       .center(), coord! {x: 200.0, y:200.0});
+                false,
+            ))
+            .unwrap();
+        assert_eq!(
+            txmls
+                .bounding_rect()
+                .expect("Should have been able to get brect")
+                .center(),
+            coord! {x: 200.0f64, y:200.0f64}
+        );
+        assert_eq!(
+            txmls
+                .bounding_rect()
+                .expect("Should have been able to get brect for mlines")
+                .width(),
+            100.0f64
+        );
+        assert_eq!(
+            txmls
+                .bounding_rect()
+                .expect("Should have been able to get brect for mlines")
+                .height(),
+            100.0f64
+        );
+        assert_eq!(
+            txmls
+                .bounding_rect()
+                .expect("Couldn't get bounding rect on second attempt?")
+                .center(),
+            coord! {x: 200.0, y:200.0}
+        );
     }
 
     #[test]
     fn test_arrange_fit_center() {
-        let mls = MultiLineString::new(
-            vec![LineString::new(
-                vec![
-                    coord! {x: 0.0f64, y: 0.0f64},
-                    coord! {x: 0.0f64, y: 100.0f64},
-                    coord! {x: 100.0f64, y: 100.0f64},
-                    coord! {x: 100.0f64, y: 0.0f64},
-                    coord! {x: 0.0f64, y: 0.0f64},
-                ])]);
-        let txmls = mls.arrange(
-            &Arrangement::FitCenter(
+        let mls = MultiLineString::new(vec![LineString::new(vec![
+            coord! {x: 0.0f64, y: 0.0f64},
+            coord! {x: 0.0f64, y: 100.0f64},
+            coord! {x: 100.0f64, y: 100.0f64},
+            coord! {x: 100.0f64, y: 0.0f64},
+            coord! {x: 0.0f64, y: 0.0f64},
+        ])]);
+        let txmls = mls
+            .arrange(&Arrangement::FitCenter(
                 Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
-                false)).unwrap();
-        assert_eq!(txmls.bounding_rect()
-                       .expect("Should have been able to get brect")
-                       .center(),
-                   coord! {x: 200.0f64, y:200.0f64});
+                false,
+            ))
+            .unwrap();
+        assert_eq!(
+            txmls
+                .bounding_rect()
+                .expect("Should have been able to get brect")
+                .center(),
+            coord! {x: 200.0f64, y:200.0f64}
+        );
     }
 
     #[test]
     fn test_arrange_fit_center_invert() {
-        let mls = MultiLineString::new(
-            vec![LineString::new(
-                vec![
-                    coord! {x: 0.0f64, y: 0.0f64},
-                    coord! {x: 0.0f64, y: 100.0f64},
-                    coord! {x: 100.0f64, y: 100.0f64},
-                    coord! {x: 100.0f64, y: 0.0f64},
-                    coord! {x: 0.0f64, y: 0.0f64},
-                ])]);
-        let txmls = mls.arrange(
-            &Arrangement::FitCenter(
+        let mls = MultiLineString::new(vec![LineString::new(vec![
+            coord! {x: 0.0f64, y: 0.0f64},
+            coord! {x: 0.0f64, y: 100.0f64},
+            coord! {x: 100.0f64, y: 100.0f64},
+            coord! {x: 100.0f64, y: 0.0f64},
+            coord! {x: 0.0f64, y: 0.0f64},
+        ])]);
+        let txmls = mls
+            .arrange(&Arrangement::FitCenter(
                 Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
-                true)).unwrap();
-        assert_eq!(txmls.bounding_rect()
-                       .expect("Should have been able to get brect")
-                       .center(),
-                   coord! {x: 200.0f64, y:200.0f64});
+                true,
+            ))
+            .unwrap();
+        assert_eq!(
+            txmls
+                .bounding_rect()
+                .expect("Should have been able to get brect")
+                .center(),
+            coord! {x: 200.0f64, y:200.0f64}
+        );
     }
 
     #[test]
     fn test_arrange_fit_center_invert_2() {
-        let mls = MultiLineString::new(
-            vec![LineString::new(
-                vec![
-                    coord! {x: 0.0f64, y: 0.0f64},
-                    coord! {x: 0.0f64, y: 10.0f64},
-                    coord! {x: 10.0f64, y: 10.0f64},
-                    coord! {x: 10.0f64, y: 0.0f64},
-                    coord! {x: 0.0f64, y: 0.0f64},
-                ]), LineString::new(
-                vec![
-                    coord! {x: 370.0f64, y: 380.0f64},
-                    coord! {x: 380.0f64, y: 380.0f64},
-                    coord! {x: 380.0f64, y: 370.0f64},
-                    coord! {x: 370.0f64, y: 370.0f64},
-                    coord! {x: 380.0f64, y: 380.0f64},
-                ]
-            )]);
-        let txmls = mls.arrange(
-            &Arrangement::FitCenter(
+        let mls = MultiLineString::new(vec![
+            LineString::new(vec![
+                coord! {x: 0.0f64, y: 0.0f64},
+                coord! {x: 0.0f64, y: 10.0f64},
+                coord! {x: 10.0f64, y: 10.0f64},
+                coord! {x: 10.0f64, y: 0.0f64},
+                coord! {x: 0.0f64, y: 0.0f64},
+            ]),
+            LineString::new(vec![
+                coord! {x: 370.0f64, y: 380.0f64},
+                coord! {x: 380.0f64, y: 380.0f64},
+                coord! {x: 380.0f64, y: 370.0f64},
+                coord! {x: 370.0f64, y: 370.0f64},
+                coord! {x: 380.0f64, y: 380.0f64},
+            ]),
+        ]);
+        let txmls = mls
+            .arrange(&Arrangement::FitCenter(
                 Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
-                true)).unwrap();
-        assert_eq!(txmls.bounding_rect()
-                       .expect("Should have been able to get brect")
-                       .center(),
-                   coord! {x: 200.0f64, y:200.0f64});
+                true,
+            ))
+            .unwrap();
+        assert_eq!(
+            txmls
+                .bounding_rect()
+                .expect("Should have been able to get brect")
+                .center(),
+            coord! {x: 200.0f64, y:200.0f64}
+        );
         assert_eq!(txmls.bounding_rect().unwrap().width(), 400_f64);
         assert_eq!(txmls.bounding_rect().unwrap().height(), 400_f64);
     }
 
-
     #[test]
     fn test_arrange_mls_arbitrary() {
-        let mls = MultiLineString::new(
-            vec![LineString::new(
-                vec![
-                    coord! {x: 0.0f64, y: 0.0f64},
-                    coord! {x: 0.0f64, y: 100.0f64},
-                    coord! {x: 100.0f64, y: 100.0f64},
-                    coord! {x: 100.0f64, y: 0.0f64},
-                    coord! {x: 0.0f64, y: 0.0f64},
-                ])]);
-        let txmls = mls.arrange(
-            &Arrangement::Transform(
+        let mls = MultiLineString::new(vec![LineString::new(vec![
+            coord! {x: 0.0f64, y: 0.0f64},
+            coord! {x: 0.0f64, y: 100.0f64},
+            coord! {x: 100.0f64, y: 100.0f64},
+            coord! {x: 100.0f64, y: 0.0f64},
+            coord! {x: 0.0f64, y: 0.0f64},
+        ])]);
+        let txmls = mls
+            .arrange(&Arrangement::Transform(
                 Rect::new(coord! {x:0f64, y:0f64}, coord! {x:400f64, y:400f64}),
-                Affine2::from_matrix_unchecked(
-                    Matrix3::<f64>::new(
-                        1.0, 0.0, 300.0,
-                        0.0, 1.0, 0.0,
-                        0.0, 0.0, 1.0,
-                    )
-                ))).unwrap();
+                Affine2::from_matrix_unchecked(Matrix3::<f64>::new(
+                    1.0, 0.0, 300.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+                )),
+            ))
+            .unwrap();
         assert_eq!(
-            txmls.0[0].coords()
+            txmls.0[0]
+                .coords()
                 .zip(
-                    LineString::new(
-                        vec![
-                            coord! {x: 300.0f64, y: 0.0f64},
-                            coord! {x: 300.0f64, y: 100.0f64},
-                            coord! {x: 400.0f64, y: 100.0f64},
-                            coord! {x: 400.0f64, y: 0.0f64},
-                            coord! {x: 300.0f64, y: 0.0f64},
-                        ]).coords())
-                .filter(|&(left, right)| {
-                    left == right
-                })
+                    LineString::new(vec![
+                        coord! {x: 300.0f64, y: 0.0f64},
+                        coord! {x: 300.0f64, y: 100.0f64},
+                        coord! {x: 400.0f64, y: 100.0f64},
+                        coord! {x: 400.0f64, y: 0.0f64},
+                        coord! {x: 300.0f64, y: 0.0f64},
+                    ])
+                    .coords()
+                )
+                .filter(|&(left, right)| { left == right })
                 .count(),
-            5);
+            5
+        );
     }
 }
