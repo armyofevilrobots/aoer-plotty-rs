@@ -101,13 +101,29 @@ impl Optimizer {
 
         let line_count = line_count; // No longer mutable
 
-        lines_out.0.push(lines_hash.remove(&0).unwrap().clone());
+        while true {
+            if let Some(tmpline) = lines_hash.remove(&0) {
+                if tmpline.0.len() > 1 {
+                    lines_out.0.push(tmpline.clone());
+                    break;
+                }
+            } else {
+                // Couldn't get a single valid line?!
+                return MultiLineString::new(vec![]);
+            }
+        }
         while lines_hash.len() > 0 {
             let line = lines_out
                 .0
                 .last()
                 .expect("Cannot pull line from list I just pushed to?!");
-            let last = line.0.last().expect("Cannot get last point in line?!");
+            let last = match line.0.last() {
+                Some(point) => point,
+                None => {
+                    eprintln!("Failed to get last point for line: {:?}", &line);
+                    continue;
+                }
+            };
             let mut found = false;
             for neighbor_ref in rtree.nearest_neighbor_iter(&[last.x, last.y]) {
                 if let Some(neighbor_line) = lines_hash.remove(&neighbor_ref.line_id) {
