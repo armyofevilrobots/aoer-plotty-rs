@@ -15,6 +15,10 @@
 //! [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 //!
 //! # Changelog
+//! * 0.2.1. Optimizations and plotters:
+//!          * Add optimization to toolpaths/line-ordering so that we don't waste
+//!          valuable time traversing empty space when plotting.
+//!          * Add simple serial-plotter support
 //! * 0.2.0. We made it!!!!
 //!          * Typography module. It's buggy and ugly, but we can now place simple
 //!            text on the sketches.
@@ -108,14 +112,24 @@ pub mod elements;
 /// Workbench : Tooling to turn your 'sketches' into interactive UI based tools
 /// that can be used to tweak a design and generate SVG output (and eventually
 /// even to directly plot the result).
+/// Note; this has been prototyped out, but I am not happy with how the process
+/// works yet, so no library here (for now).
+
+/// optimizer
+/// Library that optimizes path to reduce travel time
+pub mod optimizer;
+
+/// Plotter
+/// Module for talking to a serial plotter via gcode
+pub mod plotter;
 
 /// Make your life easy! Just import prelude::* and ignore all the warnings!
 /// One stop shopping at the expense of a slightly more complex dependency graph.
 pub mod prelude {
+    pub use crate::geo_types::hatch::*;
     pub use crate::geo_types::nannou::NannouDrawer;
+    pub use crate::geo_types::svg::*;
     pub use crate::geo_types::PointDistance;
     pub use crate::l_system::LSystem;
     pub use crate::turtle::{Turtle, TurtleTrait};
-    pub use crate::geo_types::hatch::*;
-    pub use crate::geo_types::svg::*;
 }

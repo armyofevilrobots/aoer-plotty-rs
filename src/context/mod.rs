@@ -863,7 +863,12 @@ impl Context {
         let mut id = 0;
         for oplayer in oplayers {
             if !oplayer.stroke_lines.0.is_empty() {
-                let slines = oplayer.stroke_lines.to_path(&arrangement);
+                let optimizer = crate::optimizer::Optimizer::new(
+                    oplayer.stroke_width * 2.,
+                    crate::optimizer::OptimizationStrategy::Greedy,
+                );
+                let slines_opt = optimizer.optimize(&optimizer.merge(&oplayer.stroke_lines));
+                let slines = slines_opt.to_path(&arrangement);
                 svg = svg.add(
                     slines
                         .set("id", format!("outline-{}", id))
@@ -875,7 +880,12 @@ impl Context {
                 );
             }
             if !oplayer.fill_lines.0.is_empty() {
-                let flines = oplayer.fill_lines.to_path(&arrangement);
+                let optimizer = crate::optimizer::Optimizer::new(
+                    oplayer.stroke_width,
+                    crate::optimizer::OptimizationStrategy::Greedy,
+                );
+                let fill_opt = optimizer.optimize(&oplayer.fill_lines);
+                let flines = fill_opt.to_path(&arrangement);
                 svg = svg.add(
                     flines
                         .set("id", format!("fill-{}", id))

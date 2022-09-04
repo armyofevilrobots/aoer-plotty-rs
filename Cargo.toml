@@ -1,7 +1,7 @@
 [package]
 name = "aoer-plotty-rs"
 description = "A variety of utilities for creating pen-plotter based artwork."
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "MIT"
 homepage = "https://github.com/armyofevilrobots/aoer-plotty-rs"
@@ -10,6 +10,7 @@ repository = "https://github.com/armyofevilrobots/aoer-plotty-rs"
 [dependencies]
 anyhow = "1.0"
 font = "0.4"
+serialport = "4.0.1"
 geo-types = "0.7"
 geo = "0.20"
 geos = { version = "8.1", features = ["geo", "json"] }
@@ -34,4 +35,6 @@ threadpool = "1.0"
 crossbeam = "0.8.2"
 rayon = "1.5.3"
 skip_error = "3.1.1"
+rstar = "0.9.3"
+url = "2.2.2"
 #itertools = "0.10"

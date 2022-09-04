@@ -251,6 +251,7 @@ impl Operation {
 }
 
 /// OPLayer is an operation layer, rendered into lines for drawing.
+#[derive(Clone)]
 pub struct OPLayer {
     pub(crate) stroke_lines: MultiLineString<f64>,
     pub(crate) fill_lines: MultiLineString<f64>,
@@ -271,5 +272,9 @@ impl OPLayer {
     }
     pub fn fill(&self) -> String {
         self.fill.clone()
+    }
+
+    pub fn stroke_width(&self) -> f64 {
+        self.stroke_width.clone()
     }
 }
