@@ -5,7 +5,7 @@ use std::ops::DerefMut;
 use std::time::Duration;
 
 pub mod error;
-pub use error::*;
+pub use error::PlotterConnectionError;
 
 const DEFAULT_TIMEOUT: u64 = 30000;
 
@@ -73,8 +73,8 @@ impl PlotterTransport for PlotterConnection {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use std::time::Duration;
+    // use super::*;
+    // use std::time::Duration;
 
     /*
     #[tests]

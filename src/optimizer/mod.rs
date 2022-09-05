@@ -1,14 +1,15 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use geo::prelude::EuclideanDistance;
-use geo_types::{coord, point, Coordinate, LineString, MultiLineString, Point};
+use geo_types::{Coordinate, LineString, MultiLineString};
 use rstar::{PointDistance, RTree, RTreeObject, AABB};
-use wkt::ToWkt;
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum OptimizationStrategy {
     Greedy,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 /// Optimization strategy utility class.
 pub struct Optimizer {
     max_keepdown: f64,
@@ -86,6 +87,7 @@ impl Optimizer {
     /// Optimizes lines by finding the nearest neighbor to each endpoint
     /// using an rtree as a spatial index. Fast, but just greedy for now.
     pub fn optimize(&self, mls: &MultiLineString<f64>) -> MultiLineString<f64> {
+        assert_eq!(self.strategy, OptimizationStrategy::Greedy);
         let mut lines_out = MultiLineString::new(vec![]);
         if mls.0.len() == 0 {
             return lines_out;
@@ -97,11 +99,9 @@ impl Optimizer {
                 line_count = line_count + 1;
                 pair
             }));
-        let mut rtree = self.build_rtree_from_hashmap(&lines_hash);
+        let rtree = self.build_rtree_from_hashmap(&lines_hash);
 
-        let line_count = line_count; // No longer mutable
-
-        while true {
+        while lines_hash.len() > 0 {
             if let Some(tmpline) = lines_hash.remove(&0) {
                 if tmpline.0.len() > 1 {
                     lines_out.0.push(tmpline.clone());
@@ -204,7 +204,7 @@ impl PointDistance for LineRef {
     fn contains_point(&self, point: &[f64; 2]) -> bool {
         let d_x = self.start.x - point[0];
         let d_y = self.start.y - point[1];
-        let distance_to_start_2 = (d_x * d_x + d_y * d_y);
+        let distance_to_start_2 = d_x * d_x + d_y * d_y;
         let radius_2 = self.pen_width / 2. * self.pen_width / 2.;
         distance_to_start_2 <= radius_2
     }
@@ -213,7 +213,7 @@ impl PointDistance for LineRef {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo_types::Polygon;
+    use geo_types::{coord, Polygon};
     use rstar::RTree;
     use wkt::ToWkt;
 
@@ -330,8 +330,6 @@ mod tests {
             "Closest neighbor to e is {:?}",
             tree.nearest_neighbor(&[10., 10.])
         );
-
-        let e2 = AABB::from_corners([19.5, 4.5], [20.5, 5.5]);
 
         for line in tree.nearest_neighbor_iter(&[10., 10.]) {
             println!("Found line endpoint for line id: {}", line.line_id);

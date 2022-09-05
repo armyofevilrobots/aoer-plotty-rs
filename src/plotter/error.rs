@@ -1,6 +1,3 @@
-use std::fmt;
-use std::fmt::Formatter;
-use std::io;
 use std::num::ParseIntError;
 
 #[derive(Debug)]
