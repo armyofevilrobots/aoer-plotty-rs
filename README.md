@@ -17,10 +17,21 @@ my days off. May spontaneously explode, might take your plotter with it.*
 [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 
 ## Changelog
+* 0.2.1. Optimizations and plotters:
+         * Add optimization to toolpaths/line-ordering so that we don't waste
+         valuable time traversing empty space when plotting.
+         * Add simple serial-plotter support
+* 0.2.0. We made it!!!!
+         * Typography module. It's buggy and ugly, but we can now place simple
+           text on the sketches.
+         * Performance improvements; particularly on complex overlapping
+           geometries
+         * Truchet tiles (Carlson Smith)
+         * Example of using a UI in Nannou to customize a sketch
 * 0.1.11. Added the first "element" (reusable sketch component) in the form
          of the [`elements::CarlsonSmithTruchet`], which provides tileable
          and scalable truchets which make for some very interesting patterns.
-         Thing of them as the "goto 10" tiles on steroids.
+         Think of them as the "goto 10" tiles on steroids.
          Also added a to_geos trait which makes it easy to convert
          back and forth from geo_types without fancy and unpredictable
          From/Into magic.
