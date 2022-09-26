@@ -12,7 +12,7 @@ pub fn regular_poly(sides: usize, x: f64, y: f64, radius: f64, rotation: f64) ->
 
     Geometry::Polygon(Polygon::new(
         LineString::new(
-            (0..(sides + 2))
+            (0..=sides)
                 .map(|i| {
                     let angle = rotation - PI / 2.0
                         + (f64::from(i as i32) / f64::from(sides as i32)) * (2.0 * PI);
@@ -39,7 +39,7 @@ pub fn regular_poly_native(
 
     Geometry::Polygon(Polygon::new(
         LineString::new(
-            (0..(sides + 2))
+            (0..=sides)
                 .map(|i| {
                     let angle =
                         radians + (f64::from(i as i32) / f64::from(sides as i32)) * (2.0 * PI);
