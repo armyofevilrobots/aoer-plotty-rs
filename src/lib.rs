@@ -15,17 +15,19 @@
 //! [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 //!
 //! # Changelog
+//! * 0.2.2. Bugfixens! The regular_poly_native function was duplicating
+//!          points, resulting in invalid geometries.
 //! * 0.2.1. Optimizations and plotters:
-//!          * Add optimization to toolpaths/line-ordering so that we don't waste
-//!          valuable time traversing empty space when plotting.
-//!          * Add simple serial-plotter support
+//!   * Add optimization to toolpaths/line-ordering so that we don't waste
+//!     valuable time traversing empty space when plotting.
+//!   * Add simple serial-plotter support
 //! * 0.2.0. We made it!!!!
-//!          * Typography module. It's buggy and ugly, but we can now place simple
-//!            text on the sketches.
-//!          * Performance improvements; particularly on complex overlapping
-//!            geometries
-//!          * Truchet tiles (Carlson Smith)
-//!          * Example of using a UI in Nannou to customize a sketch
+//!   * Typography module. It's buggy and ugly, but we can now place simple
+//!     text on the sketches.
+//!   * Performance improvements; particularly on complex overlapping
+//!     geometries
+//!   * Truchet tiles (Carlson Smith)
+//!   * Example of using a UI in Nannou to customize a sketch
 //! * 0.1.11. Added the first "element" (reusable sketch component) in the form
 //!          of the [`elements::CarlsonSmithTruchet`], which provides tileable
 //!          and scalable truchets which make for some very interesting patterns.
