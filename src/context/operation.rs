@@ -10,6 +10,7 @@ pub use kurbo::BezPath;
 pub use kurbo::Point as BezPoint;
 use nalgebra::{Affine2, Point2 as NPoint2};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 /// Operations are private items used to store the operation stack
 /// consisting of a combination of Geometry and Context state.
@@ -251,7 +252,7 @@ impl Operation {
 }
 
 /// OPLayer is an operation layer, rendered into lines for drawing.
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OPLayer {
     pub(crate) stroke_lines: MultiLineString<f64>,
     pub(crate) fill_lines: MultiLineString<f64>,

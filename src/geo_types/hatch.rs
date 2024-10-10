@@ -8,6 +8,7 @@ use rayon::prelude::IntoParallelRefIterator;
 use rayon::prelude::*;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use serde::{Serialize,Deserialize};
 
 /// Useful for converting a line into a polygon as if it were stroked. Only supports
 /// round caps and joins for now.
@@ -139,7 +140,7 @@ pub trait Hatch {
 /// All of the available hatch types.
 /// Less flexible for plugins, WAY easier
 /// to manage than non-object-safe RCs.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Hatches {
     NoHatch(NoHatch),
     LineHatch(LineHatch),
@@ -171,7 +172,7 @@ impl HatchPattern for Hatches {
 }
 
 /// The no-hatch option
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct NoHatch {}
 
 impl HatchPattern for NoHatch {
@@ -181,7 +182,7 @@ impl HatchPattern for NoHatch {
 }
 
 /// The basic built in parallel LineHatch.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct LineHatch {}
 
 impl HatchPattern for LineHatch {
@@ -212,7 +213,7 @@ impl HatchPattern for LineHatch {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct CrossHatch {}
 
 impl HatchPattern for CrossHatch {
