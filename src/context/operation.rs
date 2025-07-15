@@ -30,6 +30,7 @@ pub struct Operation {
     pub(crate) clip_previous: bool,
     pub(crate) hatch_pattern: Hatches,
     pub(crate) hatch_angle: f64,
+    pub(crate) hatch_scale: Option<f64>,
 }
 
 impl Operation {
@@ -79,6 +80,7 @@ impl Operation {
             && self.line_cap == other.line_cap
             && self.pen_width == other.pen_width
             && self.hatch_angle == other.hatch_angle
+            && self.hatch_scale == other.hatch_scale
             && self.clip_previous == other.clip_previous
         // &&
         {
@@ -93,6 +95,7 @@ impl Operation {
         poly: &Polygon<f64>,
         pen_width: f64,
         hatch_angle: f64,
+        hatch_scale: Option<f64>,
         hatch_pattern: Hatches,
     ) -> (MultiLineString<f64>, MultiLineString<f64>) {
         let mut strokes = MultiLineString::new(vec![]);
@@ -105,7 +108,15 @@ impl Operation {
         // let hatch_pattern = hatch_pattern.deref();
         // println!("Hatching with pattern: {:?}", &hatch_pattern);
         let hatches = poly
-            .hatch(hatch_pattern, hatch_angle, pen_width, pen_width)
+            .hatch(
+                hatch_pattern,
+                hatch_angle,
+                match hatch_scale {
+                    Some(scale) => scale,
+                    None => pen_width,
+                },
+                pen_width,
+            )
             .unwrap_or(MultiLineString::new(vec![]));
         // fills.0.append(&mut hatches.0.clone());
         (strokes, hatches)
@@ -116,6 +127,7 @@ impl Operation {
         mpoly: &MultiPolygon<f64>,
         pen_width: f64,
         hatch_angle: f64,
+        hatch_scale: Option<f64>,
         hatch_pattern: Hatches,
     ) -> (MultiLineString<f64>, MultiLineString<f64>) {
         let mut strokes = MultiLineString::new(vec![]);
@@ -130,7 +142,15 @@ impl Operation {
         // let hatch_pattern = hatch_pattern.deref();
         // println!("Hatching with pattern: {:?}", &hatch_pattern);
         let hatches = mpoly
-            .hatch(hatch_pattern, hatch_angle, pen_width, pen_width)
+            .hatch(
+                hatch_pattern,
+                hatch_angle,
+                match hatch_scale {
+                    Some(scale) => scale,
+                    None => pen_width,
+                },
+                pen_width,
+            )
             .unwrap_or(MultiLineString::new(vec![]));
         // fills.0.append(&mut hatches.0.clone());
         (strokes, hatches)
@@ -146,6 +166,7 @@ impl Operation {
         txgeo: &Geometry<f64>,
         pen_width: f64,
         hatch_angle: f64,
+        hatch_scale: Option<f64>,
         hatch_pattern: Hatches,
     ) -> (MultiLineString<f64>, MultiLineString<f64>) {
         match txgeo {
@@ -154,11 +175,21 @@ impl Operation {
                 MultiLineString::new(vec![ls.clone()]),
                 MultiLineString::new(vec![]),
             ),
-            Geometry::Polygon(poly) => {
-                Self::poly2lines(&poly, pen_width, hatch_angle, hatch_pattern.clone())
-            }
+            Geometry::Polygon(poly) => Self::poly2lines(
+                &poly,
+                pen_width,
+                hatch_angle,
+                hatch_scale,
+                hatch_pattern.clone(),
+            ),
             Geometry::MultiPolygon(polys) => {
-                Self::mpoly2lines(&polys, pen_width, hatch_angle, hatch_pattern.clone())
+                Self::mpoly2lines(
+                    &polys,
+                    pen_width,
+                    hatch_angle,
+                    hatch_scale,
+                    hatch_pattern.clone(),
+                )
                 // let mut strokes = MultiLineString::new(vec![]);
                 // let mut fills = MultiLineString::new(vec![]);
                 // for poly in polys {
@@ -178,6 +209,7 @@ impl Operation {
                         item,
                         pen_width,
                         hatch_angle,
+                        hatch_scale,
                         hatch_pattern.clone(),
                     );
                     strokes.0.append(tmpstrokes.0.borrow_mut());
@@ -221,6 +253,7 @@ impl Operation {
                     &g,
                     self.pen_width,
                     self.hatch_angle,
+                    self.hatch_scale,
                     self.hatch_pattern.clone(),
                 )
             })

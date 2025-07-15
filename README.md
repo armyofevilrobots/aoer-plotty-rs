@@ -17,6 +17,8 @@ my days off. May spontaneously explode, might take your plotter with it.*
 [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 
 ## Changelog
+* 0.2.3. Add support for hatch scale, so that it isn't always just
+         the pen width used to define the space between lines.
 * 0.2.2. Bugfixens! The regular_poly_native function was duplicating
          points, resulting in invalid geometries.
 * 0.2.1. Optimizations and plotters:

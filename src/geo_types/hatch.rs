@@ -6,9 +6,9 @@ use geo_types::{coord, LineString, MultiLineString, MultiPolygon, Polygon, Rect}
 use geos::{Geom, Geometry};
 use rayon::prelude::IntoParallelRefIterator;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use serde::{Serialize,Deserialize};
 
 /// Useful for converting a line into a polygon as if it were stroked. Only supports
 /// round caps and joins for now.
@@ -417,7 +417,8 @@ impl Hatch for Polygon<f64> {
         let mut out: geo_types::Geometry<f64> = hatched_object
             .try_into()
             .or(Err(InvalidHatchGeometry::InvalidResultGeometry))?;
-        dirty_inset(&mut out, scale.max(inset)); // Mutates in place.
+        //dirty_inset(&mut out, scale.max(inset)); // Mutates in place.
+        dirty_inset(&mut out, scale.min(inset)); // Mutates in place.
         let out = gt_flatten_mlines(out, MultiLineString::new(vec![]));
         Ok(out)
     }

@@ -119,6 +119,7 @@ pub struct Context {
     clip_previous: bool,
     hatch_pattern: Hatches,
     hatch_angle: f64,
+    hatch_scale: Option<f64>,
     stack: Vec<Context>,
 }
 
@@ -200,6 +201,7 @@ impl Context {
             clip_previous: false,
             hatch_pattern: Hatches::line(),
             hatch_angle: 0.0,
+            hatch_scale: None,
             stack: vec![],
         }
     }
@@ -294,6 +296,7 @@ impl Context {
             clip_previous: self.clip_previous.clone(),
             hatch_pattern: self.hatch_pattern.clone(),
             hatch_angle: self.hatch_angle,
+            hatch_scale: self.hatch_scale,
             stack: vec![],
         });
         self
@@ -367,6 +370,7 @@ impl Context {
             clip_previous: self.clip_previous.clone(),
             hatch_pattern: self.hatch_pattern.clone(),
             hatch_angle: self.hatch_angle,
+            hatch_scale: self.hatch_scale,
         };
         let op = op.render();
         self.operations.push(op);
@@ -726,6 +730,12 @@ impl Context {
     /// Set the hatch pattern
     pub fn pattern(&mut self, pattern: Hatches) -> &mut Self {
         self.hatch_pattern = pattern.clone();
+        self
+    }
+
+    /// Set the hatch pattern scale (spacing), or use the pen width if None.
+    pub fn hatch_scale(&mut self, scale: Option<f64>) -> &mut Self {
+        self.hatch_scale = scale;
         self
     }
 
