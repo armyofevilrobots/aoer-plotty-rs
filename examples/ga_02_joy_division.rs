@@ -1,11 +1,10 @@
-use geo_types::{coord, Coordinate, LineString, MultiLineString, Rect, Geometry};
-use aoer_plotty_rs::geo_types::svg::{Arrangement, ToSvg};
 use aoer_plotty_rs::geo_types::clip::LineClip;
-use std::path::Path;
+use aoer_plotty_rs::geo_types::svg::{Arrangement, ToSvg};
 use cubic_spline::{Points as CSPoints, SplineOpts};
+use geo_types::{coord, Coord, Geometry, LineString, MultiLineString, Rect};
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
-
+use std::path::Path;
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/joy-division/
 fn main() {
@@ -18,11 +17,12 @@ fn main() {
     // Define our viewbox/canvas (in mm)
     let viewbox = Rect::new(
         coord! {
-            x:0f64,
-            y:0f64},
+        x:0f64,
+        y:0f64},
         coord! {
-            x: f64::from(size as i32),
-            y: f64::from(size as i32)});
+        x: f64::from(size as i32),
+        y: f64::from(size as i32)},
+    );
 
     // The arrangement chooses the way we "arrange" the SVG on the page.
     // In this case, fit it, center it, and then DON'T flip the coordinate
@@ -37,30 +37,45 @@ fn main() {
     // (skipping the top line) and upto but not including size (the bottom line).
     // Then we do the same horizontally but generating the "height" of each line
     // point.
-    let spoints: Vec<Vec<(f64, f64)>> = (step..size).step_by(step).map(|y| {
-        // (step..size).step_by(step).map(|x| {
-        (step..size).step_by(step).map(|x| {
-            let r: f64 = rng.gen();// * f64::from(step as i32);
-            let dts: f64 = ((x as i32 - (size as i32 / 2)) as f64).abs();
-            let variance = (((size as i32 / 2) - 50) as f64 - dts).max(0.0_f64);
-            (f64::from(x as i32), f64::from(y as i32) + (r * variance / 2.0 * -1.0))
-        }).collect::<Vec<(f64, f64)>>()
-    }).collect();
+    let spoints: Vec<Vec<(f64, f64)>> = (step..size)
+        .step_by(step)
+        .map(|y| {
+            // (step..size).step_by(step).map(|x| {
+            (step..size)
+                .step_by(step)
+                .map(|x| {
+                    let r: f64 = rng.gen(); // * f64::from(step as i32);
+                    let dts: f64 = ((x as i32 - (size as i32 / 2)) as f64).abs();
+                    let variance = (((size as i32 / 2) - 50) as f64 - dts).max(0.0_f64);
+                    (
+                        f64::from(x as i32),
+                        f64::from(y as i32) + (r * variance / 2.0 * -1.0),
+                    )
+                })
+                .collect::<Vec<(f64, f64)>>()
+        })
+        .collect();
 
     // Now we have the line points, we re-imagine them as splines.
     // First the spline options
-    let spline_opts = SplineOpts::new()
-        .num_of_segments(step as u32)
-        .tension(0.5);
+    let spline_opts = SplineOpts::new().num_of_segments(step as u32).tension(0.5);
     // Then the data gets iterated for each separate line...
     for spline_data in spoints {
         // Turn those points into a spline
-        let points = <CSPoints as cubic_spline::TryFrom<&Vec<(f64, f64)>>>::try_from(&spline_data).expect("Invalid spline points.");
+        let points = <CSPoints as cubic_spline::TryFrom<&Vec<(f64, f64)>>>::try_from(&spline_data)
+            .expect("Invalid spline points.");
         // Then interpolate with the spline tools
-        let fine_points = points.calc_spline(&spline_opts)
+        let fine_points = points
+            .calc_spline(&spline_opts)
             .expect("Could not generate interpolated points.");
         // Iterate them back into a vec of coordinates
-        let mpts: Vec<Coordinate<f64>> = fine_points.get_ref().iter().map(|spt| { coord! {x: spt.x, y: spt.y} }).collect();
+        let mpts: Vec<Coord<f64>> = fine_points
+            .get_ref()
+            .iter()
+            .map(|spt| {
+                coord! {x: spt.x, y: spt.y}
+            })
+            .collect();
         // Finally, push a new line into the lines, by turning those coords into a LineString
         lines.0.push(LineString::new(mpts));
     }
@@ -81,23 +96,25 @@ fn main() {
 
         // Now, do the clip, match on Ok, and just keep the existing list if something breaks.
         newlines = match geo_types::Geometry::MultiLineString(newlines.clone())
-            .clipwith(&Geometry::LineString(clipline)) {
+            .clipwith(&Geometry::LineString(clipline))
+        {
             Ok(newnewlines) => newnewlines,
-            Err(_) => newlines
+            Err(_) => newlines,
         };
         // Finally, add the line we just clipped with on to the newlines list, and repeat!
         newlines.0.push(lines.0[i].clone());
     }
 
-
     // Use a shortcut to create an SVG scaffold from our arrangement.
-    let svg = arrangement.create_svg_document().unwrap()
-        .add(newlines.to_path(&arrangement)
-        .set("fill", "none")
-        .set("stroke", "black")
-        .set("stroke-width", 2)
-        .set("stroke-linejoin", "round")
-        .set("stroke-linecap", "round"));
+    let svg = arrangement.create_svg_document().unwrap().add(
+        newlines
+            .to_path(&arrangement)
+            .set("fill", "none")
+            .set("stroke", "black")
+            .set("stroke-width", 2)
+            .set("stroke-linejoin", "round")
+            .set("stroke-linecap", "round"),
+    );
 
     // Write it to the images folder, so we can use it as an example!
     // Write it out to /images/$THIS_EXAMPLE_FILE.svg

@@ -30,7 +30,7 @@ impl Display for TypographyError {
 
 impl Error for TypographyError {}
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum TextAlignment {
     Left,
     Center,
@@ -44,6 +44,7 @@ pub struct RenderedGlyph {
     pub advance: Vector2F,
 }
 
+#[derive(Clone, Debug)]
 pub struct Typography {
     font: Option<Font>,
     hinting: HintingOptions,

@@ -12,10 +12,9 @@ use font_kit::font::Font;
 use font_kit::hinting::HintingOptions;
 use geo::map_coords::MapCoords;
 use geo::prelude::BoundingRect;
-use geo::Coord;
 use geo_types::{
-    coord, Coordinate, Geometry, GeometryCollection, LineString, MultiLineString, Point, Polygon,
-    Rect,
+    coord, Coord as Coordinate, Geometry, GeometryCollection, LineString, MultiLineString, Point,
+    Polygon, Rect,
 };
 use geos::{Geom, GeometryTypes};
 pub use kurbo::BezPath;

@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use geo::prelude::EuclideanDistance;
-use geo_types::{Coordinate, LineString, MultiLineString};
+use geo::Euclidean;
+use geo_types::{Coord as Coordinate, LineString, MultiLineString};
 use rstar::{PointDistance, RTree, RTreeObject, AABB};
 
 #[derive(Debug, Clone, PartialEq)]

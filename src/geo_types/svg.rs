@@ -1,5 +1,5 @@
 use geo::bounding_rect::BoundingRect;
-use geo_types::{CoordNum, Coordinate, LineString, MultiLineString, Point, Rect};
+use geo_types::{Coord as Coordinate, CoordNum, LineString, MultiLineString, Point, Rect};
 use nalgebra::{Affine2, Matrix3, Point2 as NPoint2, RealField};
 use num_traits::real::Real;
 use num_traits::{AsPrimitive, Float, FromPrimitive, ToPrimitive};
