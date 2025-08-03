@@ -1,7 +1,7 @@
 use crate::geo_types::boolean::BooleanOp;
 use crate::geo_types::buffer::Buffer;
 use crate::geo_types::shapes::arc_center;
-use geo::rotate::RotatePoint;
+use geo::algorithm::rotate::Rotate;
 use geo_types::{coord, point, Geometry, GeometryCollection, LineString, Point, Rect};
 use std::collections::HashMap;
 use std::error::Error;

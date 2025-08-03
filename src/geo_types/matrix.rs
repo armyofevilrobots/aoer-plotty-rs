@@ -1,4 +1,6 @@
+use geo::coord;
 use geo::map_coords::MapCoords;
+use geo::Coord;
 use geo_types::CoordNum;
 use geo_types::Geometry;
 use nalgebra::Matrix3;
@@ -79,7 +81,8 @@ where
     T: Float,
     T: RealField,
 {
-    fn xform_coord(xy: &(T, T), affine: &Affine2<T>) -> (T, T);
+    //fn xform_coord(xy: &(T, T), affine: &Affine2<T>) -> (T, T);
+    fn xform_coord(xy: &Coord<T>, affine: &Affine2<T>) -> Coord<T>;
     fn transformed(&self, affine: &Affine2<T>) -> Geometry<T>;
 }
 
@@ -90,13 +93,19 @@ where
     T: Float,
 {
     /// Helper to transform geometry when we have an affine transform set.
-    fn xform_coord((x, y): &(T, T), affine: &Affine2<T>) -> (T, T) {
+    /*
+     * fn xform_coord((x, y): &(T, T), affine: &Affine2<T>) -> (T, T) {
         let out = affine * NPoint2::new(*x, *y);
         (out.x, out.y)
     }
+    */
+    fn xform_coord(xy: &Coord<T>, affine: &Affine2<T>) -> Coord<T> {
+        let out = affine * NPoint2::new(xy.x, xy.y);
+        coord!(x: out.x, y: out.y)
+    }
 
     fn transformed(&self, affine: &Affine2<T>) -> Geometry<T> {
-        self.map_coords(|xy| Self::xform_coord(xy, affine))
+        self.map_coords(|xy| Self::xform_coord(&xy, affine))
     }
 }
 

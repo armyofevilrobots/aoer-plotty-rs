@@ -131,10 +131,10 @@ impl Typography {
         let output_geometries: Vec<Geometry<f64>> = glyphs
             .iter()
             .map(|g| {
-                g.geo.map_coords(|(x, y)| {
-                    (
-                        units_per_em * x * Self::mm_per_em(),
-                        units_per_em * y * Self::mm_per_em(),
+                g.geo.map_coords(|xy| {
+                    coord!(
+                        x: units_per_em * xy.x * Self::mm_per_em(),
+                        y: units_per_em * xy.y * Self::mm_per_em(),
                     )
                 }) //.clone()
             })

@@ -1,5 +1,7 @@
 use crate::prelude::{Hatch, Hatches, OutlineFillStroke};
+use geo::coord;
 use geo::map_coords::MapCoords;
+use geo::Coord;
 use geo_types::{Geometry, MultiLineString, MultiPolygon, Polygon};
 use geos::{Geom, GeometryTypes};
 use std::borrow::BorrowMut;
@@ -38,7 +40,7 @@ impl Operation {
     pub fn transformed(&self, content: &Geometry<f64>) -> Geometry<f64> {
         if let Some(tx) = &self.transformation.clone() {
             // let mut content = content.clone();
-            content.map_coords(|xy| Operation::xform_coord(xy, tx))
+            content.map_coords(|xy| Operation::xform_coord(&xy, tx))
         } else {
             content.clone()
         }
@@ -46,7 +48,9 @@ impl Operation {
 
     pub fn render(mut self) -> Self {
         if let Some(tx) = &self.transformation {
-            self.content = self.content.map_coords(|xy| Operation::xform_coord(xy, tx));
+            self.content = self
+                .content
+                .map_coords(|xy| Operation::xform_coord(&xy, tx));
         }
         self.content = match &self.mask {
             Some(mask) => {
@@ -157,9 +161,10 @@ impl Operation {
     }
 
     /// Helper to transform geometry when we have an affine transform set.
-    pub fn xform_coord((x, y): &(f64, f64), affine: &Affine2<f64>) -> (f64, f64) {
-        let out = affine * NPoint2::new(*x, *y);
-        (out.x, out.y)
+    //pub fn xform_coord((x, y): &(f64, f64), affine: &Affine2<f64>) -> (f64, f64) {
+    pub fn xform_coord(xy: &Coord, affine: &Affine2<f64>) -> Coord {
+        let out = affine * NPoint2::new(xy.x, xy.y);
+        coord!(x: out.x, y: out.y)
     }
 
     fn help_render_geo(

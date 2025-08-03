@@ -17,6 +17,13 @@ my days off. May spontaneously explode, might take your plotter with it.*
 [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 
 ## Changelog
+* 0.3.0. Breaking change. Many places where float tuples were used ro
+         represent x,y coords have been switched to `geo::Coord`s to match
+         changes in the various geo_types/geos/geo libraries.
+         Related, I was running into various compilation problems on MacOS
+         and decided to update the various Geo dependencies to make it all
+         go away. Compilation now works with (current) Homebrew delivered
+         geo/geos/geo_types libs.
 * 0.2.3. Add support for hatch scale, so that it isn't always just
          the pen width used to define the space between lines.
 * 0.2.2. Bugfixens! The regular_poly_native function was duplicating

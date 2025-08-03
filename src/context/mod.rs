@@ -12,6 +12,7 @@ use font_kit::font::Font;
 use font_kit::hinting::HintingOptions;
 use geo::map_coords::MapCoords;
 use geo::prelude::BoundingRect;
+use geo::Coord;
 use geo_types::{
     coord, Coordinate, Geometry, GeometryCollection, LineString, MultiLineString, Point, Polygon,
     Rect,
@@ -265,7 +266,7 @@ impl Context {
     pub fn set_mask(&mut self, mask: &Option<Geometry<f64>>) -> &mut Self {
         self.mask = match mask {
             Some(maskgeo) => Some(match &self.transformation {
-                Some(affine) => maskgeo.map_coords(|xy| Operation::xform_coord(xy, affine)),
+                Some(affine) => maskgeo.map_coords(|xy| Operation::xform_coord(&xy, affine)),
                 None => maskgeo.clone(),
             }),
             None => mask.clone(),
@@ -455,7 +456,7 @@ impl Context {
         let geo = typ
             .render(text, self.accuracy)
             .unwrap_or(Geometry::GeometryCollection(GeometryCollection(vec![])))
-            .map_coords(|(x, y)| (x0 + x.clone(), y0 - (y.clone())));
+            .map_coords(|co| coord!(x: x0 + co.x.clone(), y: y0 - (co.y.clone())));
         // println!("The geo is: {:?}", &geo);
         self.geometry(&geo);
         self
@@ -589,7 +590,9 @@ impl Context {
     /// coords oriented clockwise from "north" on an SVG. ie: 45 to 135 will be NE to SE.
     pub fn arc_center(&mut self, x0: f64, y0: f64, radius: f64, deg0: f64, deg1: f64) -> &mut Self {
         let ls = crate::geo_types::shapes::arc_center(x0, y0, radius, deg0, deg1);
-        let ls = ls.map_coords(|(x, y)| (x.clone(), -y.clone()));
+        let ls = ls.map_coords(|co| coord!(x: co.x.clone(), y: -co.y.clone()));
+
+        //let ls = ls.map_coords(|(x, y)| (x.clone(), -y.clone()));
         self.add_operation(Geometry::LineString(ls));
 
         self
