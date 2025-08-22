@@ -1,3 +1,4 @@
+use crate::context::line_filter::LineFilter;
 use crate::prelude::{Hatch, Hatches, OutlineFillStroke};
 use geo::coord;
 use geo::map_coords::MapCoords;
@@ -5,13 +6,13 @@ use geo::Coord;
 use geo_types::{Geometry, MultiLineString, MultiPolygon, Polygon};
 use geos::{Geom, GeometryTypes};
 use std::borrow::BorrowMut;
+use std::sync::Arc;
 // use geos::GeometryTypes::Point;
 use crate::geo_types::clip::try_to_geos_geometry;
 use geo::simplify::Simplify;
 pub use kurbo::BezPath;
 pub use kurbo::Point as BezPoint;
 use nalgebra::{Affine2, Point2 as NPoint2};
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 /// Operations are private items used to store the operation stack
@@ -33,6 +34,8 @@ pub struct Operation {
     pub(crate) hatch_pattern: Hatches,
     pub(crate) hatch_angle: f64,
     pub(crate) hatch_scale: Option<f64>,
+    pub(crate) stroke_filter: Option<Arc<Box<dyn LineFilter>>>,
+    pub(crate) hatch_filter: Option<Arc<Box<dyn LineFilter>>>,
 }
 
 impl Operation {
@@ -251,8 +254,8 @@ impl Operation {
         let flat_geo = Self::vectorize_flat_geo(&self.content);
 
         let ofvec: Vec<(MultiLineString<f64>, MultiLineString<f64>)> = flat_geo
-            // .iter()
-            .par_iter()
+            .iter()
+            //.par_iter()
             .map(|g| {
                 Self::help_render_geo(
                     &g,
@@ -268,6 +271,13 @@ impl Operation {
         for (mut outline, mut fill) in ofvec {
             outlines.0.append(&mut outline.0);
             fills.0.append(&mut fill.0);
+        }
+
+        if let Some(filter) = &self.stroke_filter {
+            outlines = filter.apply(&outlines);
+        }
+        if let Some(filter) = &self.hatch_filter {
+            fills = filter.apply(&fills);
         }
 
         // Finally, if we have outline stroke, then outline the existing strokes.
@@ -315,5 +325,30 @@ impl OPLayer {
 
     pub fn stroke_width(&self) -> f64 {
         self.stroke_width.clone()
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use geo::LineString;
+    use geo_types::Coord;
+
+    use crate::context::line_filter::SketchyLineFilter;
+
+    use super::*;
+
+    #[test]
+    pub fn test_stroke_filter() {
+        let foo = SketchyLineFilter::new(0.1, 3.);
+        // let geo: Geometry<f64> =
+        //     Line::new(Coord { x: 0.0, y: 0.0 }, Coord { x: 50.0, y: 50.0 }).into();
+        let mls = MultiLineString(vec![LineString::new(vec![
+            Coord { x: 0.0, y: 0.0 },
+            Coord { x: 50.0, y: 50.0 },
+        ])]);
+        let new_mls = foo.apply(&mls);
+        println!("New MLS: {:?}", &new_mls);
+        // let geo = foo.apply(&geo);
+        // println!("geo: {:?}", &geo);
     }
 }

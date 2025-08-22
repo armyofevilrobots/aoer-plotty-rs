@@ -1,5 +1,5 @@
 use aoer_plotty_rs::prelude::{Arrangement, Hatch, Hatches, ToSvg};
-use geo_types::{coord, Coordinate, LineString, MultiLineString, MultiPolygon, Polygon, Rect};
+use geo_types::{coord, Coord, LineString, MultiLineString, MultiPolygon, Polygon, Rect};
 use nalgebra::{Affine2, Matrix3};
 use rand::prelude::SmallRng;
 use rand::{Rng, SeedableRng};
@@ -25,7 +25,7 @@ fn main() {
         y: f64::from(size)},
     );
 
-    let mut dots: Vec<Coordinate<f64>> = vec![];
+    let mut dots: Vec<Coord<f64>> = vec![];
     let mut lines = MultiLineString::<f64>::new(vec![]);
     let mut polygons = MultiPolygon::<f64>::new(vec![]);
 

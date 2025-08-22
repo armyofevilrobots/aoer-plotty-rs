@@ -17,6 +17,9 @@ my days off. May spontaneously explode, might take your plotter with it.*
 [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 
 ## Changelog
+* 0.3.1. Add SketchyFilter and infrastructure to support arbitrary
+         line filters, which modify the look of the lines sent to
+         the plotter. Great for making "human" looking lines.
 * 0.3.0. Breaking change. Many places where float tuples were used ro
          represent x,y coords have been switched to `geo::Coord`s to match
          changes in the various geo_types/geos/geo libraries.

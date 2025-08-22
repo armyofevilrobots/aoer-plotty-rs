@@ -161,11 +161,11 @@ where
 }
 
 pub trait ToGeos {
-    fn to_geos(&self) -> Result<geos::Geometry, Box<dyn Error>>;
+    fn to_geos(&self) -> Result<geos::Geometry<'_>, Box<dyn Error>>;
 }
 
 impl ToGeos for geo_types::Geometry<f64> {
-    fn to_geos(&self) -> Result<geos::Geometry, Box<dyn Error>> {
+    fn to_geos(&self) -> Result<geos::Geometry<'_>, Box<dyn Error>> {
         if let Geometry::GeometryCollection(collection) = self {
             let geomap: Vec<geos::Geometry> = collection
                 .iter()

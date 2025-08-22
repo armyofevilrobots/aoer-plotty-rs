@@ -308,7 +308,8 @@ impl Hatch for MultiPolygon<f64> {
         let hatchlines: Vec<Result<MultiLineString<f64>, InvalidHatchGeometry>> = mpolys
             .0
             .par_iter()
-            .map(|p| p.hatch(pattern.clone(), angle, scale, scale.max(inset)))
+            //.map(|p| p.hatch(pattern.clone(), angle, scale, scale.max(inset)))
+            .map(|p| p.hatch(pattern.clone(), angle, scale, scale.min(inset)))
             .collect();
         // let mut out = MultiLineString::<f64>::new(vec![]);
 

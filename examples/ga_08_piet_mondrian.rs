@@ -1,6 +1,6 @@
 use aoer_plotty_rs::context::Context;
 use aoer_plotty_rs::prelude::{Arrangement, Hatches};
-use geo_types::{coord, Coordinate, Geometry, Rect};
+use geo_types::{coord, Coord, Geometry, Rect};
 use rand::prelude::*;
 use std::path::Path;
 
@@ -37,7 +37,7 @@ fn split_on_y(square: &Rect<f64>, y: f64) -> Vec<Rect<f64>> {
 /// Iterates the squares, splitting them where appropriate
 fn split_squares_at(
     squares: &mut Vec<Rect<f64>>,
-    coord: Coordinate<f64>,
+    coord: Coord<f64>,
     rng: &mut rand::rngs::SmallRng,
 ) {
     for i in (0..squares.len()).rev() {
@@ -79,7 +79,7 @@ fn main() {
     }
 
     // Create an array of the same length as the squares array, and fill it with "white"
-    let mut square_colors: Vec<&str> = squares.iter().map(|_s| white.clone()).collect();
+    let mut square_colors: Vec<&str> = squares.iter().map(|_s| white).collect();
 
     for color in colors.clone() {
         // Note, this might overlap an existing colored square. More often than you'd think actually.
@@ -92,7 +92,7 @@ fn main() {
     // for square in squares {
     for i in 0..squares.len() {
         let square = squares[i].clone();
-        let color = square_colors[i].clone();
+        let color = square_colors[i];
 
         // Don't bother hatching if it's white.
         if color != white {

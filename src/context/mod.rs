@@ -3,6 +3,8 @@
 use embed_doc_image::embed_doc_image;
 use std::error::Error;
 
+use crate::context::line_filter::LineFilter;
+// use crate::context::geo_filter::GeoFilter;
 use crate::errors::ContextError;
 use crate::geo_types::clip::{try_to_geos_geometry, LineClip};
 use crate::geo_types::{shapes, ToGeos};
@@ -38,6 +40,8 @@ pub mod typography;
 
 use crate::geo_types::flatten::FlattenPolygons;
 use typography::Typography;
+
+pub mod line_filter;
 
 /// # Context
 ///
@@ -120,10 +124,35 @@ pub struct Context {
     hatch_pattern: Hatches,
     hatch_angle: f64,
     hatch_scale: Option<f64>,
+    //stroke_filter: Option<fn(&MultiLineString<f64>) -> MultiLineString<f64>>,
+    stroke_filter: Option<Arc<Box<dyn LineFilter>>>, //Option<&'a Box<dyn LineFilter>>,
+    //hatch_filter: Option<fn(&MultiLineString<f64>) -> MultiLineString<f64>>,
+    hatch_filter: Option<Arc<Box<dyn LineFilter>>>,
     stack: Vec<Context>,
 }
 
 impl Context {
+    /// Stroke filter: Modify the lines of the stroke for subsequent operations.
+    pub fn stroke_filter(
+        &mut self,
+        filter: Option<Arc<Box<dyn LineFilter>>>, //Option<fn(&MultiLineString<f64>) -> MultiLineString<f64>>,
+    ) -> &mut Self {
+        // self.stroke_filter = match filter {
+        //     Some(ifilter) => Some(Box::leak(Box::new(ifilter))),
+        //     None => None,
+        // };
+        self.stroke_filter = filter;
+        self
+    }
+
+    pub fn hatch_filter(
+        &mut self,
+        filter: Option<Arc<Box<dyn LineFilter>>>, //Option<fn(&MultiLineString<f64>) -> MultiLineString<f64>>,
+    ) -> &mut Self {
+        self.hatch_filter = filter;
+        self
+    }
+
     /// Set accuracy (allowed tolerance) in mm
     pub fn accuracy(&mut self, accuracy: f64) -> &mut Self {
         self.accuracy = accuracy;
@@ -202,6 +231,8 @@ impl Context {
             hatch_pattern: Hatches::line(),
             hatch_angle: 0.0,
             hatch_scale: None,
+            stroke_filter: None,
+            hatch_filter: None,
             stack: vec![],
         }
     }
@@ -297,6 +328,8 @@ impl Context {
             hatch_pattern: self.hatch_pattern.clone(),
             hatch_angle: self.hatch_angle,
             hatch_scale: self.hatch_scale,
+            stroke_filter: self.stroke_filter.clone(),
+            hatch_filter: self.hatch_filter.clone(),
             stack: vec![],
         });
         self
@@ -318,6 +351,8 @@ impl Context {
         self.pen_width = other.pen_width.clone();
         self.hatch_angle = other.hatch_angle;
         self.clip_previous = other.clip_previous.clone();
+        self.stroke_filter = other.stroke_filter.clone();
+        self.hatch_filter = other.hatch_filter.clone();
         Ok(self)
     }
 
@@ -371,6 +406,8 @@ impl Context {
             hatch_pattern: self.hatch_pattern.clone(),
             hatch_angle: self.hatch_angle,
             hatch_scale: self.hatch_scale,
+            stroke_filter: self.stroke_filter.clone(),
+            hatch_filter: self.hatch_filter.clone(),
         };
         let op = op.render();
         self.operations.push(op);
@@ -827,6 +864,7 @@ impl Context {
         let mut oplayers: Vec<OPLayer> = vec![];
         for op in &self.operations {
             let (stroke, fill) = op.rendered.clone();
+            // let stroke = if let Some(filter) = op.strok
             oplayers.push(OPLayer {
                 stroke_lines: stroke,
                 fill_lines: fill,

@@ -1,6 +1,5 @@
 use aoer_plotty_rs::prelude::{Arrangement, Hatches, OutlineFillStroke, ToSvg};
-use geo::rotate::RotatePoint;
-use geo::translate::Translate;
+use geo::{translate::Translate, Rotate};
 use geo_types::{coord, point, LineString, MultiLineString, Rect};
 use rand::prelude::*;
 use std::path::Path;

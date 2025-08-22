@@ -1,10 +1,10 @@
+use geo::{centroid::Centroid, Rotate};
 use std::path::Path;
-use geo::centroid::Centroid;
-use geo::rotate::RotatePoint;
+// use geo::rotate::RotatePoint;
+use aoer_plotty_rs::prelude::{Arrangement, ToSvg};
 use geo::translate::Translate;
 use geo_types::{coord, LineString, MultiLineString, Polygon, Rect};
-use aoer_plotty_rs::prelude::{Arrangement, ToSvg};
-use rand::prelude::{SmallRng, SeedableRng, Rng};
+use rand::prelude::{Rng, SeedableRng, SmallRng};
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/cubic-disarray/
 fn main() {
@@ -20,28 +20,32 @@ fn main() {
     // Define our viewbox/canvas (in mm)
     let viewbox = Rect::new(
         coord! {
-            x:0f64,
-            y:0f64},
+        x:0f64,
+        y:0f64},
         coord! {
-            x: f64::from((square_size*square_count) as i32),
-            y: f64::from((square_size*square_count) as i32)});
+        x: f64::from((square_size*square_count) as i32),
+        y: f64::from((square_size*square_count) as i32)},
+    );
 
     let mut boxes: Vec<Polygon<f64>> = vec![];
     for y in 0..square_count {
         for x in 0..square_count {
             let rotate_amt = (f64::from(y) / f64::from(square_count))
-                * ((2.0 * rng.gen::<f64>()) - 1.0) * rotate_mul; // -1.0 to 1.0
+                * ((2.0 * rng.gen::<f64>()) - 1.0)
+                * rotate_mul; // -1.0 to 1.0
             let translate_amt = (f64::from(y) / f64::from(square_count))
-                * ((2.0 * rng.gen::<f64>()) - 1.0) * displace_mul;
+                * ((2.0 * rng.gen::<f64>()) - 1.0)
+                * displace_mul;
             let r = Rect::new(
                 coord! {
-                    x: f64::from(x * square_size),
-                    y: f64::from(y * square_size)},
+                x: f64::from(x * square_size),
+                y: f64::from(y * square_size)},
                 coord! {
                     x: f64::from((x * square_size) + square_size),
                     y: f64::from((y * square_size) + square_size)
-                })
-                .to_polygon();
+                },
+            )
+            .to_polygon();
             let r = r.rotate_around_point(rotate_amt, r.centroid().unwrap());
             let r = r.translate(translate_amt, 0.0);
             boxes.push(r);
@@ -59,13 +63,15 @@ fn main() {
     let arrangement = Arrangement::FitCenterMargin(10.0, viewbox, false);
 
     // Use a shortcut to create an SVG scaffold from our arrangement.
-    let svg = arrangement.create_svg_document().unwrap()
-        .add(box_lines.to_path(&arrangement)
+    let svg = arrangement.create_svg_document().unwrap().add(
+        box_lines
+            .to_path(&arrangement)
             .set("fill", "none")
             .set("stroke", "black")
             .set("stroke-width", 1)
             .set("stroke-linejoin", "square")
-            .set("stroke-linecap", "square"));
+            .set("stroke-linecap", "square"),
+    );
 
     // Write it to the images folder, so we can use it as an example!
     // Write it out to /images/$THIS_EXAMPLE_FILE.svg
