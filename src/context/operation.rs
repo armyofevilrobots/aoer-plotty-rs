@@ -17,15 +17,15 @@ use serde::{Deserialize, Serialize};
 
 /// Operations are private items used to store the operation stack
 /// consisting of a combination of Geometry and Context state.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Operation {
     pub(crate) accuracy: f64,
     pub(crate) content: Geometry<f64>,
     pub(crate) rendered: (MultiLineString<f64>, MultiLineString<f64>),
     pub(crate) transformation: Option<Affine2<f64>>,
-    pub(crate) stroke_color: String,
+    pub(crate) stroke_color: Option<String>,
     pub(crate) outline_stroke: Option<f64>,
-    pub(crate) fill_color: String,
+    pub(crate) fill_color: Option<String>,
     pub(crate) line_join: String,
     pub(crate) line_cap: String,
     pub(crate) pen_width: f64,
@@ -160,6 +160,7 @@ impl Operation {
             )
             .unwrap_or(MultiLineString::new(vec![]));
         // fills.0.append(&mut hatches.0.clone());
+        // println!("HATCHES in Mpoly2lines: {:?}", hatches);
         (strokes, hatches)
     }
 
@@ -272,6 +273,10 @@ impl Operation {
             outlines.0.append(&mut outline.0);
             fills.0.append(&mut fill.0);
         }
+        // println!(
+        //     "Output fills for hatch {:?}: {:?}",
+        //     &self.hatch_pattern, &fills
+        // );
 
         if let Some(filter) = &self.stroke_filter {
             outlines = filter.apply(&outlines);
@@ -304,8 +309,8 @@ impl Operation {
 pub struct OPLayer {
     pub(crate) stroke_lines: MultiLineString<f64>,
     pub(crate) fill_lines: MultiLineString<f64>,
-    pub(crate) stroke: String,
-    pub(crate) fill: String,
+    pub(crate) stroke: Option<String>,
+    pub(crate) fill: Option<String>,
     pub(crate) stroke_width: f64,
     pub(crate) stroke_linejoin: String,
     pub(crate) stroke_linecap: String,
@@ -316,10 +321,10 @@ impl OPLayer {
         (self.stroke_lines.clone(), self.fill_lines.clone())
     }
 
-    pub fn stroke(&self) -> String {
+    pub fn stroke(&self) -> Option<String> {
         self.stroke.clone()
     }
-    pub fn fill(&self) -> String {
+    pub fn fill(&self) -> Option<String> {
         self.fill.clone()
     }
 
@@ -347,7 +352,7 @@ pub mod test {
             Coord { x: 50.0, y: 50.0 },
         ])]);
         let new_mls = foo.apply(&mls);
-        println!("New MLS: {:?}", &new_mls);
+        // println!("New MLS: {:?}", &new_mls);
         // let geo = foo.apply(&geo);
         // println!("geo: {:?}", &geo);
     }

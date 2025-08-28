@@ -17,6 +17,17 @@ my days off. May spontaneously explode, might take your plotter with it.*
 [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 
 ## Changelog
+* 0.3.2. Tons of hatch related changes. This is probably the last 0.3
+         release before a big refactor to how the entire hatching system
+         is dispatched. I was using a simple enum when I originally built
+         it, and it's expanded past the point of making sense, with way too
+         many enum variants, and no way for a user to create custom fills.
+  * Add a few more hatch types, and modify the way the API works
+         so that BOTH pen width and scale are relevant modifiers for how
+         hatches are rendered.
+  * Also fixed a bug with insets...
+  * and radically improve their efficiency.
+
 * 0.3.1. Add SketchyFilter and infrastructure to support arbitrary
          line filters, which modify the look of the lines sent to
          the plotter. Great for making "human" looking lines.

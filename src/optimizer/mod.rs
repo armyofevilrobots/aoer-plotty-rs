@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use geo::prelude::EuclideanDistance;
+use geo::{prelude::EuclideanDistance, HasDimensions};
 use geo_types::{Coord as Coordinate, LineString, MultiLineString};
 use rstar::{PointDistance, RTree, RTreeObject, AABB};
 
@@ -89,9 +89,13 @@ impl Optimizer {
     pub fn optimize(&self, mls: &MultiLineString<f64>) -> MultiLineString<f64> {
         assert_eq!(self.strategy, OptimizationStrategy::Greedy);
         let mut lines_out = MultiLineString::new(vec![]);
+        // if mls.0.len() == 0 {
         if mls.0.len() == 0 {
             return lines_out;
         };
+        if mls.0.len() == 1 {
+            return mls.clone();
+        }
         let mut line_count: usize = 0;
         let mut lines_hash: HashMap<usize, LineString<f64>> =
             HashMap::from_iter(mls.0.iter().map(|line| {
@@ -103,13 +107,16 @@ impl Optimizer {
 
         while lines_hash.len() > 0 {
             if let Some(tmpline) = lines_hash.remove(&0) {
+                if tmpline.is_empty() {
+                    continue;
+                }
                 if tmpline.0.len() > 1 {
-                    lines_out.0.push(tmpline.clone());
+                    lines_out.0.push(tmpline); //.clone());
                     break;
+                } else {
                 }
             } else {
-                // Couldn't get a single valid line?!
-                return MultiLineString::new(vec![]);
+                break;
             }
         }
         while lines_hash.len() > 0 {

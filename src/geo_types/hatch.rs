@@ -1,13 +1,18 @@
 use crate::geo_types::buffer::Buffer;
+use crate::geo_types::shapes::circle;
 use embed_doc_image::embed_doc_image;
 use geo::bounding_rect::BoundingRect;
 use geo::rotate::Rotate;
+use geo::{Geometry as GeoGeometry, Simplify};
+use geo_offset::Offset;
+use geo_types::GeometryCollection;
 use geo_types::{coord, LineString, MultiLineString, MultiPolygon, Polygon, Rect};
 use geos::{Geom, Geometry};
 use rayon::prelude::IntoParallelRefIterator;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
+use std::f64::consts::PI;
 use std::fmt::{Debug, Display, Formatter};
 
 /// Useful for converting a line into a polygon as if it were stroked. Only supports
@@ -99,7 +104,7 @@ impl Error for InvalidHatchGeometry {}
 /// bbox area. Set up as a trait so the developer can add new patterns at their
 /// leisure.
 pub trait HatchPattern {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64) -> MultiLineString<f64>;
+    fn generate(&self, bbox: &Rect<f64>, scale: f64, pen: f64) -> MultiLineString<f64>;
 }
 
 /// # Hatch
@@ -133,18 +138,21 @@ pub trait Hatch {
         pattern: Hatches,
         angle: f64,
         scale: f64,
-        inset: f64,
+        pen: f64,
     ) -> Result<MultiLineString<f64>, InvalidHatchGeometry>;
 }
 
 /// All of the available hatch types.
 /// Less flexible for plugins, WAY easier
 /// to manage than non-object-safe RCs.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Hatches {
     NoHatch(NoHatch),
     LineHatch(LineHatch),
     CrossHatch(CrossHatch),
+    RadiusHatch(RadiusHatch),
+    CircleHatch(CircleHatch),
+    FastHex(FastHexHatch),
 }
 
 impl Hatches {
@@ -159,14 +167,29 @@ impl Hatches {
     pub fn cross() -> Self {
         Hatches::CrossHatch(CrossHatch {})
     }
+
+    pub fn radius(x: f64, y: f64) -> Self {
+        Hatches::RadiusHatch(RadiusHatch { x: x, y: y })
+    }
+
+    pub fn circle() -> Self {
+        Hatches::CircleHatch(CircleHatch {})
+    }
+
+    pub fn fasthex() -> Self {
+        Hatches::FastHex(FastHexHatch {})
+    }
 }
 
 impl HatchPattern for Hatches {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64) -> MultiLineString<f64> {
+    fn generate(&self, bbox: &Rect<f64>, scale: f64, pen: f64) -> MultiLineString<f64> {
         match self {
             Hatches::NoHatch(_) => MultiLineString::new(vec![]),
-            Hatches::LineHatch(hatch) => hatch.generate(bbox, scale.clone()),
-            Hatches::CrossHatch(hatch) => hatch.generate(bbox, scale.clone()),
+            Hatches::LineHatch(hatch) => hatch.generate(bbox, scale.clone(), pen),
+            Hatches::CrossHatch(hatch) => hatch.generate(bbox, scale.clone(), pen),
+            Hatches::RadiusHatch(hatch) => hatch.generate(bbox, scale.clone(), pen),
+            Hatches::CircleHatch(hatch) => hatch.generate(bbox, scale.clone(), pen),
+            Hatches::FastHex(hatch) => hatch.generate(bbox, scale.clone(), pen),
         }
     }
 }
@@ -176,7 +199,7 @@ impl HatchPattern for Hatches {
 pub struct NoHatch {}
 
 impl HatchPattern for NoHatch {
-    fn generate(&self, _bbox: &Rect<f64>, _scale: f64) -> MultiLineString<f64> {
+    fn generate(&self, _bbox: &Rect<f64>, _scale: f64, _pen: f64) -> MultiLineString<f64> {
         MultiLineString::new(vec![])
     }
 }
@@ -186,7 +209,7 @@ impl HatchPattern for NoHatch {
 pub struct LineHatch {}
 
 impl HatchPattern for LineHatch {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64) -> MultiLineString<f64> {
+    fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString<f64> {
         let min = bbox.min();
         let max = bbox.max();
         let mut y = min.y;
@@ -217,7 +240,7 @@ impl HatchPattern for LineHatch {
 pub struct CrossHatch {}
 
 impl HatchPattern for CrossHatch {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64) -> MultiLineString<f64> {
+    fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString<f64> {
         let min = bbox.min();
         let max = bbox.max();
         let mut y = min.y;
@@ -239,7 +262,7 @@ impl HatchPattern for CrossHatch {
             count += 1;
         }
         let mut x = min.x;
-        let mut count = 0u32;
+        count = 0u32;
         while x < max.x {
             if count % 2 == 0 {
                 lines.push(geo_types::LineString::<f64>::new(vec![
@@ -249,12 +272,132 @@ impl HatchPattern for CrossHatch {
             } else {
                 lines.push(geo_types::LineString::<f64>::new(vec![
                     coord! {x: x, y: max.y},
-                    coord! {x: x, y: max.y},
+                    coord! {x: x, y: min.y},
                 ]));
             }
             x += scale;
             count += 1;
         }
+        //println!("HATCH LINES ARE: {:?}", &lines);
+        MultiLineString::<f64>::new(lines)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct RadiusHatch {
+    pub x: f64,
+    pub y: f64,
+}
+impl HatchPattern for RadiusHatch {
+    fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString {
+        let (x1, y1) = bbox.min().x_y();
+        let (x2, y2) = bbox.max().x_y();
+        // println!("Center for bbox is: {:?}", bbox.center());
+        let mut max_radius = 0.0f64;
+        let mut min_radius = scale / 2.; //f64::MAX;
+        for (x, y) in vec![(x1, y1), (x2, y1), (x2, y2), (x1, y2)] {
+            let tmp_rad = ((x - self.x).powi(2) + (y - self.y).powi(2)).sqrt();
+            if tmp_rad > max_radius {
+                max_radius = tmp_rad;
+            }
+            if tmp_rad < min_radius {
+                min_radius = tmp_rad;
+            }
+        }
+        let mut lines: Vec<LineString> = vec![];
+        let mut r = min_radius;
+        while r < max_radius {
+            let c = circle(self.x, self.y, r);
+            if let GeoGeometry::Polygon(tmp_lines) = c.into() {
+                lines.push(tmp_lines.exterior().clone());
+            }
+            r += scale;
+        }
+        // println!("Lines for radius fill are: {:?}", &lines);
+
+        MultiLineString::<f64>::new(lines)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct CircleHatch {}
+
+impl HatchPattern for CircleHatch {
+    fn generate(&self, bbox: &Rect<f64>, scale: f64, pen: f64) -> MultiLineString {
+        let (x1, y1) = bbox.min().x_y();
+        let (x2, y2) = bbox.max().x_y();
+        let mut lines: Vec<LineString> = vec![];
+        let mut ix: usize = 0;
+        let mut x = x1 - 2. * scale;
+        let mut y = y1 - 2. * scale;
+        let r2 = 2.0_f64.sqrt();
+        while x < x2 + 2. * (scale + pen) {
+            let (ofsx, ofsy) = if ix % 2 == 0 {
+                (scale - pen, -(scale + pen * r2) * r2)
+            } else {
+                //(-(scale - pen), 0.)
+                (-scale + pen / 2., 0.)
+            };
+
+            y = y1;
+            while y < y2 + 2. * (scale + pen) {
+                // println!("Adding circle at x:{}, y:{} @ofs:{:?}", x, y, (ofsx, ofsy));
+                let c = circle(x + ofsx, y + ofsy, scale / 2.);
+                if let GeoGeometry::Polygon(tmp_lines) = c.into() {
+                    lines.push(tmp_lines.exterior().clone());
+                }
+                y += scale + pen;
+            }
+            ix += 1;
+            x += (scale - pen * r2 / 2.);
+        }
+        // println!("Lines for radius fill are: {:?}", &lines);
+
+        MultiLineString::<f64>::new(lines)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct FastHexHatch {}
+
+impl HatchPattern for FastHexHatch {
+    fn generate(&self, bbox: &Rect<f64>, scale: f64, pen: f64) -> MultiLineString {
+        let (x1, y1) = bbox.min().x_y();
+        let (x2, y2) = bbox.max().x_y();
+        let mut lines: Vec<LineString> = vec![];
+        let mut ix: usize = 0;
+        let mut x = x1 - 2. * scale;
+        let sidelen = scale / 2.;
+        let rin = scale * (PI / 6.).cos() / 2.;
+        // println!("SIDELEN: {} , RIN: {} , ", sidelen, rin);
+
+        while x <= x2 + scale {
+            let (inc, mul) = if ix % 2 == 0 {
+                (rin * 2., 1.)
+            } else {
+                (0.0, -1.)
+            };
+            let mut y = y1 - 2. * scale;
+            let mut aline: LineString<f64> = LineString::new(vec![]);
+            while y <= y2 + scale {
+                // y2 + 2. * scale {
+                aline.0.push(coord! {x:x, y:y});
+                aline.0.push(coord! {x:x+mul*rin, y: y+sidelen/2.});
+                aline.0.push(coord! {x:x+mul*rin, y: y+sidelen/2.+sidelen});
+                aline.0.push(coord! {x:x, y: y+scale});
+                aline.0.push(coord! {x:x, y: y+scale+sidelen});
+                y = y + scale + sidelen;
+            }
+            // println!("ALINE: {:?}", &aline);
+            if ix % 2 != 0 {
+                aline.0.reverse();
+            }
+            lines.push(aline);
+            ix += 1;
+            x += inc + 0.00001; // We do slightly over the inc, to ensure no overlapping lines.
+        }
+        // println!("Lines for radius fill are: {:?}", &lines);
+
         MultiLineString::<f64>::new(lines)
     }
 }
@@ -290,10 +433,10 @@ impl Hatch for MultiPolygon<f64> {
         pattern: Hatches,
         angle: f64,
         scale: f64,
-        inset: f64,
+        pen: f64,
     ) -> Result<MultiLineString<f64>, InvalidHatchGeometry> {
-        // let mpolys = if inset != 0.0 {
-        //     self.offset(-inset)
+        // let mpolys = if pen != 0.0 {
+        //     self.offset(-pen)
         //         .or(Err(InvalidHatchGeometry::InvalidBoundary))?
         // } else {
         //     self.to_owned()
@@ -309,7 +452,7 @@ impl Hatch for MultiPolygon<f64> {
             .0
             .par_iter()
             //.map(|p| p.hatch(pattern.clone(), angle, scale, scale.max(inset)))
-            .map(|p| p.hatch(pattern.clone(), angle, scale, scale.min(inset)))
+            .map(|p| p.hatch(pattern.clone(), angle, scale, scale.min(pen)))
             .collect();
         // let mut out = MultiLineString::<f64>::new(vec![]);
 
@@ -328,7 +471,7 @@ fn dirty_inset(mls_geo: &mut geo_types::Geometry<f64>, inset: f64) {
     // Only works for MultiLineString, eh?
     match mls_geo {
         geo_types::Geometry::MultiLineString(mls) => {
-            // If this MultiLineString only has 3 or fewer entries, just forget the whole thing.
+            // If this MultiLineString only has 2 or fewer entries, just forget the whole thing.
             if mls.0.len() < 3 {
                 mls.0 = vec![];
             } else {
@@ -339,7 +482,7 @@ fn dirty_inset(mls_geo: &mut geo_types::Geometry<f64>, inset: f64) {
                 mls.0 = mls.0[0..mls.0.len()]
                     .into_iter()
                     // Skip invalid linestrings
-                    .filter(|ls| ls.0.len() == 2)
+                    .filter(|ls| ls.0.len() >= 2)
                     .map(|ls| {
                         let ls_vec = ls.0[1] - ls.0[0];
                         let ls_vec_len = (ls_vec.x.powi(2) + ls_vec.y.powi(2)).sqrt();
@@ -367,7 +510,7 @@ impl Hatch for Polygon<f64> {
         pattern: Hatches,
         angle: f64,
         scale: f64,
-        inset: f64,
+        pen: f64,
     ) -> Result<MultiLineString<f64>, InvalidHatchGeometry> {
         // let _perimeter = if inset != 0.0 {
         //     let mpolys = self
@@ -393,7 +536,7 @@ impl Hatch for Polygon<f64> {
         // let hatch_lines_raw = pattern.generate(&bbox, scale);
 
         let hatch_lines: Vec<geo_types::LineString<f64>> = pattern
-            .generate(&bbox, scale)
+            .generate(&bbox, scale, pen)
             .rotate_around_centroid(angle)
             .iter()
             .map(|x| x.to_owned())
@@ -401,9 +544,17 @@ impl Hatch for Polygon<f64> {
         if hatch_lines.is_empty() {
             return Ok(MultiLineString::new(vec![]));
         }
-        let geo_perimeter: geos::Geometry = self
+
+        let inset_perimeter = self
+            .simplify(&(pen / 2.))
+            .offset(-pen)
+            .expect("Failed to inset polygon"); //.unwrap_or(self.clone());
+
+        let geo_perimeter: geos::Geometry = inset_perimeter //self
             .try_into()
             .or(Err(InvalidHatchGeometry::InvalidBoundary))?;
+
+        // println!("PRE INSET: {:?}", &hatch_lines);
         let geo_hatchlines = Geometry::create_geometry_collection(
             hatch_lines
                 .par_iter()
@@ -411,15 +562,23 @@ impl Hatch for Polygon<f64> {
                 .collect(),
         )
         .or(Err(InvalidHatchGeometry::CouldNotGenerateHatch))?;
+
         let hatched_object = geo_perimeter
             .intersection(&geo_hatchlines)
             .or(Err(InvalidHatchGeometry::CouldNotGenerateHatch))?;
 
+        // println!(
+        //     "Out Hatch lines geo is {:?}",
+        //     hatched_object.to_wkt().unwrap()
+        // );
         let mut out: geo_types::Geometry<f64> = hatched_object
             .try_into()
             .or(Err(InvalidHatchGeometry::InvalidResultGeometry))?;
         //dirty_inset(&mut out, scale.max(inset)); // Mutates in place.
-        dirty_inset(&mut out, scale.min(inset)); // Mutates in place.
+
+        // println!("Out Hatch lines geo is {:?} with inset {}", out, inset);
+
+        //dirty_inset(&mut out, scale.min(inset)); // Mutates in place.
         let out = gt_flatten_mlines(out, MultiLineString::new(vec![]));
         Ok(out)
     }
@@ -436,13 +595,13 @@ mod test {
     fn test_box_hatch() {
         let rect = Rect::<f64>::new(coord! {x: 0.0, y: 0.0}, coord! {x: 100.0, y: 100.0});
         //let hatch_lines =
-        LineHatch {}.generate(&rect, 10.0);
+        LineHatch {}.generate(&rect, 10.0, 1.0);
     }
 
     #[test]
     fn test_experiment1_geos_clip_hatch() {
         let rect = Rect::<f64>::new(coord! {x: -100.0, y: -100.0}, coord! {x: 100.0, y: 100.0});
-        let hatch_lines = LineHatch {}.generate(&rect, 5.0);
+        let hatch_lines = LineHatch {}.generate(&rect, 5.0, 1.0);
         let poly = Polygon::<f64>::new(
             geo_types::LineString::<f64>::new(vec![
                 coord! {x: 0.0, y: 20.0},
@@ -587,6 +746,6 @@ mod test {
         //     &hatches.0.len(),
         //     &hatches
         // );
-        assert!((&hatches).0.len() == 16);
+        assert!((&hatches).0.len() == 14);
     }
 }

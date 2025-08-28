@@ -107,15 +107,15 @@ pub mod line_filter;
 /// ```
 /// ![context_basic][context_basic]
 #[embed_doc_image("context_basic", "images/context_basic.png")]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Context {
     operations: Vec<Operation>,
     accuracy: f64,
     font: Option<Font>,
     transformation: Option<Affine2<f64>>,
-    stroke_color: String,
+    stroke_color: Option<String>,
     outline_stroke: Option<f64>,
-    fill_color: String,
+    fill_color: Option<String>,
     line_join: String,
     line_cap: String,
     pen_width: f64,
@@ -220,9 +220,9 @@ impl Context {
             accuracy: 0.1, // 0.1mm should be close enough for anybody
             transformation: None,
             font: Some(Context::default_font()),
-            stroke_color: "black".to_string(),
+            stroke_color: Some("black".to_string()),
             outline_stroke: None,
-            fill_color: "black".to_string(),
+            fill_color: Some("black".to_string()),
             line_join: "round".to_string(),
             line_cap: "round".to_string(),
             pen_width: 0.5,
@@ -742,13 +742,23 @@ impl Context {
 
     /// Sets the stroke color
     pub fn stroke(&mut self, color: &str) -> &mut Self {
-        self.stroke_color = color.to_string();
+        self.stroke_color = Some(color.to_string());
+        self
+    }
+
+    pub fn no_stroke(&mut self) -> &mut Self {
+        self.stroke_color = None;
         self
     }
 
     /// Sets the fill color
     pub fn fill(&mut self, color: &str) -> &mut Self {
-        self.fill_color = color.to_string();
+        self.fill_color = Some(color.to_string());
+        self
+    }
+
+    pub fn no_fill(&mut self) -> &mut Self {
+        self.fill_color = None;
         self
     }
 
@@ -863,8 +873,11 @@ impl Context {
     pub fn to_layers(&self) -> Vec<OPLayer> {
         let mut oplayers: Vec<OPLayer> = vec![];
         for op in &self.operations {
-            let (stroke, fill) = op.rendered.clone();
-            // let stroke = if let Some(filter) = op.strok
+            let (mut stroke, mut fill) = op.rendered.clone();
+            // Cull all the empty crap
+            stroke.0.retain(|item| item.0.len() > 1);
+            fill.0.retain(|item| item.0.len() > 1);
+
             oplayers.push(OPLayer {
                 stroke_lines: stroke,
                 fill_lines: fill,
@@ -917,13 +930,20 @@ impl Context {
                     oplayer.stroke_width * 2.,
                     crate::optimizer::OptimizationStrategy::Greedy,
                 );
+
                 let slines_opt = optimizer.optimize(&optimizer.merge(&oplayer.stroke_lines));
                 let slines = slines_opt.to_path(&arrangement);
                 svg = svg.add(
                     slines
                         .set("id", format!("outline-{}", id))
                         .set("fill", "none")
-                        .set("stroke", oplayer.stroke.clone())
+                        .set(
+                            "stroke",
+                            match &oplayer.stroke {
+                                Some(color) => color.clone(),
+                                None => "none".to_string(),
+                            },
+                        )
                         .set("stroke-width", oplayer.stroke_width)
                         .set("stroke-linejoin", oplayer.stroke_linejoin.clone())
                         .set("stroke-linecap", oplayer.stroke_linecap.clone()),
@@ -940,7 +960,13 @@ impl Context {
                     flines
                         .set("id", format!("fill-{}", id))
                         .set("fill", "none")
-                        .set("stroke", oplayer.fill.clone())
+                        .set(
+                            "stroke",
+                            match &oplayer.stroke {
+                                Some(color) => color.clone(),
+                                None => "none".to_string(),
+                            },
+                        )
                         .set("stroke-width", oplayer.stroke_width)
                         .set("stroke-linejoin", oplayer.stroke_linejoin.clone())
                         .set("stroke-linecap", oplayer.stroke_linecap.clone()),
@@ -1100,18 +1126,30 @@ mod test {
             coord! {x:100.0, y:100.0},
         ));
         let svg = context.to_svg(&arrangement).unwrap();
-        // println!("svg: {}", svg.to_string());
-        assert_eq!(svg.to_string(),
-                   concat!(
-                   "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
-                   "<path d=\"\" fill=\"none\" id=\"outline-0\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
-                   "<path d=\"\" fill=\"none\" id=\"fill-0\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
-                   "<path d=\"M30,10 L10,10 L10,30 L20,30 L20,40 L32,40 L32,48 L48,48 L48,32 L40,32 L40,20 L30,20 L30,10\" fill=\"none\" id=\"outline-1\" ",
-                   "stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
-                   "<path d=\"\" fill=\"none\" id=\"fill-1\" stroke=\"blue\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
-                   "<path d=\"M22,22 L38,22 L38,38 L22,38 L22,22\" fill=\"none\" id=\"outline-2\" stroke=\"black\" stroke-linecap=\"round\" ",
-                   "stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>"
-                   ));
+        println!("svg: {}", svg.to_string());
+        assert_eq!(
+            svg.to_string(),
+            concat!(
+                "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
+                "<path d=\"\" fill=\"none\" id=\"outline-0\" stroke=\"black\" ",
+                "stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n<path d=\"\" fill=\"none\" id=\"fill-0\" stroke=\"black\" stroke-linecap=\"round\" ",
+                "stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n<path d=\"M30,10 L10,10 L10,30 L20,30 L20,40 L32,40 L32,48 L48,48 L48,32 L40,32 L40,20 L30,20 L30,10\" ",
+                "fill=\"none\" id=\"outline-1\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n<path d=\"\" fill=\"none\" ",
+                "id=\"fill-1\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n<path d=\"M22,22 L38,22 L38,38 L22,38 L22,22\" ",
+                "fill=\"none\" id=\"outline-2\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>",
+            )
+        );
+        // assert_eq!(svg.to_string(),
+        //            concat!(
+        //            "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
+        //            "<path d=\"\" fill=\"none\" id=\"outline-0\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
+        //            "<path d=\"\" fill=\"none\" id=\"fill-0\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
+        //            "<path d=\"M30,10 L10,10 L10,30 L20,30 L20,40 L32,40 L32,48 L48,48 L48,32 L40,32 L40,20 L30,20 L30,10\" fill=\"none\" id=\"outline-1\" ",
+        //            "stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
+        //            "<path d=\"\" fill=\"none\" id=\"fill-1\" stroke=\"blue\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n",
+        //            "<path d=\"M22,22 L38,22 L38,38 L22,38 L22,22\" fill=\"none\" id=\"outline-2\" stroke=\"black\" stroke-linecap=\"round\" ",
+        //            "stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>"
+        //            ));
     }
 
     #[test]

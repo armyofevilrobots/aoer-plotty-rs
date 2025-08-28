@@ -108,29 +108,32 @@ impl Model {
         for layer in &layers {
             let (strokes, fills) = layer.to_lines();
             if self.settings.draft {
-                if out.contains_key(&layer.stroke()) {
+                if out.contains_key(&layer.stroke().unwrap()) {
                     let (mut orig_stroke, _orig_fill) =
-                        out.get_mut(&layer.stroke()).unwrap().clone();
+                        out.get_mut(&layer.stroke().unwrap()).unwrap().clone();
                     orig_stroke.0.append(&mut strokes.0.clone());
                     out.insert(
-                        layer.stroke().clone(),
+                        layer.stroke().unwrap().clone(),
                         (orig_stroke.clone(), MultiLineString::new(vec![])),
                     );
                 } else {
                     out.insert(
-                        layer.stroke().clone(),
+                        layer.stroke().unwrap().clone(),
                         (strokes.clone(), MultiLineString::new(vec![])),
                     );
                 }
             } else {
-                if out.contains_key(&layer.stroke()) {
+                if out.contains_key(&layer.stroke().unwrap()) {
                     let (mut orig_stroke, mut orig_fill) =
-                        out.get_mut(&layer.stroke()).unwrap().clone();
+                        out.get_mut(&layer.stroke().unwrap()).unwrap().clone();
                     orig_stroke.0.append(&mut strokes.0.clone());
                     orig_fill.0.append(&mut fills.0.clone());
-                    out.insert(layer.stroke(), (orig_stroke.clone(), orig_fill.clone()));
+                    out.insert(
+                        layer.stroke().unwrap(),
+                        (orig_stroke.clone(), orig_fill.clone()),
+                    );
                 } else {
-                    out.insert(layer.stroke(), (strokes.clone(), fills.clone()));
+                    out.insert(layer.stroke().unwrap(), (strokes.clone(), fills.clone()));
                 }
             }
         }

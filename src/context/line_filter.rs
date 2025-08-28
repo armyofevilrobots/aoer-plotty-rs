@@ -8,15 +8,50 @@ use geo::{Euclidean, Polygon};
 use nannou::noise::{NoiseFn, Perlin};
 use rand::{thread_rng, Rng};
 
-pub trait LineFilter {
+pub trait LineFilter: std::fmt::Debug {
     fn apply(&self, lines: &MultiLineString<f64>) -> MultiLineString<f64>;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SketchyLineFilter {
     perlin: Perlin,
     pub noise_prescale: f64,
     pub deviation: f64,
+}
+
+#[derive(Clone, Debug)]
+pub struct PerlinFilter {
+    perlin: Perlin,
+    pub noise_prescale: f64,
+    pub deviation: f64,
+}
+
+impl PerlinFilter {
+    pub fn new(noise_prescale: f64, deviation: f64) -> PerlinFilter {
+        PerlinFilter {
+            perlin: Perlin::new(),
+            noise_prescale,
+            deviation,
+        }
+    }
+
+    pub fn noise_prescale(self, val: f64) -> PerlinFilter {
+        PerlinFilter {
+            noise_prescale: val,
+            ..self
+        }
+    }
+
+    pub fn deviation(self, val: f64) -> PerlinFilter {
+        PerlinFilter {
+            deviation: val,
+            ..self
+        }
+    }
+
+    pub fn finish(self) -> Arc<Box<dyn LineFilter>> {
+        Arc::new(Box::new(self))
+    }
 }
 
 impl SketchyLineFilter {
@@ -85,23 +120,24 @@ pub fn geo_densify(geo: &Geometry<f64>, density: f64) -> Geometry<f64> {
     }
 }
 
-/*
-pub fn sketchy_filter(
-    perlin_scale: &f64,
-    deviation: &f64,
-) -> impl FnMut(&MultiLineString) -> MultiLineString {
-    let closure = move |mls: &MultiLineString| {
-        let pn = Perlin::new();
-        let ofs = Arc::new(0.0f64);
-        let tmp_len = mls.0.last().unwrap().0.len();
-        let mut mls = Euclidean {}.densify(mls, 0.25);
+impl LineFilter for PerlinFilter {
+    fn apply(&self, mls: &MultiLineString<f64>) -> MultiLineString<f64> {
+        let mut mls = mls.densify(&Euclidean {}, self.noise_prescale / 10.);
+        let mut rng = thread_rng();
         for line in &mut mls {
-            let mut depth = thread_rng().gen_range(0.0f64..100000.0);
             line.map_coords_in_place(move |coord| {
-                let dx =
-                    deviation * pn.get([coord.x * perlin_scale, coord.y * perlin_scale, depth]);
-                let dy =
-                    deviation * pn.get([coord.y * perlin_scale, coord.y * perlin_scale, depth]);
+                let dx = self.deviation
+                    * self.perlin.get([
+                        coord.x / self.noise_prescale,
+                        coord.y / self.noise_prescale,
+                        0.,
+                    ]);
+                let dy = self.deviation
+                    * self.perlin.get([
+                        coord.x / self.noise_prescale,
+                        coord.y / self.noise_prescale,
+                        10000.,
+                    ]);
                 Coord {
                     x: coord.x + dx,
                     y: coord.y + dy,
@@ -109,10 +145,8 @@ pub fn sketchy_filter(
             });
         }
         mls
-    };
-    closure
+    }
 }
-*/
 
 impl LineFilter for SketchyLineFilter {
     fn apply(&self, mls: &MultiLineString<f64>) -> MultiLineString<f64> {
