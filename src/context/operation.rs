@@ -1,5 +1,5 @@
 use crate::context::line_filter::LineFilter;
-use crate::prelude::{Hatch, Hatches, OutlineFillStroke};
+use crate::prelude::{Hatch, HatchPattern, LineHatch, OutlineFillStroke};
 use geo::coord;
 use geo::map_coords::MapCoords;
 use geo::Coord;
@@ -31,7 +31,8 @@ pub struct Operation {
     pub(crate) pen_width: f64,
     pub(crate) mask: Option<Geometry<f64>>,
     pub(crate) clip_previous: bool,
-    pub(crate) hatch_pattern: Hatches,
+    //pub(crate) hatch_pattern: Hatches,
+    pub(crate) hatch_pattern: Arc<Box<dyn HatchPattern>>,
     pub(crate) hatch_angle: f64,
     pub(crate) hatch_scale: Option<f64>,
     pub(crate) stroke_filter: Option<Arc<Box<dyn LineFilter>>>,
@@ -103,7 +104,7 @@ impl Operation {
         pen_width: f64,
         hatch_angle: f64,
         hatch_scale: Option<f64>,
-        hatch_pattern: Hatches,
+        hatch_pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
     ) -> (MultiLineString<f64>, MultiLineString<f64>) {
         let mut strokes = MultiLineString::new(vec![]);
         // let mut fills = MultiLineString::new(vec![]);
@@ -135,7 +136,7 @@ impl Operation {
         pen_width: f64,
         hatch_angle: f64,
         hatch_scale: Option<f64>,
-        hatch_pattern: Hatches,
+        hatch_pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
     ) -> (MultiLineString<f64>, MultiLineString<f64>) {
         let mut strokes = MultiLineString::new(vec![]);
         // let mut fills = MultiLineString::new(vec![]);
@@ -176,7 +177,7 @@ impl Operation {
         pen_width: f64,
         hatch_angle: f64,
         hatch_scale: Option<f64>,
-        hatch_pattern: Hatches,
+        hatch_pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
     ) -> (MultiLineString<f64>, MultiLineString<f64>) {
         match txgeo {
             Geometry::MultiLineString(mls) => (mls.clone(), MultiLineString::new(vec![])),
@@ -291,7 +292,8 @@ impl Operation {
                 .outline_fill_stroke_with_hatch(
                     stroke,
                     self.pen_width,
-                    Hatches::line(),
+                    //Hatches::line(),
+                    Arc::new(Box::new(LineHatch {})),
                     self.hatch_angle,
                 )
                 .unwrap_or(outlines),
@@ -351,7 +353,7 @@ pub mod test {
             Coord { x: 0.0, y: 0.0 },
             Coord { x: 50.0, y: 50.0 },
         ])]);
-        let new_mls = foo.apply(&mls);
+        let _new_mls = foo.apply(&mls);
         // println!("New MLS: {:?}", &new_mls);
         // let geo = foo.apply(&geo);
         // println!("geo: {:?}", &geo);

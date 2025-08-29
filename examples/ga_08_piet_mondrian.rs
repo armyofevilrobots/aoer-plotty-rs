@@ -1,8 +1,9 @@
 use aoer_plotty_rs::context::Context;
-use aoer_plotty_rs::prelude::{Arrangement, Hatches};
+use aoer_plotty_rs::prelude::{Arrangement, LineHatch, NoHatch};
 use geo_types::{coord, Coord, Geometry, Rect};
 use rand::prelude::*;
 use std::path::Path;
+use std::sync::Arc;
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/piet-mondrian/
 
@@ -96,9 +97,9 @@ fn main() {
 
         // Don't bother hatching if it's white.
         if color != white {
-            ctx.pattern(Hatches::line());
+            ctx.pattern(Arc::new(Box::new(LineHatch {})));
         } else {
-            ctx.pattern(Hatches::none());
+            ctx.pattern(Arc::new(Box::new(NoHatch {})));
         }
 
         // And set the fill color.
@@ -110,7 +111,7 @@ fn main() {
         );
 
         // Now we just draw the rest of the outlines, inside to outside, no fill.
-        ctx.pattern(Hatches::none());
+        ctx.pattern(Arc::new(Box::new(NoHatch {})));
         let mut remaining_width = square_weight - (pen_width / 2.0);
         let s = squares[i].clone();
         while remaining_width >= 0.0 {

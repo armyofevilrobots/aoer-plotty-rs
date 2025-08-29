@@ -123,7 +123,6 @@ pub fn geo_densify(geo: &Geometry<f64>, density: f64) -> Geometry<f64> {
 impl LineFilter for PerlinFilter {
     fn apply(&self, mls: &MultiLineString<f64>) -> MultiLineString<f64> {
         let mut mls = mls.densify(&Euclidean {}, self.noise_prescale / 10.);
-        let mut rng = thread_rng();
         for line in &mut mls {
             line.map_coords_in_place(move |coord| {
                 let dx = self.deviation

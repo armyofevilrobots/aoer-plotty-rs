@@ -3,9 +3,8 @@ use crate::geo_types::shapes::circle;
 use embed_doc_image::embed_doc_image;
 use geo::bounding_rect::BoundingRect;
 use geo::rotate::Rotate;
-use geo::{Geometry as GeoGeometry, Simplify};
+use geo::{Coord, Geometry as GeoGeometry, Simplify};
 use geo_offset::Offset;
-use geo_types::GeometryCollection;
 use geo_types::{coord, LineString, MultiLineString, MultiPolygon, Polygon, Rect};
 use geos::{Geom, Geometry};
 use rayon::prelude::IntoParallelRefIterator;
@@ -14,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::f64::consts::PI;
 use std::fmt::{Debug, Display, Formatter};
+use std::sync::Arc;
 
 /// Useful for converting a line into a polygon as if it were stroked. Only supports
 /// round caps and joins for now.
@@ -41,7 +41,7 @@ pub trait OutlineFillStroke {
         &self,
         stroke_weight: f64,
         pen_width: f64,
-        pattern: Hatches,
+        pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
         angle: f64,
     ) -> Result<MultiLineString<f64>, Box<dyn Error>>;
 }
@@ -51,7 +51,7 @@ impl OutlineFillStroke for MultiLineString<f64> {
         &self,
         stroke_weight: f64,
         pen_width: f64,
-        pattern: Hatches,
+        pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
         angle: f64,
     ) -> Result<MultiLineString<f64>, Box<dyn Error>> {
         let polys = self.outline_stroke(stroke_weight)?;
@@ -103,7 +103,7 @@ impl Error for InvalidHatchGeometry {}
 /// Returns a MultiLineString which draws a hatch pattern which fills the entire
 /// bbox area. Set up as a trait so the developer can add new patterns at their
 /// leisure.
-pub trait HatchPattern {
+pub trait HatchPattern: Debug + Send + Sync {
     fn generate(&self, bbox: &Rect<f64>, scale: f64, pen: f64) -> MultiLineString<f64>;
 }
 
@@ -120,83 +120,39 @@ pub trait HatchPattern {
 /// # Example hatching
 /// ```rust
 ///
+/// use std::sync::Arc;
+/// use aoer_plotty_rs::geo_types::hatch::LineHatch;
 /// use geo_types::Polygon;
 /// use wkt::{TryFromWkt, Wkt, geo_types_from_wkt} ;
-/// use aoer_plotty_rs::geo_types::hatch::{Hatch, Hatches};
+/// use aoer_plotty_rs::geo_types::hatch::{Hatch};
 /// use std::str::FromStr;
 /// let geoms: Polygon::<f64> = Polygon::try_from(
 ///     Wkt::<f64>::from_str("POLYGON ((350 100, 450 450, 150 400, 100 200, 350 100), (200 300, 350 350, 300 200, 200 300))")
 ///         .expect("Failed to load WKT"))
 ///     .expect("Failed to load box");
-/// let hatch = geoms.hatch(Hatches::line(), 45.0, 5.0, 2.5).expect("Got some hatches in here failin'");
+/// let hatch = geoms.hatch(Arc::new(Box::new(LineHatch{})), 45.0, 5.0, 2.5).expect("Got some hatches in here failin'");
 /// ```
 /// ![hatch-example-1][hatch-example-1]
 #[embed_doc_image("hatch-example-1", "images/hatch-demo-1.png")]
 pub trait Hatch {
     fn hatch(
         &self,
-        pattern: Hatches,
+        pattern: Arc<Box<dyn HatchPattern>>,
         angle: f64,
         scale: f64,
         pen: f64,
     ) -> Result<MultiLineString<f64>, InvalidHatchGeometry>;
 }
 
-/// All of the available hatch types.
-/// Less flexible for plugins, WAY easier
-/// to manage than non-object-safe RCs.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum Hatches {
-    NoHatch(NoHatch),
-    LineHatch(LineHatch),
-    CrossHatch(CrossHatch),
-    RadiusHatch(RadiusHatch),
-    CircleHatch(CircleHatch),
-    FastHex(FastHexHatch),
-}
-
-impl Hatches {
-    pub fn none() -> Self {
-        Hatches::NoHatch(NoHatch {})
-    }
-
-    pub fn line() -> Self {
-        Hatches::LineHatch(LineHatch {})
-    }
-
-    pub fn cross() -> Self {
-        Hatches::CrossHatch(CrossHatch {})
-    }
-
-    pub fn radius(x: f64, y: f64) -> Self {
-        Hatches::RadiusHatch(RadiusHatch { x: x, y: y })
-    }
-
-    pub fn circle() -> Self {
-        Hatches::CircleHatch(CircleHatch {})
-    }
-
-    pub fn fasthex() -> Self {
-        Hatches::FastHex(FastHexHatch {})
-    }
-}
-
-impl HatchPattern for Hatches {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64, pen: f64) -> MultiLineString<f64> {
-        match self {
-            Hatches::NoHatch(_) => MultiLineString::new(vec![]),
-            Hatches::LineHatch(hatch) => hatch.generate(bbox, scale.clone(), pen),
-            Hatches::CrossHatch(hatch) => hatch.generate(bbox, scale.clone(), pen),
-            Hatches::RadiusHatch(hatch) => hatch.generate(bbox, scale.clone(), pen),
-            Hatches::CircleHatch(hatch) => hatch.generate(bbox, scale.clone(), pen),
-            Hatches::FastHex(hatch) => hatch.generate(bbox, scale.clone(), pen),
-        }
-    }
-}
-
 /// The no-hatch option
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct NoHatch {}
+
+impl NoHatch {
+    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
+        Arc::new(Box::new(Self::default()))
+    }
+}
 
 impl HatchPattern for NoHatch {
     fn generate(&self, _bbox: &Rect<f64>, _scale: f64, _pen: f64) -> MultiLineString<f64> {
@@ -205,8 +161,14 @@ impl HatchPattern for NoHatch {
 }
 
 /// The basic built in parallel LineHatch.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct LineHatch {}
+
+impl LineHatch {
+    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
+        Arc::new(Box::new(Self::default()))
+    }
+}
 
 impl HatchPattern for LineHatch {
     fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString<f64> {
@@ -236,8 +198,14 @@ impl HatchPattern for LineHatch {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct CrossHatch {}
+
+impl CrossHatch {
+    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
+        Arc::new(Box::new(Self::default()))
+    }
+}
 
 impl HatchPattern for CrossHatch {
     fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString<f64> {
@@ -283,11 +251,18 @@ impl HatchPattern for CrossHatch {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct RadiusHatch {
     pub x: f64,
     pub y: f64,
 }
+
+impl RadiusHatch {
+    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
+        Arc::new(Box::new(Self::default()))
+    }
+}
+
 impl HatchPattern for RadiusHatch {
     fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString {
         let (x1, y1) = bbox.min().x_y();
@@ -319,8 +294,79 @@ impl HatchPattern for RadiusHatch {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+pub enum SpiralDirection {
+    #[default]
+    Deasil,
+    Widdershins,
+}
+
+pub const CLOCKWISE: SpiralDirection = SpiralDirection::Deasil;
+pub const COUNTERCLOCKWISE: SpiralDirection = SpiralDirection::Widdershins;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+pub struct SpiralHatch {
+    pub x: f64,
+    pub y: f64,
+    pub direction: SpiralDirection,
+}
+
+impl SpiralHatch {
+    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
+        Arc::new(Box::new(Self::default()))
+    }
+}
+
+impl HatchPattern for SpiralHatch {
+    fn generate(&self, bbox: &Rect<f64>, scale: f64, pen: f64) -> MultiLineString {
+        let (x1, y1) = bbox.min().x_y();
+        let (x2, y2) = bbox.max().x_y();
+        // println!("Center for bbox is: {:?}", bbox.center());
+        let mut max_radius = 0.0f64;
+        let mut min_radius = scale / 2.; //f64::MAX;
+        for (x, y) in vec![(x1, y1), (x2, y1), (x2, y2), (x1, y2)] {
+            let tmp_rad = ((x - self.x).powi(2) + (y - self.y).powi(2)).sqrt();
+            if tmp_rad > max_radius {
+                max_radius = tmp_rad;
+            }
+            if tmp_rad < min_radius {
+                min_radius = tmp_rad;
+            }
+        }
+        let mut points: Vec<Coord> = vec![];
+        let mut r = min_radius;
+        let mut theta = 0.0_f64;
+
+        while r < max_radius {
+            // This keeps segment length around PI mm or less.
+            let ainc = (2. * PI / 16.).min(PI / r);
+            // println!("AINC: {}, YAINC: {}", ainc, ainc.sin() * r);
+            let r1 = r + (ainc / (2. * PI)) * scale;
+            let x = self.x + theta.cos() * r;
+            let y = self.y + theta.sin() * r;
+            theta = theta
+                + if self.direction == SpiralDirection::Widdershins {
+                    ainc
+                } else {
+                    -ainc
+                };
+            points.push(Coord { x: x, y: y });
+            r = r1;
+        }
+        // println!("Lines for radius fill are: {:?}", &lines);
+
+        MultiLineString::<f64>::new(vec![LineString::new(points)])
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct CircleHatch {}
+
+impl CircleHatch {
+    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
+        Arc::new(Box::new(Self::default()))
+    }
+}
 
 impl HatchPattern for CircleHatch {
     fn generate(&self, bbox: &Rect<f64>, scale: f64, pen: f64) -> MultiLineString {
@@ -329,7 +375,6 @@ impl HatchPattern for CircleHatch {
         let mut lines: Vec<LineString> = vec![];
         let mut ix: usize = 0;
         let mut x = x1 - 2. * scale;
-        let mut y = y1 - 2. * scale;
         let r2 = 2.0_f64.sqrt();
         while x < x2 + 2. * (scale + pen) {
             let (ofsx, ofsy) = if ix % 2 == 0 {
@@ -339,17 +384,25 @@ impl HatchPattern for CircleHatch {
                 (-scale + pen / 2., 0.)
             };
 
-            y = y1;
+            let mut y = y1 - scale;
             while y < y2 + 2. * (scale + pen) {
                 // println!("Adding circle at x:{}, y:{} @ofs:{:?}", x, y, (ofsx, ofsy));
                 let c = circle(x + ofsx, y + ofsy, scale / 2.);
                 if let GeoGeometry::Polygon(tmp_lines) = c.into() {
-                    lines.push(tmp_lines.exterior().clone());
+                    // Tricky. We reverse every other circle for better back and forth
+                    // optimization of hatch drawing.
+                    if ix % 2 == 0 {
+                        lines.push(tmp_lines.exterior().clone());
+                    } else {
+                        let mut tmp_lines = tmp_lines.exterior().clone();
+                        tmp_lines.0.reverse();
+                        lines.push(tmp_lines)
+                    }
                 }
                 y += scale + pen;
             }
             ix += 1;
-            x += (scale - pen * r2 / 2.);
+            x += scale - (pen * r2 / 2.);
         }
         // println!("Lines for radius fill are: {:?}", &lines);
 
@@ -357,11 +410,17 @@ impl HatchPattern for CircleHatch {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct FastHexHatch {}
 
+impl FastHexHatch {
+    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
+        Arc::new(Box::new(Self::default()))
+    }
+}
+
 impl HatchPattern for FastHexHatch {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64, pen: f64) -> MultiLineString {
+    fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString {
         let (x1, y1) = bbox.min().x_y();
         let (x2, y2) = bbox.max().x_y();
         let mut lines: Vec<LineString> = vec![];
@@ -430,7 +489,7 @@ fn gt_flatten_mlines(
 impl Hatch for MultiPolygon<f64> {
     fn hatch(
         &self,
-        pattern: Hatches,
+        pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
         angle: f64,
         scale: f64,
         pen: f64,
@@ -467,7 +526,7 @@ impl Hatch for MultiPolygon<f64> {
     }
 }
 
-fn dirty_inset(mls_geo: &mut geo_types::Geometry<f64>, inset: f64) {
+pub fn dirty_inset(mls_geo: &mut geo_types::Geometry<f64>, inset: f64) {
     // Only works for MultiLineString, eh?
     match mls_geo {
         geo_types::Geometry::MultiLineString(mls) => {
@@ -507,7 +566,7 @@ fn dirty_inset(mls_geo: &mut geo_types::Geometry<f64>, inset: f64) {
 impl Hatch for Polygon<f64> {
     fn hatch(
         &self,
-        pattern: Hatches,
+        pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
         angle: f64,
         scale: f64,
         pen: f64,
@@ -571,7 +630,7 @@ impl Hatch for Polygon<f64> {
         //     "Out Hatch lines geo is {:?}",
         //     hatched_object.to_wkt().unwrap()
         // );
-        let mut out: geo_types::Geometry<f64> = hatched_object
+        let out: geo_types::Geometry<f64> = hatched_object
             .try_into()
             .or(Err(InvalidHatchGeometry::InvalidResultGeometry))?;
         //dirty_inset(&mut out, scale.max(inset)); // Mutates in place.
@@ -639,7 +698,8 @@ mod test {
             vec![],
         );
         let hatches = poly
-            .hatch(Hatches::line(), 0.0, 5.0, 0.0)
+            //.hatch(Hatches::line(), 0.0, 5.0, 0.0)
+            .hatch(Arc::new(Box::new(LineHatch {})), 0.0, 5.0, 0.0)
             .expect("Failed to Ok the hatches.");
         //println!("Hatched object is: {:?}", hatches);
         assert!(hatches.0.len() == 7);
@@ -658,7 +718,7 @@ mod test {
             vec![],
         );
         let hatches = poly
-            .hatch(Hatches::line(), PI / 4.0, 5.0, 0.0)
+            .hatch(Arc::new(Box::new(LineHatch {})), PI / 4.0, 5.0, 0.0)
             .expect("Failed to Ok the hatches.");
         // println!("Angle-Hatched object is: {:?}", hatches);
         assert_eq!(hatches.0.len(), 8);
@@ -688,7 +748,7 @@ mod test {
         );
         let mpoly = MultiPolygon::<f64>::new(vec![poly1, poly2]);
         let _hatches = mpoly
-            .hatch(Hatches::line(), 0.0, 5.0, 0.0)
+            .hatch(Arc::new(Box::new(LineHatch {})), 0.0, 5.0, 0.0)
             .expect("Disjoint hatch failed");
         // println!("Disjoint hatch {:?}", hatches);
     }
@@ -711,7 +771,7 @@ mod test {
             vec![],
         );
         let hatches = poly
-            .hatch(Hatches::line(), 0.0, 5.0, 2.0)
+            .hatch(Arc::new(Box::new(LineHatch {})), 0.0, 5.0, 2.0)
             .expect("Disjoint hatch failed");
         println!(
             "Got these {} disjointed after inset lines: {:?}",
@@ -739,7 +799,7 @@ mod test {
             vec![],
         );
         let hatches = poly
-            .hatch(Hatches::line(), PI / 4.0, 5.0, 2.0)
+            .hatch(Arc::new(Box::new(LineHatch {})), PI / 4.0, 5.0, 2.0)
             .expect("Disjoint hatch failed");
         // println!(
         //     "Got these {} angled then disjointed after inset lines: {:?}",

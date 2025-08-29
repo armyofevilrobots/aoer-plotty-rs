@@ -219,6 +219,10 @@ impl PointDistance for LineRef {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use crate::prelude::LineHatch;
+
     use super::*;
     use geo_types::{coord, Polygon};
     use rstar::RTree;
@@ -232,7 +236,7 @@ mod tests {
             .fill("#000")
             .hatch(0.)
             .pen(0.5)
-            .pattern(crate::geo_types::hatch::Hatches::line());
+            .pattern(Arc::new(Box::new(LineHatch {})));
         let outer = LineString::new(vec![
             coord! {x:0., y:10.},
             coord! {x:14., y: 0.},
@@ -261,7 +265,7 @@ mod tests {
             .stroke("#000")
             .fill("#000")
             .hatch(0.)
-            .pattern(crate::geo_types::hatch::Hatches::line())
+            .pattern(Arc::new(Box::new(LineHatch {})))
             .circle(0., 0., 10.);
         let layers = ctx.to_layers();
         for layer in layers {
@@ -282,7 +286,7 @@ mod tests {
             .stroke("#000")
             .fill("#000")
             .hatch(0.)
-            .pattern(crate::geo_types::hatch::Hatches::line())
+            .pattern(Arc::new(Box::new(LineHatch {})))
             .circle(0., 0., 10.);
         let layers = ctx.to_layers();
         for layer in layers {

@@ -1,9 +1,10 @@
 use aoer_plotty_rs::context::typography::{TextAlignment, Typography};
 use aoer_plotty_rs::context::Context;
 use aoer_plotty_rs::geo_types::svg::Arrangement;
-use aoer_plotty_rs::prelude::Hatches;
+use aoer_plotty_rs::prelude::NoHatch;
 use geo_types::{coord, Rect};
 use std::path::Path;
+use std::sync::Arc;
 
 fn main() {
     let mut ctx = Context::new();
@@ -14,7 +15,7 @@ fn main() {
     ctx.stroke("black")
         .fill("red")
         .pen(0.5)
-        .pattern(Hatches::none())
+        .pattern(Arc::new(Box::new(NoHatch {})))
         // .pattern(LineHatch::gen())
         // .typography(&"i".to_string(), 50.0, 50.0, &typ);
         .typography(&"Left".to_string(), 50.0, 50.0, &typ);

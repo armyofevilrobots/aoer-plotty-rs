@@ -3,7 +3,7 @@ use aoer_plotty_rs::context::typography::Typography;
 use aoer_plotty_rs::context::Context as AOERCTX;
 use aoer_plotty_rs::elements::CarlsonSmithTruchet;
 use aoer_plotty_rs::geo_types::nannou::NannouDrawer;
-use aoer_plotty_rs::prelude::Hatches;
+use aoer_plotty_rs::prelude::{LineHatch, NoHatch};
 use geo_types::{Geometry, MultiLineString};
 use nannou::lyon::lyon_tessellation::LineJoin;
 use nannou::lyon::tessellation::LineCap;
@@ -11,6 +11,7 @@ use nannou::prelude::*;
 use nannou_egui::{self, egui, Egui};
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// All the stuff we want in the egui component
 #[derive(Clone, PartialEq)]
@@ -48,9 +49,11 @@ impl Model {
 
         ctx.pen(1.5).accuracy(0.3);
         if self.settings.draft {
-            ctx.pattern(Hatches::none());
+            //ctx.pattern(Hatches::none());
+            ctx.pattern(Arc::new(Box::new(NoHatch {})));
         } else {
-            ctx.pattern(Hatches::line());
+            //ctx.pattern(Hatches::line());
+            ctx.pattern(Arc::new(Box::new(LineHatch {})));
         }
         let mut typo = Typography::new();
         typo.size(4.5).align(Center);

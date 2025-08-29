@@ -1,7 +1,8 @@
 use aoer_plotty_rs::context::Context;
-use aoer_plotty_rs::prelude::{Arrangement, Hatches};
+use aoer_plotty_rs::prelude::{Arrangement, LineHatch};
 use std::f64::consts::PI;
 use std::path::Path;
+use std::sync::Arc;
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/hours-of-dark/
 
@@ -20,7 +21,7 @@ fn main() {
     ctx.stroke("black")
         .hatch(45.0)
         .pen(pen_width)
-        .pattern(Hatches::line())
+        .pattern(Arc::new(Box::new(LineHatch {})))
         .fill("black");
 
     for day in 0..days {

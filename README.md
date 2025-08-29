@@ -10,13 +10,23 @@ will likely expand into other areas as I find the need for my own creations.
 Based (extremely roughly) on [`shapely`] for Python for the geographic
 functions, with a splash of [`VSK`].
 
-*CAUTION: This isn't even Alpha quality yet, and I am poking away at it on
-my days off. May spontaneously explode, might take your plotter with it.*
+~~CAUTION: This isn't even Alpha quality yet, and I am poking away at it on
+my days off. May spontaneously explode, might take your plotter with it.*~~
 
 [`shapely`]: https://github.com/shapely/shapely
 [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 
 ## Changelog
+* 0.4.0. Breaking release, but for a good reason; we've got a better
+         hatching interface! I've added even more hatch patterns,
+         including a fast hexagon pattern that optimizes well, and
+         a spiral fill that goes deasil _and_ widdershins! Fill clipping
+         is a bit different now too, using a faster but more accurate
+         clipping method than before. The hatching enum is now a thing
+         of the past, allowing for more hatch patterns, and custom user
+         supplied hatch patterns too. I should probably have waited until
+         documentation was written, but I was excited to push this change,
+         so docs will come in 0.4.1 (maybe).
 * 0.3.2. Tons of hatch related changes. This is probably the last 0.3
          release before a big refactor to how the entire hatching system
          is dispatched. I was using a simple enum when I originally built
@@ -27,7 +37,6 @@ my days off. May spontaneously explode, might take your plotter with it.*
          hatches are rendered.
   * Also fixed a bug with insets...
   * and radically improve their efficiency.
-
 * 0.3.1. Add SketchyFilter and infrastructure to support arbitrary
          line filters, which modify the look of the lines sent to
          the plotter. Great for making "human" looking lines.

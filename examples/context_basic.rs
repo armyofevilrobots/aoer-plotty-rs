@@ -1,8 +1,9 @@
-use aoer_plotty_rs::context::Context;
 use aoer_plotty_rs::geo_types::svg::Arrangement;
-use aoer_plotty_rs::prelude::Hatches;
+use aoer_plotty_rs::prelude::NoHatch;
+use aoer_plotty_rs::{context::Context, prelude::LineHatch};
 use geo_types::{coord, Rect};
 use std::path::Path;
+use std::sync::Arc;
 
 fn main() {
     let mut ctx = Context::new();
@@ -16,7 +17,7 @@ fn main() {
             vec![],
         )
         .outline(None)
-        .pattern(Hatches::line())
+        .pattern(Arc::new(Box::new(LineHatch {})))
         .hatch(135.0)
         .stroke("blue")
         .fill("yellow")
@@ -29,7 +30,7 @@ fn main() {
         .pop()
         .unwrap()
         .hatch(0.0)
-        .pattern(Hatches::none())
+        .pattern(Arc::new(Box::new(LineHatch {})))
         .clip(true)
         .circle(7.5, 12.5, 2.5)
         .clip(false)
@@ -69,8 +70,8 @@ fn main() {
         .transform(Some(
             &(Context::translate_matrix(50.0, 50.0) * Context::scale_matrix(0.02, -0.02)),
         ))
-        .pattern(Hatches::none())
-        .pattern(Hatches::line())
+        .pattern(Arc::new(Box::new(NoHatch {})))
+        .pattern(Arc::new(Box::new(LineHatch {})))
         .glyph('Q', false);
 
     let svg = ctx

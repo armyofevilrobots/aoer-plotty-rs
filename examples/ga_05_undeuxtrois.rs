@@ -1,8 +1,8 @@
-use aoer_plotty_rs::prelude::{Arrangement, Hatches, OutlineFillStroke, ToSvg};
+use aoer_plotty_rs::prelude::{Arrangement, LineHatch, OutlineFillStroke, ToSvg};
 use geo::{translate::Translate, Rotate};
 use geo_types::{coord, point, LineString, MultiLineString, Rect};
 use rand::prelude::*;
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 // use aoer_plotty_rs::geo_types::buffer::{Buffer, OutlineStroke};
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/un-deux-trois/
@@ -86,7 +86,7 @@ fn main() {
                 .outline_fill_stroke_with_hatch(
                     stroke_mm,
                     pen_width,
-                    Hatches::line(),
+                    Arc::new(Box::new(LineHatch {})),
                     rot_angle + 90.0,
                 )
                 .unwrap(),

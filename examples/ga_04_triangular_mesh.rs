@@ -1,9 +1,10 @@
-use aoer_plotty_rs::prelude::{Arrangement, Hatch, Hatches, ToSvg};
+use aoer_plotty_rs::prelude::{Arrangement, Hatch, LineHatch, ToSvg};
 use geo_types::{coord, Coord, LineString, MultiLineString, MultiPolygon, Polygon, Rect};
 use nalgebra::{Affine2, Matrix3};
 use rand::prelude::SmallRng;
 use rand::{Rng, SeedableRng};
 use std::path::Path;
+use std::sync::Arc;
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/cubic-disarray/
 fn main() {
@@ -107,7 +108,7 @@ fn main() {
         .iter()
         .map(|p| {
             p.hatch(
-                Hatches::line(),
+                Arc::new(Box::new(LineHatch {})),
                 rng.gen::<f64>() * 90.0,
                 rng.gen::<f64>() * 1.0 + pen_width,
                 pen_width,
