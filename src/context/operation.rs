@@ -278,6 +278,12 @@ impl Operation {
         //     "Output fills for hatch {:?}: {:?}",
         //     &self.hatch_pattern, &fills
         // );
+        if self.stroke_color.is_none() {
+            outlines.0 = Vec::new();
+        }
+        if self.fill_color.is_none() {
+            fills.0 = Vec::new();
+        }
 
         if let Some(filter) = &self.stroke_filter {
             outlines = filter.apply(&outlines);

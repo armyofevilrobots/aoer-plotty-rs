@@ -45,8 +45,21 @@ impl Optimizer {
                     .last()
                     .expect("We already bounds checked this too!?")
                     .clone(),
-                self.max_keepdown.clone(),
+                self.max_keepdown * 2., //.clone(),
                 true,
+            ));
+            linerefs.push(LineRef::new(
+                *i,
+                line.0
+                    .last()
+                    .expect("We already bounds checked this?!")
+                    .clone(),
+                line.0
+                    .first()
+                    .expect("We already bounds checked this too!?")
+                    .clone(),
+                self.max_keepdown * 2., //.clone(),
+                false,
             ));
         }
 
@@ -133,9 +146,14 @@ impl Optimizer {
             };
             let mut found = false;
             for neighbor_ref in rtree.nearest_neighbor_iter(&[last.x, last.y]) {
-                if let Some(neighbor_line) = lines_hash.remove(&neighbor_ref.line_id) {
+                if let Some(mut neighbor_line) = lines_hash.remove(&neighbor_ref.line_id) {
                     found = true;
-                    lines_out.0.push(neighbor_line);
+                    if neighbor_ref.fwd {
+                        lines_out.0.push(neighbor_line);
+                    } else {
+                        neighbor_line.0.reverse();
+                        lines_out.0.push(neighbor_line);
+                    }
                     break;
                 }
             }

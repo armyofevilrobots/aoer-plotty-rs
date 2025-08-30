@@ -14,18 +14,18 @@ fn main() {
     let fills: Vec<Arc<Box<dyn HatchPattern>>> = vec![
         (Arc::new(Box::new(LineHatch {}))),
         (Arc::new(Box::new(CrossHatch {}))),
-        (Arc::new(Box::new(RadiusHatch { x: 180.0, y: 40.0 }))),
+        (Arc::new(Box::new(RadiusHatch { x: 160., y: 32.0 }))),
         (Arc::new(Box::new(CircleHatch {}))),
         (Arc::new(Box::new(FastHexHatch {}))),
-        (Arc::new(Box::new(RadiusHatch { x: 180.0, y: 40.0 }))),
+        (Arc::new(Box::new(RadiusHatch { x: 160., y: 32.0 }))),
         (Arc::new(Box::new(SpiralHatch {
-            x: 36.0,
-            y: 196.0,
+            x: 32.0,
+            y: 3. * 60.0,
             direction: SpiralDirection::Widdershins,
         }))),
         (Arc::new(Box::new(SpiralHatch {
-            x: 72. + 36.0,
-            y: 196.0,
+            x: 64. + 32.0,
+            y: 3. * 60.0,
             direction: SpiralDirection::Deasil,
         }))),
     ];
@@ -39,13 +39,13 @@ fn main() {
             .hatch(0.)
             .poly(
                 vec![
-                    ((i % 3) as f64 * 72. + 4., (i / 3) as f64 * 80. + 4.),
-                    ((i % 3) as f64 * 72. + 4. + 64., (i / 3) as f64 * 80. + 4.),
+                    ((i % 3) as f64 * 64. + 4., (i / 3) as f64 * 72. + 4.),
+                    ((i % 3) as f64 * 64. + 4. + 56., (i / 3) as f64 * 72. + 4.),
                     (
-                        (i % 3) as f64 * 72. + 64. + 4.,
-                        (i / 3) as f64 * 80. + 64. + 4.,
+                        (i % 3) as f64 * 64. + 56. + 4.,
+                        (i / 3) as f64 * 72. + 56. + 4.,
                     ),
-                    ((i % 3) as f64 * 72. + 4., (i / 3) as f64 * 80. + 4. + 64.),
+                    ((i % 3) as f64 * 64. + 4., (i / 3) as f64 * 72. + 4. + 56.),
                 ],
                 vec![],
             )
@@ -53,8 +53,8 @@ fn main() {
             .pattern(Arc::new(Box::new(NoHatch {})))
             .typography(
                 &format!("{:?}", pattern),
-                (i % 3) as f64 * 72. + 4.,
-                (i / 3) as f64 * 80. + 8. + 64.,
+                (i % 3) as f64 * 64. + 4.,
+                (i / 3) as f64 * 72. + 8. + 56.,
                 &Typography::new().size(1.2),
             );
     }
