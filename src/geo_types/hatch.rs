@@ -7,6 +7,7 @@ use geo::{Coord, Geometry as GeoGeometry, Simplify};
 use geo_offset::Offset;
 use geo_types::{coord, LineString, MultiLineString, MultiPolygon, Polygon, Rect};
 use geos::{Geom, Geometry};
+use rand::prelude::*;
 use rayon::prelude::IntoParallelRefIterator;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -457,6 +458,49 @@ impl HatchPattern for FastHexHatch {
         }
         // println!("Lines for radius fill are: {:?}", &lines);
 
+        MultiLineString::<f64>::new(lines)
+    }
+}
+
+/// The basic built in parallel GotoTenHatch.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
+pub struct GotoTenHatch {
+    seed: u64,
+}
+
+impl GotoTenHatch {
+    pub fn gen(seed: u64) -> Arc<Box<dyn HatchPattern>> {
+        Arc::new(Box::new(GotoTenHatch { seed }))
+    }
+}
+
+impl HatchPattern for GotoTenHatch {
+    fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString<f64> {
+        let min = bbox.min();
+        let max = bbox.max();
+        let mut y = min.y - scale;
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(self.seed);
+        // MultiLineString::<T>::new(
+        let mut lines: Vec<geo_types::LineString<f64>> = vec![];
+
+        while y < max.y + scale {
+            let mut x = min.x - scale;
+            while x < max.x + scale {
+                if rng.gen_bool(0.5) {
+                    lines.push(geo_types::LineString::<f64>::new(vec![
+                        coord! {x: x, y: y},
+                        coord! {x: x+scale, y: y+scale},
+                    ]));
+                } else {
+                    lines.push(geo_types::LineString::<f64>::new(vec![
+                        coord! {x: x, y: y+scale},
+                        coord! {x: x+scale, y: y},
+                    ]));
+                }
+                x += scale
+            }
+            y += scale;
+        }
         MultiLineString::<f64>::new(lines)
     }
 }
