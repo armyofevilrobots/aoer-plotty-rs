@@ -17,6 +17,8 @@ my days off. May spontaneously explode, might take your plotter with it.*~~
 [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 
 ## Changelog
+* 0.4.1. Added a new "GotoTen" fill pattern, like you used to do on
+         the good old C-64.
 * 0.4.0. Breaking release, but for a good reason; we've got a better
          hatching interface! I've added even more hatch patterns,
          including a fast hexagon pattern that optimizes well, and

@@ -319,7 +319,7 @@ impl SpiralHatch {
 }
 
 impl HatchPattern for SpiralHatch {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64, pen: f64) -> MultiLineString {
+    fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString {
         let (x1, y1) = bbox.min().x_y();
         let (x2, y2) = bbox.max().x_y();
         // println!("Center for bbox is: {:?}", bbox.center());
@@ -462,7 +462,13 @@ impl HatchPattern for FastHexHatch {
     }
 }
 
-/// The basic built in parallel GotoTenHatch.
+/// This is a hatch pattern that is reminiscent of the old C64 program
+/// that looked kinda like this:
+/// \/\\\/\
+/// /\//\/\
+/// \\\//\/
+/// ie:
+/// 10 PRINT CHR$(205.5+RND(1)); : GOTO 10
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct GotoTenHatch {
     seed: u64,
