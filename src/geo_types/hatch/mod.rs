@@ -1,20 +1,32 @@
 use crate::geo_types::buffer::Buffer;
-use crate::geo_types::shapes::circle;
 use embed_doc_image::embed_doc_image;
 use geo::bounding_rect::BoundingRect;
 use geo::rotate::Rotate;
-use geo::{Coord, Geometry as GeoGeometry, Simplify};
+use geo::Simplify;
 use geo_offset::Offset;
-use geo_types::{coord, LineString, MultiLineString, MultiPolygon, Polygon, Rect};
+use geo_types::{LineString, MultiLineString, MultiPolygon, Polygon, Rect};
 use geos::{Geom, Geometry};
-use rand::prelude::*;
+use rayon::iter::ParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use std::f64::consts::PI;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
+
+pub mod gototen;
+pub use gototen::GotoTenHatch;
+pub mod spiral;
+pub use spiral::{SpiralDirection, SpiralHatch};
+pub mod fasthex;
+pub use fasthex::FastHexHatch;
+pub mod radius;
+pub use radius::RadiusHatch;
+pub mod circles;
+pub use circles::CircleHatch;
+pub mod crosshatch;
+pub use crosshatch::CrossHatch;
+pub mod line;
+pub use line::LineHatch;
 
 /// Useful for converting a line into a polygon as if it were stroked. Only supports
 /// round caps and joins for now.
@@ -158,356 +170,6 @@ impl NoHatch {
 impl HatchPattern for NoHatch {
     fn generate(&self, _bbox: &Rect<f64>, _scale: f64, _pen: f64) -> MultiLineString<f64> {
         MultiLineString::new(vec![])
-    }
-}
-
-/// The basic built in parallel LineHatch.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
-pub struct LineHatch {}
-
-impl LineHatch {
-    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
-        Arc::new(Box::new(Self::default()))
-    }
-}
-
-impl HatchPattern for LineHatch {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString<f64> {
-        let min = bbox.min();
-        let max = bbox.max();
-        let mut y = min.y;
-        let mut count = 0u32;
-        // MultiLineString::<T>::new(
-        let mut lines: Vec<geo_types::LineString<f64>> = vec![];
-        while y < max.y {
-            if count % 2 == 0 {
-                lines.push(geo_types::LineString::<f64>::new(vec![
-                    coord! {x: min.x, y: y},
-                    coord! {x: max.x, y: y},
-                ]));
-            } else {
-                lines.push(geo_types::LineString::<f64>::new(vec![
-                    coord! {x: max.x, y: y},
-                    coord! {x: min.x, y: y},
-                ]));
-            }
-            y += scale;
-            count += 1;
-        }
-        let out = MultiLineString::<f64>::new(lines);
-        out
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
-pub struct CrossHatch {}
-
-impl CrossHatch {
-    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
-        Arc::new(Box::new(Self::default()))
-    }
-}
-
-impl HatchPattern for CrossHatch {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString<f64> {
-        let min = bbox.min();
-        let max = bbox.max();
-        let mut y = min.y;
-        let mut count = 0u32;
-        let mut lines: Vec<geo_types::LineString<f64>> = vec![];
-        while y < max.y {
-            if count % 2 == 0 {
-                lines.push(geo_types::LineString::<f64>::new(vec![
-                    coord! {x: min.x, y: y},
-                    coord! {x: max.x, y: y},
-                ]));
-            } else {
-                lines.push(geo_types::LineString::<f64>::new(vec![
-                    coord! {x: max.x, y: y},
-                    coord! {x: min.x, y: y},
-                ]));
-            }
-            y += scale;
-            count += 1;
-        }
-        let mut x = min.x;
-        count = 0u32;
-        while x < max.x {
-            if count % 2 == 0 {
-                lines.push(geo_types::LineString::<f64>::new(vec![
-                    coord! {x: x, y: min.y},
-                    coord! {x: x, y: max.y},
-                ]));
-            } else {
-                lines.push(geo_types::LineString::<f64>::new(vec![
-                    coord! {x: x, y: max.y},
-                    coord! {x: x, y: min.y},
-                ]));
-            }
-            x += scale;
-            count += 1;
-        }
-        //println!("HATCH LINES ARE: {:?}", &lines);
-        MultiLineString::<f64>::new(lines)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-pub struct RadiusHatch {
-    pub x: f64,
-    pub y: f64,
-}
-
-impl RadiusHatch {
-    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
-        Arc::new(Box::new(Self::default()))
-    }
-}
-
-impl HatchPattern for RadiusHatch {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString {
-        let (x1, y1) = bbox.min().x_y();
-        let (x2, y2) = bbox.max().x_y();
-        // println!("Center for bbox is: {:?}", bbox.center());
-        let mut max_radius = 0.0f64;
-        let mut min_radius = scale / 2.; //f64::MAX;
-        for (x, y) in vec![(x1, y1), (x2, y1), (x2, y2), (x1, y2)] {
-            let tmp_rad = ((x - self.x).powi(2) + (y - self.y).powi(2)).sqrt();
-            if tmp_rad > max_radius {
-                max_radius = tmp_rad;
-            }
-            if tmp_rad < min_radius {
-                min_radius = tmp_rad;
-            }
-        }
-        let mut lines: Vec<LineString> = vec![];
-        let mut r = min_radius;
-        while r < max_radius {
-            let c = circle(self.x, self.y, r);
-            if let GeoGeometry::Polygon(tmp_lines) = c.into() {
-                lines.push(tmp_lines.exterior().clone());
-            }
-            r += scale;
-        }
-        // println!("Lines for radius fill are: {:?}", &lines);
-
-        MultiLineString::<f64>::new(lines)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-pub enum SpiralDirection {
-    #[default]
-    Deasil,
-    Widdershins,
-}
-
-pub const CLOCKWISE: SpiralDirection = SpiralDirection::Deasil;
-pub const COUNTERCLOCKWISE: SpiralDirection = SpiralDirection::Widdershins;
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-pub struct SpiralHatch {
-    pub x: f64,
-    pub y: f64,
-    pub direction: SpiralDirection,
-}
-
-impl SpiralHatch {
-    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
-        Arc::new(Box::new(Self::default()))
-    }
-}
-
-impl HatchPattern for SpiralHatch {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString {
-        let (x1, y1) = bbox.min().x_y();
-        let (x2, y2) = bbox.max().x_y();
-        // println!("Center for bbox is: {:?}", bbox.center());
-        let mut max_radius = 0.0f64;
-        let mut min_radius = scale / 2.; //f64::MAX;
-        for (x, y) in vec![(x1, y1), (x2, y1), (x2, y2), (x1, y2)] {
-            let tmp_rad = ((x - self.x).powi(2) + (y - self.y).powi(2)).sqrt();
-            if tmp_rad > max_radius {
-                max_radius = tmp_rad;
-            }
-            if tmp_rad < min_radius {
-                min_radius = tmp_rad;
-            }
-        }
-        let mut points: Vec<Coord> = vec![];
-        let mut r = min_radius;
-        let mut theta = 0.0_f64;
-
-        while r < max_radius {
-            // This keeps segment length around PI mm or less.
-            let ainc = (2. * PI / 16.).min(PI / r);
-            // println!("AINC: {}, YAINC: {}", ainc, ainc.sin() * r);
-            let r1 = r + (ainc / (2. * PI)) * scale;
-            let x = self.x + theta.cos() * r;
-            let y = self.y + theta.sin() * r;
-            theta = theta
-                + if self.direction == SpiralDirection::Widdershins {
-                    ainc
-                } else {
-                    -ainc
-                };
-            points.push(Coord { x: x, y: y });
-            r = r1;
-        }
-        // println!("Lines for radius fill are: {:?}", &lines);
-
-        MultiLineString::<f64>::new(vec![LineString::new(points)])
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
-pub struct CircleHatch {}
-
-impl CircleHatch {
-    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
-        Arc::new(Box::new(Self::default()))
-    }
-}
-
-impl HatchPattern for CircleHatch {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64, pen: f64) -> MultiLineString {
-        let (x1, y1) = bbox.min().x_y();
-        let (x2, y2) = bbox.max().x_y();
-        let mut lines: Vec<LineString> = vec![];
-        let mut ix: usize = 0;
-        let mut x = x1 - 2. * scale;
-        let r2 = 2.0_f64.sqrt();
-        while x < x2 + 2. * (scale + pen) {
-            let (ofsx, ofsy) = if ix % 2 == 0 {
-                (scale - pen, -(scale + pen * r2) * r2)
-            } else {
-                //(-(scale - pen), 0.)
-                (-scale + pen / 2., 0.)
-            };
-
-            let mut y = y1 - scale;
-            while y < y2 + 2. * (scale + pen) {
-                // println!("Adding circle at x:{}, y:{} @ofs:{:?}", x, y, (ofsx, ofsy));
-                let c = circle(x + ofsx, y + ofsy, scale / 2.);
-                if let GeoGeometry::Polygon(tmp_lines) = c.into() {
-                    // Tricky. We reverse every other circle for better back and forth
-                    // optimization of hatch drawing.
-                    if ix % 2 == 0 {
-                        lines.push(tmp_lines.exterior().clone());
-                    } else {
-                        let mut tmp_lines = tmp_lines.exterior().clone();
-                        tmp_lines.0.reverse();
-                        lines.push(tmp_lines)
-                    }
-                }
-                y += scale + pen;
-            }
-            ix += 1;
-            x += scale - (pen * r2 / 2.);
-        }
-        // println!("Lines for radius fill are: {:?}", &lines);
-
-        MultiLineString::<f64>::new(lines)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
-pub struct FastHexHatch {}
-
-impl FastHexHatch {
-    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
-        Arc::new(Box::new(Self::default()))
-    }
-}
-
-impl HatchPattern for FastHexHatch {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString {
-        let (x1, y1) = bbox.min().x_y();
-        let (x2, y2) = bbox.max().x_y();
-        let mut lines: Vec<LineString> = vec![];
-        let mut ix: usize = 0;
-        let mut x = x1 - 2. * scale;
-        let sidelen = scale / 2.;
-        let rin = scale * (PI / 6.).cos() / 2.;
-        // println!("SIDELEN: {} , RIN: {} , ", sidelen, rin);
-
-        while x <= x2 + scale {
-            let (inc, mul) = if ix % 2 == 0 {
-                (rin * 2., 1.)
-            } else {
-                (0.0, -1.)
-            };
-            let mut y = y1 - 2. * scale;
-            let mut aline: LineString<f64> = LineString::new(vec![]);
-            while y <= y2 + scale {
-                // y2 + 2. * scale {
-                aline.0.push(coord! {x:x, y:y});
-                aline.0.push(coord! {x:x+mul*rin, y: y+sidelen/2.});
-                aline.0.push(coord! {x:x+mul*rin, y: y+sidelen/2.+sidelen});
-                aline.0.push(coord! {x:x, y: y+scale});
-                aline.0.push(coord! {x:x, y: y+scale+sidelen});
-                y = y + scale + sidelen;
-            }
-            // println!("ALINE: {:?}", &aline);
-            if ix % 2 != 0 {
-                aline.0.reverse();
-            }
-            lines.push(aline);
-            ix += 1;
-            x += inc + 0.00001; // We do slightly over the inc, to ensure no overlapping lines.
-        }
-        // println!("Lines for radius fill are: {:?}", &lines);
-
-        MultiLineString::<f64>::new(lines)
-    }
-}
-
-/// This is a hatch pattern that is reminiscent of the old C64 program
-/// that looked kinda like this:
-/// \/\\\/\
-/// /\//\/\
-/// \\\//\/
-/// ie:
-/// 10 PRINT CHR$(205.5+RND(1)); : GOTO 10
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
-pub struct GotoTenHatch {
-    seed: u64,
-}
-
-impl GotoTenHatch {
-    pub fn gen(seed: u64) -> Arc<Box<dyn HatchPattern>> {
-        Arc::new(Box::new(GotoTenHatch { seed }))
-    }
-}
-
-impl HatchPattern for GotoTenHatch {
-    fn generate(&self, bbox: &Rect<f64>, scale: f64, _pen: f64) -> MultiLineString<f64> {
-        let min = bbox.min();
-        let max = bbox.max();
-        let mut y = min.y - scale;
-        let mut rng = rand::rngs::SmallRng::seed_from_u64(self.seed);
-        // MultiLineString::<T>::new(
-        let mut lines: Vec<geo_types::LineString<f64>> = vec![];
-
-        while y < max.y + scale {
-            let mut x = min.x - scale;
-            while x < max.x + scale {
-                if rng.gen_bool(0.5) {
-                    lines.push(geo_types::LineString::<f64>::new(vec![
-                        coord! {x: x, y: y},
-                        coord! {x: x+scale, y: y+scale},
-                    ]));
-                } else {
-                    lines.push(geo_types::LineString::<f64>::new(vec![
-                        coord! {x: x, y: y+scale},
-                        coord! {x: x+scale, y: y},
-                    ]));
-                }
-                x += scale
-            }
-            y += scale;
-        }
-        MultiLineString::<f64>::new(lines)
     }
 }
 
@@ -697,6 +359,7 @@ impl Hatch for Polygon<f64> {
 mod test {
     use super::Hatch;
     use super::*;
+    use geo::coord;
     use geos::Geometry;
     use std::f64::consts::PI;
 

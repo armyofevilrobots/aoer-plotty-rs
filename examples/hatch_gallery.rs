@@ -1,8 +1,8 @@
 use aoer_plotty_rs::context::{typography::Typography, Context};
 use aoer_plotty_rs::geo_types::svg::Arrangement;
 use aoer_plotty_rs::prelude::{
-    CircleHatch, CrossHatch, FastHexHatch, HatchPattern, LineHatch, NoHatch, RadiusHatch,
-    SpiralDirection, SpiralHatch,
+    CircleHatch, CrossHatch, FastHexHatch, GotoTenHatch, HatchPattern, LineHatch, NoHatch,
+    RadiusHatch, SpiralDirection, SpiralHatch,
 };
 use geo_types::{coord, Rect};
 use std::path::Path;
@@ -12,7 +12,7 @@ fn main() {
     let mut ctx = Context::new();
 
     let fills: Vec<Arc<Box<dyn HatchPattern>>> = vec![
-        (Arc::new(Box::new(LineHatch {}))),
+        Arc::new(Box::new(LineHatch {})),
         (Arc::new(Box::new(CrossHatch {}))),
         (Arc::new(Box::new(RadiusHatch { x: 160., y: 32.0 }))),
         (Arc::new(Box::new(CircleHatch {}))),
@@ -28,6 +28,7 @@ fn main() {
             y: 3. * 60.0,
             direction: SpiralDirection::Deasil,
         }))),
+        GotoTenHatch::gen(0),
     ];
 
     for (i, pattern) in fills.iter().enumerate() {
