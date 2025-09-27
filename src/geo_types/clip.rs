@@ -37,7 +37,9 @@ pub trait LineClip {
 
 /// Helper function to map geos geoms from geo_types geom. Public, but no promises that it
 /// stays stable.
-pub fn try_to_geos_geometry(geometry: &Geometry<f64>) -> Result<geos::Geometry<'_>, Box<dyn Error>> {
+pub fn try_to_geos_geometry(
+    geometry: &Geometry<f64>,
+) -> Result<geos::Geometry<'_>, Box<dyn Error>> {
     Ok(match geometry {
         Geometry::LineString(line) => geos::Geometry::try_from(line),
         Geometry::Polygon(poly) => geos::Geometry::try_from(poly),
@@ -53,7 +55,7 @@ pub fn try_to_geos_geometry(geometry: &Geometry<f64>) -> Result<geos::Geometry<'
                 .collect(),
         ),
         _ => Err(geos::Error::InvalidGeometry(
-            "Wrong type of geometry".into(),
+            format!("Wrong type of 'try into' geometry: {:?}", geometry).into(),
         )),
     }?)
 }
@@ -74,8 +76,22 @@ impl LineClip for Geometry<f64> {
                     })
                     .collect(),
             ),
+            Geometry::GeometryCollection(geom_collection) => {
+                // lines.0.append(&mut geom.clipwith(clipobj)?.0);
+                let mut child_geoms = geom_collection
+                    .0
+                    .iter()
+                    .map(|geom| {
+                        try_to_geos_geometry(geom).unwrap_or(
+                            geos::Geometry::create_empty_line_string()
+                                .expect("Failed to create empty linestring"),
+                        )
+                    })
+                    .collect();
+                geos::Geometry::create_geometry_collection(child_geoms)
+            }
             _ => Err(geos::Error::InvalidGeometry(
-                "Wrong type of geometry".into(),
+                format!("Wrong type of Geometry<f64> geometry: {:?}", self).into(),
             )),
         }?;
 
@@ -86,7 +102,7 @@ impl LineClip for Geometry<f64> {
             Geometry::Polygon(poly) => geos::Geometry::try_from(poly),
             Geometry::MultiPolygon(polys) => geos::Geometry::try_from(polys),
             _ => Err(geos::Error::InvalidGeometry(
-                "Wrong type of geometry".into(),
+                "Wrong type of clipping geometry".into(),
             )),
         }?;
         let clipped_self = geo_self.difference(&geo_clipping_obj)?;
@@ -127,8 +143,15 @@ impl LineClip for Geometry<f64> {
                     })
                     .collect(),
             ),
+            Geometry::GeometryCollection(geom_collection) => {
+                let mut lines = MultiLineString::empty();
+                for geom in geom_collection {
+                    lines.0.append(&mut geom.clipwith(maskobj)?.0);
+                }
+                geos::Geometry::try_from(lines)
+            }
             _ => Err(geos::Error::InvalidGeometry(
-                "Wrong type of geometry".into(),
+                "Wrong type of masking geometry".into(),
             )),
         }?;
 
@@ -139,15 +162,22 @@ impl LineClip for Geometry<f64> {
             Geometry::Polygon(poly) => geos::Geometry::try_from(poly),
             Geometry::MultiPolygon(polys) => geos::Geometry::try_from(polys),
             _ => Err(geos::Error::InvalidGeometry(
-                "Wrong type of geometry".into(),
+                "Wrong type of mask geometry".into(),
             )),
         }?;
         let masked_self = geo_self.intersection(&geo_masking_obj)?;
         let gt_out: geo_types::Geometry<f64> = geo_types::Geometry::try_from(masked_self)?;
+        // println!("GT OUT IS: {:?}", &gt_out);
 
         match gt_out {
             geo_types::Geometry::MultiLineString(mls) => Ok(mls),
             geo_types::Geometry::LineString(ls) => Ok(MultiLineString::new(vec![ls.clone()])),
+            geo_types::Geometry::Polygon(poly) => {
+                let mut mls = MultiLineString::empty();
+                mls.0.push(poly.exterior().clone());
+                mls.0.extend_from_slice(poly.interiors());
+                Ok(mls)
+            }
             geo_types::Geometry::GeometryCollection(gc) => {
                 let foo = gc
                     .iter()

@@ -1,8 +1,9 @@
 use aoer_plotty_rs::context::{typography::Typography, Context};
+use aoer_plotty_rs::elements::CarlsonSmithTruchet;
 use aoer_plotty_rs::geo_types::svg::Arrangement;
 use aoer_plotty_rs::prelude::{
     CircleHatch, CrossHatch, FastHexHatch, GotoTenHatch, HatchPattern, LineHatch, NoHatch,
-    RadiusHatch, SpiralDirection, SpiralHatch,
+    RadiusHatch, SpiralDirection, SpiralHatch, TruchetHatch,
 };
 use geo_types::{coord, Rect};
 use std::path::Path;
@@ -13,28 +14,30 @@ fn main() {
 
     let fills: Vec<Arc<Box<dyn HatchPattern>>> = vec![
         Arc::new(Box::new(LineHatch {})),
-        (Arc::new(Box::new(CrossHatch {}))),
-        (Arc::new(Box::new(RadiusHatch { x: 160., y: 32.0 }))),
-        (Arc::new(Box::new(CircleHatch {}))),
-        (Arc::new(Box::new(FastHexHatch {}))),
-        (Arc::new(Box::new(RadiusHatch { x: 160., y: 32.0 }))),
-        (Arc::new(Box::new(SpiralHatch {
+        Arc::new(Box::new(CrossHatch {})),
+        Arc::new(Box::new(RadiusHatch { x: 160., y: 32.0 })),
+        Arc::new(Box::new(CircleHatch {})),
+        Arc::new(Box::new(FastHexHatch {})),
+        Arc::new(Box::new(RadiusHatch { x: 160., y: 32.0 })),
+        Arc::new(Box::new(SpiralHatch {
             x: 32.0,
             y: 3. * 60.0,
             direction: SpiralDirection::Widdershins,
-        }))),
-        (Arc::new(Box::new(SpiralHatch {
+        })),
+        Arc::new(Box::new(SpiralHatch {
             x: 64. + 32.0,
             y: 3. * 60.0,
             direction: SpiralDirection::Deasil,
-        }))),
+        })),
         GotoTenHatch::gen(0),
+        TruchetHatch::minimal_line(10.),
+        CarlsonSmithTruchet::into_hatch(10., Some(0.25)),
     ];
 
     for (i, pattern) in fills.iter().enumerate() {
         ctx.stroke("black")
             .fill("black")
-            .pen(0.25)
+            .pen(0.5)
             .pattern(pattern.clone())
             .hatch_scale(Some(3.))
             .hatch(0.)

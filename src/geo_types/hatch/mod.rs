@@ -27,6 +27,8 @@ pub mod crosshatch;
 pub use crosshatch::CrossHatch;
 pub mod line;
 pub use line::LineHatch;
+pub mod truchet;
+pub use truchet::*;
 
 /// Useful for converting a line into a polygon as if it were stroked. Only supports
 /// round caps and joins for now.

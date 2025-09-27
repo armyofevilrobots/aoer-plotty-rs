@@ -172,7 +172,7 @@ impl Operation {
         coord!(x: out.x, y: out.y)
     }
 
-    fn help_render_geo(
+    pub fn help_render_geo(
         txgeo: &Geometry<f64>,
         pen_width: f64,
         hatch_angle: f64,
@@ -233,7 +233,7 @@ impl Operation {
         }
     }
 
-    fn vectorize_flat_geo(geo: &Geometry<f64>) -> Vec<Geometry<f64>> {
+    pub fn vectorize_flat_geo(geo: &Geometry<f64>) -> Vec<Geometry<f64>> {
         let mut out: Vec<Geometry<f64>> = vec![];
         out.append(&mut match geo {
             Geometry::Point(p) => vec![Geometry::Point(p.clone())],

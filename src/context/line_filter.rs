@@ -5,6 +5,7 @@ use geo::line_measures::Densifiable;
 use geo::Geometry;
 use geo::{Coord, GeometryCollection, MapCoordsInPlace, MultiLineString};
 use geo::{Euclidean, Polygon};
+// TODO: Switch this to using the parent crate instead.
 use nannou::noise::{NoiseFn, Perlin};
 use rand::{thread_rng, Rng};
 

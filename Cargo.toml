@@ -1,15 +1,17 @@
 [package]
 name = "aoer-plotty-rs"
 description = "A variety of utilities for creating pen-plotter based artwork."
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 license = "MIT"
 homepage = "https://github.com/armyofevilrobots/aoer-plotty-rs"
 repository = "https://github.com/armyofevilrobots/aoer-plotty-rs"
+readme = "README.md"
 
 [dependencies]
 anyhow = "1.0"
 font = "0.4"
+voronoice="0.2.0"
 serialport = "4.0.1"
 geo-types = { version = "0.7", features = ["serde"] }
 geo = "0.30"
@@ -19,6 +21,7 @@ geo-clipper = "0.7"
 num-traits = "0.2"
 nannou = "0.18"
 nannou_egui = "0.5"
+noise="0.7"
 num = "0.4"
 embed-doc-image = "0.1"
 tera = "1"
