@@ -14,11 +14,11 @@ fn main() {
         .seed(1)
         .coord_scale(100.)
         .point_prob(0.5)
-        .density(0.1)
         .bounds(rect.clone())
         .build();
 
     let circles: Vec<Geometry> = pf
+        .take(3000)
         .map(|point| {
             point
                 .offset(0.5)
@@ -27,6 +27,7 @@ fn main() {
         })
         .collect();
     let circles = Geometry::GeometryCollection(GeometryCollection::new_from(circles));
+
     ctx.stroke("black")
         .pattern(NoHatch::gen())
         .geometry(&Geometry::Rect(rect))
@@ -41,6 +42,42 @@ fn main() {
         .fill("black")
         .pattern(NoHatch::gen())
         .mask_box(10., 10., 110., 110.)
+        .geometry(&circles);
+
+    let rect = Rect::new(Coord { x: 120., y: 10. }, Coord { x: 220., y: 110. });
+    let hf = HaltonPointFieldBuilder::new()
+        .seed(1)
+        .bounds(rect.clone())
+        .build();
+
+    let circles: Vec<Geometry> = hf
+        .take(3000)
+        .map(|point| {
+            point
+                .offset(0.5)
+                .expect("Should always be able to offset a point.")
+                .into()
+        })
+        .collect();
+    let circles = Geometry::GeometryCollection(GeometryCollection::new_from(circles));
+
+    ctx.set_mask(&None)
+        .stroke("black")
+        .stroke("black")
+        .pen(0.2)
+        .pattern(NoHatch::gen())
+        .geometry(&Geometry::Rect(rect).clone())
+        .pen(0.2)
+        .typography(
+            &"HaltonPointField".to_string(),
+            // &"FIELD".to_string(),
+            120.,
+            115.,
+            &Typography::new().size(1.2),
+        )
+        .fill("black")
+        .pattern(NoHatch::gen())
+        .mask_box(120., 10., 230., 110.)
         .geometry(&circles);
 
     let svg = ctx

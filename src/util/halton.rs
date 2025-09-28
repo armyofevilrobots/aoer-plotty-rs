@@ -28,6 +28,13 @@ impl HaltonSequence {
             ..HaltonSequence::default()
         }
     }
+
+    pub fn seed(mut self, seed: usize) -> HaltonSequence {
+        for _i in 0..seed {
+            _ = self.next();
+        }
+        self
+    }
 }
 
 impl Iterator for HaltonSequence {
