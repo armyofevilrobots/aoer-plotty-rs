@@ -1,5 +1,5 @@
 use super::HatchPattern;
-use geo_types::{coord, LineString, MultiLineString, Rect};
+use geo_types::{coord, MultiLineString, Rect};
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;

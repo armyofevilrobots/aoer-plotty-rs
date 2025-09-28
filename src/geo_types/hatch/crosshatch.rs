@@ -1,20 +1,8 @@
 use super::HatchPattern;
-use crate::geo_types::buffer::Buffer;
-use crate::geo_types::shapes::circle;
-use embed_doc_image::embed_doc_image;
-use geo::bounding_rect::BoundingRect;
-use geo::rotate::Rotate;
-use geo::{Coord, Geometry as GeoGeometry, Simplify};
-use geo_offset::Offset;
-use geo_types::{coord, LineString, MultiLineString, MultiPolygon, Polygon, Rect};
-use geos::{Geom, Geometry};
-use rand::prelude::*;
-use rayon::prelude::IntoParallelRefIterator;
-use rayon::prelude::*;
+use geo_types::{coord, MultiLineString, Rect};
+// use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-use std::f64::consts::PI;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::Debug;
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]

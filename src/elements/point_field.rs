@@ -1,4 +1,3 @@
-use geo::Coord;
 use geo_types::{Point, Rect};
 use noise::{NoiseFn, Perlin, Seedable};
 use rand::prelude::*;
@@ -206,14 +205,14 @@ pub mod test {
 
     #[test]
     fn test_perlin_field() {
-        let mut pf = PerlinPointFieldBuilder::new()
+        let pf = PerlinPointFieldBuilder::new()
             .seed(1)
             .coord_scale(100.)
             .point_prob(0.5)
             .density(0.01)
             .bounds(Rect::new(
-                Coord { x: 0., y: 0. },
-                Coord { x: 100., y: 100. },
+                geo::Coord { x: 0., y: 0. },
+                geo::Coord { x: 100., y: 100. },
             ))
             .build();
 

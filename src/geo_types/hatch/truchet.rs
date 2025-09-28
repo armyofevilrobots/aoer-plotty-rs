@@ -1,20 +1,10 @@
 use super::HatchPattern;
-use crate::elements::CarlsonSmithTruchet;
-use crate::geo_types::buffer::Buffer;
-use embed_doc_image::embed_doc_image;
-use geo::bounding_rect::BoundingRect;
-use geo::rotate::Rotate;
-use geo::{Coord, MapCoords, MapCoordsInPlace, Simplify};
-use geo_offset::Offset;
-use geo_types::{LineString, MultiLineString, MultiPolygon, Polygon, Rect};
-use geos::{Geom, Geometry};
+use geo::{Coord, MapCoords, MapCoordsInPlace};
+use geo_types::{LineString, MultiLineString, Rect};
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
-use rayon::iter::ParallelIterator;
-use rayon::prelude::IntoParallelRefIterator;
-use serde::{Deserialize, Serialize};
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
+use serde::Deserialize;
+use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
 /// A repeating Truchet hatch, optionally with multiple tiles which
@@ -122,7 +112,7 @@ impl HatchPattern for TruchetHatch {
 mod test {
     use super::HatchPattern;
     use super::TruchetHatch;
-    use geo::{coord, Coord, LineString, MultiLineString, Rect};
+    use geo::{Coord, LineString, MultiLineString, Rect};
 
     #[test]
     pub fn test_simple() {
@@ -136,7 +126,7 @@ mod test {
             tile_size: (10., 10.),
         };
 
-        let out = hatch.generate(
+        let _out = hatch.generate(
             &Rect::new(Coord { x: -10., y: -10. }, Coord { x: 30., y: 30. }),
             10.,
             0.5,
