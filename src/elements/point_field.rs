@@ -1,109 +1,203 @@
-use crate::geo_types::boolean::BooleanOp;
-use crate::geo_types::buffer::Buffer;
-use crate::geo_types::clip::LineClip;
-use crate::geo_types::shapes::arc_center;
-use crate::prelude::{HatchPattern, TruchetHatch};
-use geo::algorithm::rotate::Rotate;
-use geo::{Area, Coord, MultiLineString, MultiPolygon, Scale, Translate};
-use geo_offset::Offset;
-use geo_types::{coord, point, Geometry, GeometryCollection, LineString, Point, Rect};
+use geo::Coord;
+use geo_types::{Point, Rect};
 use noise::{NoiseFn, Perlin, Seedable};
 use rand::prelude::*;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
-use std::rc::Rc;
-use std::sync::Arc;
+use std::fmt::{Debug, Formatter};
 
-pub trait PointField: Debug + Send + Sync {
-    fn points(&self) -> Option<Vec<Point>> {
-        Some(Vec::new())
-    }
+pub trait PointField: Debug + Send + Sync + Iterator {}
 
-    fn bounds(&self) -> Option<Rect<f64>>;
-
-    fn generate(&mut self, rec: &Rect<f64>) {}
-}
-
-#[derive(Serialize, Deserialize, Default)]
 pub struct PerlinPointField {
     seed: u32,
     coord_scale: f64,
-    prob_scale: f64,
+    point_prob: f64,
     density: f64,
-    points: Option<Vec<Point<f64>>>,
     bounds: Option<Rect<f64>>,
+    iter_count: usize,
+    iter_limit: usize,
+    iter_perlin: Option<Perlin>,
+    iter_rng: Option<SmallRng>,
 }
 
-impl PerlinPointField {
-    pub fn new(seed: u32, coord_scale: f64, prob_scale: f64, density: f64) -> Self {
-        Self {
-            seed,
-            coord_scale,
-            prob_scale,
-            density,
-            points: None,
+pub struct PerlinPointFieldBuilder {
+    field: Box<PerlinPointField>,
+}
+
+impl Default for PerlinPointField {
+    fn default() -> PerlinPointField {
+        PerlinPointField {
+            seed: 0u32,
+            coord_scale: 1.,
+            point_prob: 0.5,
+            density: 0.1,
             bounds: None,
+            iter_count: 0,
+            iter_limit: 1,
+            iter_perlin: None,
+            iter_rng: None,
+        }
+    }
+}
+
+impl Iterator for PerlinPointField {
+    type Item = Point;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.bounds.is_none()
+            || self.iter_rng.is_none()
+            || self.iter_perlin.is_none()
+            || self.iter_count >= self.iter_limit
+        {
+            return None;
+        }
+        let min = self.bounds.unwrap().min();
+
+        loop {
+            let (x, y) = self.iter_rng.as_mut().unwrap().gen::<(f64, f64)>();
+            let x = x * self.bounds.unwrap().width() + min.x;
+            let y = y * self.bounds.unwrap().height() + min.y;
+            let prob = self
+                .iter_perlin
+                .unwrap()
+                .get([x * self.coord_scale, y * self.coord_scale]);
+            self.iter_count += 1;
+            if prob >= self.point_prob {
+                return Some(Point::new(x, y));
+            } else if self.iter_count > self.iter_limit {
+                return None;
+            }
+        }
+    }
+}
+
+impl PerlinPointFieldBuilder {
+    pub fn new() -> Self {
+        PerlinPointFieldBuilder {
+            field: Box::new(PerlinPointField::default()),
+        }
+    }
+    pub fn bounds(self, bounds: Rect) -> Self {
+        let new = Self {
+            field: Box::new(PerlinPointField {
+                bounds: Some(bounds),
+                ..*self.field
+            }),
+        };
+        new
+    }
+
+    pub fn seed(self, seed: u32) -> Self {
+        let new = Self {
+            field: Box::new(PerlinPointField {
+                seed,
+                ..*self.field
+            }),
+        };
+        new
+    }
+
+    pub fn coord_scale(self, coord_scale: f64) -> Self {
+        let new = Self {
+            field: Box::new(PerlinPointField {
+                coord_scale,
+                ..*self.field
+            }),
+        };
+        new
+    }
+
+    pub fn point_prob(self, point_prob: f64) -> Self {
+        let new = Self {
+            field: Box::new(PerlinPointField {
+                point_prob,
+                ..*self.field
+            }),
+        };
+        new
+    }
+
+    pub fn density(self, density: f64) -> Self {
+        let new = Self {
+            field: Box::new(PerlinPointField {
+                density,
+                ..*self.field
+            }),
+        };
+        new
+    }
+
+    pub fn build(self) -> PerlinPointField {
+        PerlinPointField {
+            iter_count: 0,
+            iter_limit: if self.field.bounds.is_some() {
+                (self.field.density
+                    * self
+                        .field
+                        .bounds
+                        .expect("Bounds are not configured")
+                        .width()
+                    * self
+                        .field
+                        .bounds
+                        .expect("Bounds are not configured")
+                        .height()
+                        .ceil()) as usize
+            } else {
+                0
+            },
+            iter_perlin: Some(Perlin::new().set_seed(self.field.seed)),
+            iter_rng: Some(SmallRng::seed_from_u64(self.field.seed as u64)),
+            ..*self.field
         }
     }
 }
 
 impl Debug for PerlinPointField {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let pointlen = if self.points.is_some() {
-            (&self.points).clone().unwrap().len()
-        } else {
-            0usize
-        };
         f.debug_struct("PerlinPointField")
             .field("seed", &self.seed)
             .field("coord_scale", &self.coord_scale)
-            .field("prob_scale", &self.prob_scale)
+            .field("prob_scale", &self.point_prob)
             .field("density", &self.density)
-            .field("#points", &pointlen)
+            .field("#points", &self.iter_limit)
             .field("bounds", &self.bounds)
             .finish()
     }
 }
 
 impl PointField for PerlinPointField {
-    fn points(&self) -> Option<Vec<Point>> {
-        self.points.clone()
-    }
-
-    fn generate(&mut self, rect: &Rect<f64>) {
-        let mut points: Vec<Point<f64>> = Vec::new();
-        let mut perlin = Perlin::new().set_seed(self.seed);
-        let mut rng = SmallRng::seed_from_u64(self.seed as u64);
-        let min = rect.min();
-        let max = rect.max();
-        let mut x = min.x;
-        let mut y = min.y;
-        // println!("RECT: {:?}", &rect);
-        let point_count = (self.density * rect.width() * rect.height().ceil()) as usize;
-        for _i in 0..point_count {
-            let (x, y) = rng.gen::<(f64, f64)>();
-            let x = x * rect.width() + min.x;
-            let y = y * rect.height() + min.y;
-            let noiseval = perlin.get([x * self.coord_scale, y * self.coord_scale]);
-            // println!("Testing {},{}:{}", x, y, noiseval);
-
-            if noiseval > self.prob_scale {
-                // println!("Adding");
-                points.push(Point::new(x, y))
-            } else {
-                // println!("Fail to add.");
+    /*
+        fn build(self) -> Self {
+            Self {
+                iter_count: 0,
+                iter_limit: if self.bounds.is_some() {
+                    (self.density
+                        * self.bounds.expect("Bounds are not configured").width()
+                        * self
+                            .bounds
+                            .expect("Bounds are not configured")
+                            .height()
+                            .ceil()) as usize
+                } else {
+                    0
+                },
+                iter_perlin: Some(Perlin::new().set_seed(self.seed)),
+                iter_rng: Some(SmallRng::seed_from_u64(self.seed as u64)),
+                ..self
             }
         }
-        self.bounds = Some(rect.clone());
-        self.points = Some(points);
-        // println!("Points: {:?}", &self.points);
-    }
 
-    fn bounds(&self) -> Option<Rect<f64>> {
-        self.bounds.clone()
-    }
+        fn bounds(self, bounds: Rect) -> Self {
+            Self {
+                bounds: Some(bounds),
+                ..self
+            }
+        }
+    */
+    // fn builder() -> PerlinPointFieldBuilder {
+    //     PerlinPointFieldBuilder {
+    //         field: Box::new(PerlinPointField::default()),
+    //     }
+    // }
 }
 
 #[cfg(test)]
@@ -112,11 +206,18 @@ pub mod test {
 
     #[test]
     fn test_perlin_field() {
-        let mut pf = PerlinPointField::new(12, 15., 0.5, 0.5);
-        pf.generate(&Rect::new(
-            Coord { x: 0., y: 0. },
-            Coord { x: 100., y: 100. },
-        ));
-        println!("PF: {:?}", pf);
+        let mut pf = PerlinPointFieldBuilder::new()
+            .seed(1)
+            .coord_scale(100.)
+            .point_prob(0.5)
+            .density(0.01)
+            .bounds(Rect::new(
+                Coord { x: 0., y: 0. },
+                Coord { x: 100., y: 100. },
+            ))
+            .build();
+
+        println!("PF IS {:?}", &pf);
+        println!("PF: {:?}", pf.collect::<Vec<Point>>());
     }
 }

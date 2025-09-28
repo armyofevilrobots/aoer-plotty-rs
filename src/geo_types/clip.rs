@@ -78,7 +78,7 @@ impl LineClip for Geometry<f64> {
             ),
             Geometry::GeometryCollection(geom_collection) => {
                 // lines.0.append(&mut geom.clipwith(clipobj)?.0);
-                let mut child_geoms = geom_collection
+                let child_geoms = geom_collection
                     .0
                     .iter()
                     .map(|geom| {

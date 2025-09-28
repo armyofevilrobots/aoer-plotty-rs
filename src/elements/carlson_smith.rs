@@ -30,7 +30,7 @@ impl CarlsonSmithTruchet {
                     line.start.clone(),
                     line.end.clone(),
                 ])]),
-                Geometry::Point(point) => MultiLineString::empty(),
+                Geometry::Point(_point) => MultiLineString::empty(),
                 Geometry::LineString(line_string) => {
                     MultiLineString::new(vec![line_string.clone()])
                 }
@@ -48,7 +48,7 @@ impl CarlsonSmithTruchet {
                     }
                     mls
                 }
-                Geometry::MultiPoint(multi_point) => MultiLineString::empty(),
+                Geometry::MultiPoint(_multi_point) => MultiLineString::empty(),
                 Geometry::MultiLineString(multi_line_string) => multi_line_string.clone(),
                 Geometry::MultiPolygon(multi_polygon) => {
                     let multi_polygon = match inset {
