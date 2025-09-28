@@ -1,9 +1,6 @@
 use geo_types::{Point, Rect};
-use noise::{NoiseFn, Perlin, Seedable};
-use rand::prelude::*;
 use std::fmt::{Debug, Formatter};
 
-use super::PointField;
 use crate::util::HaltonSequence;
 
 pub struct HaltonPointField {

@@ -1,8 +1,16 @@
 use voronoice::*;
 
 pub struct VoronoiDiagram {
-    voronoi: Voronoi,
+    voronoi: Option<Voronoi>,
 }
+
+impl Default for VoronoiDiagram {
+    fn default() -> Self {
+        Self { voronoi: None }
+    }
+}
+
+pub struct VoronoiDiagramBuilder {}
 
 /*
 impl VoronoiDiagram {

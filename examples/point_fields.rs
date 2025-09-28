@@ -12,8 +12,8 @@ fn main() {
     let rect = Rect::new(Coord { x: 10., y: 10. }, Coord { x: 110., y: 110. });
     let pf = PerlinPointFieldBuilder::new()
         .seed(1)
-        .coord_scale(100.)
-        .point_prob(0.5)
+        .coord_scale(0.1)
+        .point_prob(0.05)
         .bounds(rect.clone())
         .build();
 
@@ -29,6 +29,7 @@ fn main() {
     let circles = Geometry::GeometryCollection(GeometryCollection::new_from(circles));
 
     ctx.stroke("black")
+        .pen(1.)
         .pattern(NoHatch::gen())
         .geometry(&Geometry::Rect(rect))
         .pen(0.2)
@@ -63,8 +64,7 @@ fn main() {
 
     ctx.set_mask(&None)
         .stroke("black")
-        .stroke("black")
-        .pen(0.2)
+        .pen(1.)
         .pattern(NoHatch::gen())
         .geometry(&Geometry::Rect(rect).clone())
         .pen(0.2)
@@ -77,7 +77,40 @@ fn main() {
         )
         .fill("black")
         .pattern(NoHatch::gen())
-        .mask_box(120., 10., 230., 110.)
+        .mask_box(120., 10., 220., 110.)
+        .geometry(&circles);
+
+    let rect = Rect::new(Coord { x: 230., y: 10. }, Coord { x: 330., y: 110. });
+    let rf = RandomPointFieldBuilder::new()
+        .seed(1)
+        .bounds(rect.clone())
+        .build();
+    let circles: Vec<Geometry> = rf
+        .take(3000)
+        .map(|point| {
+            point
+                .offset(0.5)
+                .expect("Should always be able to offset a point.")
+                .into()
+        })
+        .collect();
+    let circles = Geometry::GeometryCollection(GeometryCollection::new_from(circles));
+    ctx.set_mask(&None)
+        .stroke("black")
+        .pen(1.)
+        .pattern(NoHatch::gen())
+        .geometry(&Geometry::Rect(rect).clone())
+        .pen(0.2)
+        .typography(
+            &"RandomPointField".to_string(),
+            // &"FIELD".to_string(),
+            230.,
+            115.,
+            &Typography::new().size(1.2),
+        )
+        .fill("black")
+        .pattern(NoHatch::gen())
+        .mask_box(230., 10., 330., 110.)
         .geometry(&circles);
 
     let svg = ctx
