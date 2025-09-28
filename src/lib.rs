@@ -15,6 +15,40 @@
 //! [`vsk`]: https://vsketch.readthedocs.io/en/latest/index.html
 //!
 //! # Changelog
+//! * 0.4.1. Added a new "GotoTen" fill pattern, like you used to do on
+//!          the good old C-64.
+//! * 0.4.0. Breaking release, but for a good reason; we've got a better
+//!          hatching interface! I've added even more hatch patterns,
+//!          including a fast hexagon pattern that optimizes well, and
+//!          a spiral fill that goes deasil _and_ widdershins! Fill clipping
+//!          is a bit different now too, using a faster but more accurate
+//!          clipping method than before. The hatching enum is now a thing
+//!          of the past, allowing for more hatch patterns, and custom user
+//!          supplied hatch patterns too. I should probably have waited until
+//!          documentation was written, but I was excited to push this change,
+//!          so docs will come in 0.4.1 (maybe).
+//! * 0.3.2. Tons of hatch related changes. This is probably the last 0.3
+//!          release before a big refactor to how the entire hatching system
+//!          is dispatched. I was using a simple enum when I originally built
+//!          it, and it's expanded past the point of making sense, with way too
+//!          many enum variants, and no way for a user to create custom fills.
+//!   * Add a few more hatch types, and modify the way the API works
+//!          so that BOTH pen width and scale are relevant modifiers for how
+//!          hatches are rendered.
+//!   * Also fixed a bug with insets...
+//!   * and radically improve their efficiency.
+//! * 0.3.1. Add SketchyFilter and infrastructure to support arbitrary
+//!          line filters, which modify the look of the lines sent to
+//!          the plotter. Great for making "human" looking lines.
+//! * 0.3.0. Breaking change. Many places where float tuples were used ro
+//!          represent x,y coords have been switched to `geo::Coord`s to match
+//!          changes in the various geo_types/geos/geo libraries.
+//!          Related, I was running into various compilation problems on MacOS
+//!          and decided to update the various Geo dependencies to make it all
+//!          go away. Compilation now works with (current) Homebrew delivered
+//!          geo/geos/geo_types libs.
+//! * 0.2.3. Add support for hatch scale, so that it isn't always just
+//!          the pen width used to define the space between lines.
 //! * 0.2.2. Bugfixens! The regular_poly_native function was duplicating
 //!          points, resulting in invalid geometries.
 //! * 0.2.1. Optimizations and plotters:
@@ -135,3 +169,5 @@ pub mod prelude {
     pub use crate::l_system::LSystem;
     pub use crate::turtle::{Turtle, TurtleTrait};
 }
+
+pub mod util;
