@@ -41,4 +41,5 @@ skip_error = "3.1.1"
 rstar = "0.9.3"
 url = "2.2.2"
 serde = { version = "1.0.210", features = ["derive"] }
+contour = "0.13.1"
 #itertools = "0.10"

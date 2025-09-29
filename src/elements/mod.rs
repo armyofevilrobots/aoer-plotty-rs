@@ -20,3 +20,5 @@ pub use carlson_smith::*;
 pub use voronoi::*;
 pub mod point_field;
 pub use point_field::*;
+pub mod contours;
+pub use contours::*;

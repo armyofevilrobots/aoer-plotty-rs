@@ -1,13 +1,21 @@
 use geo_types::{Point, Rect};
 use std::fmt::{Debug, Formatter};
 
-use crate::util::HaltonSequence;
+use crate::{elements::PointField, util::HaltonSequence};
 
 pub struct HaltonPointField {
     seed: usize,
     bounds: Option<Rect<f64>>,
     halton_x: HaltonSequence,
     halton_y: HaltonSequence,
+}
+
+impl PointField for HaltonPointField {
+    fn bounds(&self) -> geo::Rect {
+        self.bounds
+            .expect("No bounds set. Uninit'd PerlinPointField?")
+            .clone()
+    }
 }
 
 impl Debug for HaltonPointField {

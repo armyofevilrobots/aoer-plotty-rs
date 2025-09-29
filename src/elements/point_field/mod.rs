@@ -5,8 +5,15 @@ use rand::prelude::*;
 pub mod perlin;
 pub use perlin::*;
 use std::fmt::Debug;
+use voronoice::Voronoi;
 
-pub trait PointField: Debug + Send + Sync + Iterator {}
+pub trait PointField: Debug + Send + Sync + Iterator {
+    fn bounds(&self) -> geo::Rect;
+}
+
+pub trait FieldToVoronoi: PointField {
+    fn to_voronoi(&mut self, point_count: usize) -> Voronoi;
+}
 
 #[derive(Debug)]
 pub struct RandomPointField {
@@ -17,6 +24,12 @@ pub struct RandomPointField {
 pub struct RandomPointFieldBuilder {
     bounds: Option<Rect<f64>>,
     seed: u64,
+}
+
+impl PointField for RandomPointField {
+    fn bounds(&self) -> geo::Rect {
+        self.bounds.clone()
+    }
 }
 
 impl RandomPointFieldBuilder {

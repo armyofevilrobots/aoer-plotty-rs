@@ -3,6 +3,8 @@ use noise::{NoiseFn, Perlin, Seedable};
 use rand::prelude::*;
 use std::fmt::{Debug, Formatter};
 
+use crate::elements::PointField;
+
 pub struct PerlinPointField {
     seed: u32,
     coord_scale: f64,
@@ -13,6 +15,14 @@ pub struct PerlinPointField {
     // iter_limit: usize,
     iter_perlin: Option<Perlin>,
     iter_rng: Option<SmallRng>,
+}
+
+impl PointField for PerlinPointField {
+    fn bounds(&self) -> geo::Rect {
+        self.bounds
+            .expect("No bounds set. Uninit'd PerlinPointField?")
+            .clone()
+    }
 }
 
 pub struct PerlinPointFieldBuilder {
