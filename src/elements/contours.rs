@@ -2,6 +2,10 @@ use contour::ContourBuilder;
 use geo::{Coord, MultiLineString, MultiPolygon, Rect, Scale, Translate};
 use noise::{NoiseFn, Perlin};
 
+/// A ContourField is an area filled with perlin generated contour lines.
+/// The noise is clamped from 0.0 .. 1.0, and you pass thresholds in as
+/// a list of "heights" in the noise where you want a band.
+/// The ContourBuilder from the contour crate provides the contours.
 pub struct ContourField {
     xy_step: f64,
     seed: u32,
@@ -13,6 +17,7 @@ pub struct ContourField {
 }
 
 impl ContourField {
+    /// Get the values array for building the contour.
     fn values(&self) -> (Vec<f64>, usize, usize) {
         let bounds = self
             .bounds
@@ -43,6 +48,11 @@ impl ContourField {
         (values, xc, yc)
     }
 
+    /// The lines which follow a particular "elevation"
+    /// in the noise map. returns a Vec of MultiLineStrings.
+    /// Nice if you want lines, like for a hatch or something, that
+    /// won't natively occlude when used in a drawing
+    /// context.
     pub fn isolines(&mut self) -> Vec<MultiLineString> {
         let (values, xc, yc) = self.values();
         let cb = ContourBuilder::new(xc, yc, true);
@@ -61,6 +71,9 @@ impl ContourField {
             .collect::<Vec<MultiLineString<f64>>>()
     }
 
+    /// IsoBands; polygons that enclose the entire area between two threshold/height values
+    /// These are useful, but a naive assumption of a map is generally thinking about
+    /// contours instead.
     pub fn isobands(&mut self) -> Vec<MultiPolygon> {
         let (values, xc, yc) = self.values();
         let cb = ContourBuilder::new(xc, yc, true);
@@ -80,6 +93,8 @@ impl ContourField {
             .collect::<Vec<MultiPolygon<f64>>>()
     }
 
+    /// These are polygons enclosing the entire area which lies
+    /// above a particular "elevation".
     pub fn contours(&mut self) -> Vec<MultiPolygon> {
         let (values, xc, yc) = self.values();
         let cb = ContourBuilder::new(xc, yc, true);
