@@ -29,6 +29,12 @@ pub mod line;
 pub use line::LineHatch;
 pub mod truchet;
 pub use truchet::*;
+/// There are a variety of hatches documented below, but a quick glance at the image below
+/// should help you select which you want to use. If nothing fits, you can either implement
+/// your own `impl HatchPattern`, or you can use the truchet hatch to repeat a square pattern
+/// to generate your hatch.
+///
+///
 
 /// Useful for converting a line into a polygon as if it were stroked. Only supports
 /// round caps and joins for now.
@@ -327,7 +333,6 @@ impl Hatch for Polygon<f64> {
             .try_into()
             .or(Err(InvalidHatchGeometry::InvalidBoundary))?;
 
-        // println!("PRE INSET: {:?}", &hatch_lines);
         let geo_hatchlines = Geometry::create_geometry_collection(
             hatch_lines
                 .par_iter()

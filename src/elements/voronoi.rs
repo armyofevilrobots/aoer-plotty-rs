@@ -1,5 +1,5 @@
 use crate::{
-    elements::{FieldToVoronoi, HaltonPointFieldBuilder, PointField},
+    elements::{FieldToVoronoi, PointField},
     util::AnythingToGeo,
 };
 use geo::{Coord, MultiPolygon, Polygon};
@@ -8,8 +8,6 @@ pub use voronoice::*;
 pub struct BBWrapper(pub BoundingBox);
 
 impl<F> FieldToVoronoi for F
-// where
-//     <F as Iterator>::Item: impl Point<f64>,
 where
     F: PointField,
     F: Iterator<Item = geo::Point<f64>>,
