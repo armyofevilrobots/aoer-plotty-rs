@@ -7,6 +7,7 @@ use aoer_plotty_rs::prelude::NoHatch;
 use aoer_plotty_rs::util::AnythingToGeo;
 use geo::Coord;
 use geo_types::{coord, Rect};
+use noise::{Billow, OpenSimplex, Worley};
 use std::path::Path;
 
 fn main() {
@@ -15,7 +16,8 @@ fn main() {
         .bounds(rect.clone())
         .xy_step(1.123)
         .seed(5)
-        .perlin_scale(0.01)
+        .perlin_scale(0.001)
+        .noise(Box::new(Billow::new()))
         .thresholds(
             (-20..20)
                 .map(|x| x as f64 / 20. + 0.001)

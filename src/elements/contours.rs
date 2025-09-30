@@ -12,7 +12,8 @@ pub struct ContourField {
     bounds: Option<Rect<f64>>,
     thresholds: Vec<f64>,
     // contour_builder: Option<ContourBuilder>,
-    perlin: Perlin,
+    // perlin: Perlin,
+    noise: Box<dyn NoiseFn<[f64; 2]>>,
     perlin_scale: f64,
 }
 
@@ -36,7 +37,7 @@ impl ContourField {
                 xc += 1;
                 // println!("{},{}:{},{}", x, y, xc, yc);
                 values.push(
-                    self.perlin
+                    self.noise
                         .get([x * self.perlin_scale, y * self.perlin_scale])
                         / 2.
                         + 0.5,
@@ -122,13 +123,18 @@ impl Default for ContourField {
             seed: Default::default(),
             bounds: Default::default(),
             thresholds: vec![],
-            // contour_builder: None,
-            perlin: Perlin::new(),
+            noise: Box::new(Perlin::new()),
             perlin_scale: 1.,
         }
     }
 }
 
+/// The ContourFieldBuilder should be how you build every contour field.
+/// It allows you to specify the bounds of your field, as well as seed,
+/// noise function, etc. The noise function is especially neat, since
+/// the rust Noise crate provides an amazing variety of noise functions.
+/// Just the combinations/permutations of noise functions make for some
+/// very interesting sketches.
 pub struct ContourFieldBuilder {
     field: ContourField,
 }
@@ -137,6 +143,15 @@ impl ContourFieldBuilder {
     pub fn new() -> ContourFieldBuilder {
         ContourFieldBuilder {
             field: ContourField::default(),
+        }
+    }
+
+    pub fn noise(self, noise: Box<dyn NoiseFn<[f64; 2]>>) -> Self {
+        Self {
+            field: ContourField {
+                noise,
+                ..self.field
+            },
         }
     }
 
