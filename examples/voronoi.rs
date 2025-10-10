@@ -1,6 +1,6 @@
 use aoer_plotty_rs::context::typography::Typography;
 use aoer_plotty_rs::context::Context;
-use aoer_plotty_rs::elements::{point_field::*, FieldToVoronoi};
+use aoer_plotty_rs::elements::{point_field::*, ToVoronoi};
 use aoer_plotty_rs::geo_types::svg::Arrangement;
 use aoer_plotty_rs::prelude::NoHatch;
 use aoer_plotty_rs::util::AnythingToGeo;
@@ -23,8 +23,8 @@ fn main() {
         .point_prob(0.1)
         .build();
     // Use a shortcut to create the voronoi cells quickly
-    let vn_pf = pf.to_voronoi(3000);
-    let vn_hf = hf.to_voronoi(3000);
+    let vn_pf = pf.take(3000).to_voronoi();
+    let vn_hf = hf.take(3000).to_voronoi();
     // Gimme mul
     let geo_hf = vn_hf.to_geo();
     let geo_pf = vn_pf.to_geo();

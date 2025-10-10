@@ -37,6 +37,12 @@ pub mod matrix;
 /// Various shapes
 pub mod shapes;
 
+/// Spline contains hobby splines, and maybe others in the future
+pub mod spline;
+
+/// Spatial hashing using the Hilbert curve:
+pub mod hilbert_spatial_hash;
+
 /// Trait that implements a distance function between two [`geo_types::Point`] structs.
 /// Also includes a length function which returns the length of a [`geo_types::Point`]
 /// as if it were a Vector.

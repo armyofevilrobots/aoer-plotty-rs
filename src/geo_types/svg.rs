@@ -3,6 +3,7 @@ use geo_types::{Coord as Coordinate, CoordNum, LineString, MultiLineString, Poin
 use nalgebra::{Affine2, Matrix3, Point2 as NPoint2, RealField};
 use num_traits::real::Real;
 use num_traits::{AsPrimitive, Float, FromPrimitive, ToPrimitive};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::ops::Div;
 use svg::node::element::path::Data;
 use svg::node::element::Path;
@@ -280,7 +281,7 @@ where
         };
         let transformation = arrangement.affine(&gbox);
         let linestrings: Vec<LineString<T>> = self
-            .iter()
+            .par_iter()
             .map(|linestring| {
                 linestring
                     .coords()
@@ -304,6 +305,8 @@ where
         ))
     }
 
+    // TODO: This needs to get sped up through parallelization. Right now the iterative
+    // approach runs SOOOO SLOOOOOOOOOWWWWWWWW
     fn to_path_data(&self) -> Data {
         let mut svg_data = Data::new();
         for tline in self {

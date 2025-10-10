@@ -10,11 +10,21 @@ use std::sync::Arc;
 pub struct RadiusHatch {
     pub x: f64,
     pub y: f64,
+    pub octave_radius: Option<f64>,
 }
 
 impl RadiusHatch {
     pub fn gen() -> Arc<Box<dyn HatchPattern>> {
         Arc::new(Box::new(Self::default()))
+    }
+    pub fn with_octave_diameter(mut self, octave: f64) -> Self {
+        self.octave_radius = Some(octave);
+        self
+    }
+    pub fn with_center(mut self, x: f64, y: f64) -> Self {
+        self.x = x;
+        self.y = y;
+        self
     }
 }
 
@@ -41,7 +51,11 @@ impl HatchPattern for RadiusHatch {
             if let GeoGeometry::Polygon(tmp_lines) = c.into() {
                 lines.push(tmp_lines.exterior().clone());
             }
-            r += scale;
+            if let Some(o_rad) = self.octave_radius {
+                r += (1. + r / o_rad) * scale;
+            } else {
+                r += scale;
+            }
         }
         // println!("Lines for radius fill are: {:?}", &lines);
 

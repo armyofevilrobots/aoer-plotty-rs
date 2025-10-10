@@ -15,10 +15,14 @@ fn main() {
     let fills: Vec<Arc<Box<dyn HatchPattern>>> = vec![
         Arc::new(Box::new(LineHatch {})),
         Arc::new(Box::new(CrossHatch {})),
-        Arc::new(Box::new(RadiusHatch { x: 160., y: 32.0 })),
+        Arc::new(Box::new(RadiusHatch::default().with_center(160., 32.0))),
         Arc::new(Box::new(CircleHatch {})),
         Arc::new(Box::new(FastHexHatch {})),
-        Arc::new(Box::new(RadiusHatch { x: 160., y: 32.0 })),
+        Arc::new(Box::new(RadiusHatch {
+            x: 160.,
+            y: 32.0,
+            octave_radius: None,
+        })),
         Arc::new(Box::new(SpiralHatch {
             x: 32.0,
             y: 3. * 60.0,
@@ -32,6 +36,11 @@ fn main() {
         GotoTenHatch::gen(0),
         TruchetHatch::minimal_line(10.),
         CarlsonSmithTruchet::into_hatch(10., Some(0.25)),
+        Arc::new(Box::new(RadiusHatch {
+            x: 160.,
+            y: 240.0,
+            octave_radius: Some(30.),
+        })),
     ];
 
     for (i, pattern) in fills.iter().enumerate() {

@@ -4,6 +4,8 @@ pub use halton::*;
 use rand::prelude::*;
 pub mod perlin;
 pub use perlin::*;
+pub mod bitmap;
+pub use bitmap::*;
 use std::fmt::Debug;
 use voronoice::Voronoi;
 
@@ -11,8 +13,11 @@ pub trait PointField: Debug + Send + Sync + Iterator {
     fn bounds(&self) -> geo::Rect;
 }
 
-pub trait FieldToVoronoi: PointField {
-    fn to_voronoi(&mut self, point_count: usize) -> Voronoi;
+pub trait ToVoronoi<T>: Iterator
+where
+    T: Iterator<Item = geo::Point<f64>>,
+{
+    fn to_voronoi(&mut self) -> Voronoi;
 }
 
 #[derive(Debug)]
