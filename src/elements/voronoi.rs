@@ -1,5 +1,5 @@
 use crate::{
-    elements::{PointField, ToVoronoi},
+    elements::ToVoronoi,
     util::AnythingToGeo,
 };
 use geo::{Contains, Coord, MultiPolygon, Polygon, Rect};

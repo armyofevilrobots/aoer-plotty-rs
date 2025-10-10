@@ -3,8 +3,8 @@ use geo::Coord;
 ///
 use geo_types::{Point, Rect};
 use image::{GrayImage, Luma, imageops::colorops::invert};
-use rand::{Rng, SeedableRng, random, rngs::SmallRng};
-use std::fmt::{Debug, Formatter};
+use rand::{SeedableRng, rngs::SmallRng};
+use std::fmt::Debug;
 
 use super::PointField;
 
@@ -152,7 +152,8 @@ impl Iterator for BitmapPointField {
                     // println!("GOT PIXEL:{}", pixel);
                     // let new_pixel = pixel + (frac * q_err * 255.).min(255.).max(0.);
                     let new_pixel = pixel + ((q_err * num) / denom).min(255).max(0) as u16;
-                    let new_pixel = img.put_pixel(xx, yy, Luma::<u8>::from([new_pixel as u8]));
+                    // let _new_pixel =
+                    img.put_pixel(xx, yy, Luma::<u8>::from([new_pixel as u8]));
                 }
             }
 

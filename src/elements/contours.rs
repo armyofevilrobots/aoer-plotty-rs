@@ -197,7 +197,7 @@ impl ContourFieldBuilder {
         }
     }
 
-    pub fn build(mut self) -> ContourField {
+    pub fn build(self) -> ContourField {
         if self.field.bounds.is_none() {
             panic!("Failed to initialize contour builder bounds.");
         }

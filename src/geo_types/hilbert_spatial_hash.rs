@@ -1,6 +1,5 @@
 use anyhow::Result;
 use std::collections::HashMap;
-use std::error::Error;
 
 use geo::{Coord, Rect};
 

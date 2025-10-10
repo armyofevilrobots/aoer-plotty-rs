@@ -1,4 +1,4 @@
-use geo::{Coord, Vector2DOps};
+use geo::Coord;
 
 use crate::errors::SplineCreationError;
 
