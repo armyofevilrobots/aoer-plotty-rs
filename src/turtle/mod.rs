@@ -42,7 +42,6 @@ pub fn degrees(deg: f64) -> f64 {
 ///     .to_multiline();
 /// ```
 
-
 pub trait TurtleTrait {
     fn new() -> Turtle;
 
@@ -108,7 +107,6 @@ pub trait TurtleTrait {
     // fn to_multipolygon(self) -> Result<MultiPolygon<f64>, geo_types::Error>;
 }
 
-
 impl TurtleTrait for Turtle {
     fn new() -> Self {
         Turtle {
@@ -122,10 +120,11 @@ impl TurtleTrait for Turtle {
     }
 
     fn fwd(mut self, distance: f64) -> Self {
-        let pos = self.position + Point::new(distance * self.heading.cos(),
-                                             distance * self.heading.sin());
+        let pos = self.position
+            + Point::new(distance * self.heading.cos(), distance * self.heading.sin());
         if self.pen {
-            self.lines.last_mut()
+            self.lines
+                .last_mut()
                 .expect("Turtle closing without an active line!")
                 .push(pos)
         }
@@ -151,7 +150,9 @@ impl TurtleTrait for Turtle {
     }
 
     fn pen_down(mut self) -> Self {
-        if self.pen { self } else {
+        if self.pen {
+            self
+        } else {
             self.pen = true;
             self.start = Some(self.position.clone());
             self.lines.push(vec![self.position.clone()]);
@@ -163,14 +164,19 @@ impl TurtleTrait for Turtle {
         match self.start {
             Some(start) => {
                 if self.pen {
-                    self.lines.last_mut()
+                    self.lines
+                        .last_mut()
                         .expect("Turtle closing without an active line!")
-                        .push(self.start.expect("Turtle closing without a start point!").clone())
+                        .push(
+                            self.start
+                                .expect("Turtle closing without a start point!")
+                                .clone(),
+                        )
                 }
                 self.position = start.clone();
                 self
             }
-            None => self
+            None => self,
         }
     }
 
@@ -185,24 +191,28 @@ impl TurtleTrait for Turtle {
                 lines: self.lines,
                 ..t
             },
-            None => self
+            None => self,
         }
     }
 
     fn to_multiline(&mut self) -> MultiLineString<f64> {
         // MultiLineString::new(vec![])
-        self.lines.iter().map(|line| {
-            LineString::from(line.clone())
-        }).collect()
+        self.lines
+            .iter()
+            .map(|line| LineString::from(line.clone()))
+            .collect()
     }
 
     fn to_polygon(&mut self) -> Result<Polygon<f64>, geo_types::Error> {
         match self.lines.len() {
-            1 => Ok(Polygon::new(LineString::from(self.lines[0].clone()), vec![])),
+            1 => Ok(Polygon::new(
+                LineString::from(self.lines[0].clone()),
+                vec![],
+            )),
             _ => Err(geo_types::Error::MismatchedGeometry {
                 expected: "Single linestring",
                 found: "Multiple or zero linestrings",
-            })
+            }),
         }
     }
 
@@ -216,7 +226,7 @@ impl TurtleTrait for Turtle {
                 ']' => self.pop(),
                 '-' => self.left(angle),
                 '+' => self.right(angle),
-                _ => self.fwd(distance)
+                _ => self.fwd(distance),
             }
         }
         self
@@ -232,16 +242,14 @@ mod tests {
     use crate::geo_types::PointDistance;
     use crate::l_system::LSystem;
 
-    use super::{degrees, Turtle, TurtleTrait};
+    use super::{Turtle, TurtleTrait, degrees};
 
     #[test]
     fn test_walk_lsystem() {
         let t = Turtle::new().pen_down();
         let system = LSystem {
             axiom: "A".to_string(),
-            rules: HashMap::from([
-                ('A', "A-B".to_string()),
-                ('B', "A".to_string())]),
+            rules: HashMap::from([('A', "A-B".to_string()), ('B', "A".to_string())]),
         };
         let expanded = system.expand(2);
         let t = t.walk_lpath(&expanded, degrees(90.0), 10.0);
@@ -253,18 +261,13 @@ mod tests {
     #[test]
     fn test_stack() {
         let t = Turtle::new();
-        let result = t.push()
-            .fwd(100.0)
-            .right(degrees(90.0))
-            .fwd(100.0)
-            .pop();
+        let result = t.push().fwd(100.0).right(degrees(90.0)).fwd(100.0).pop();
         assert!(result.position == Point::new(0.0f64, 0.0f64));
     }
 
     #[test]
     fn test_pendown() {
-        let t = Turtle::new()
-            .pen_down();
+        let t = Turtle::new().pen_down();
         assert_eq!(t.pen, true);
         let t = Turtle::new();
         assert_eq!(t.pen, false);
@@ -281,15 +284,10 @@ mod tests {
             .fwd(100.0)
             .right(degrees(90.0))
             .close();
-        assert!(t.lines[0][0]
-            .distance(&Point::new(0.0f64, 0.0f64)) < 0.0001f64);
-        assert!(t.lines[0][1]
-            .distance(&Point::new(100.0f64, 0.0f64)) < 0.0001f64);
-        assert!(t.lines[0][2]
-            .distance(&Point::new(100.0f64, -100.0f64)) < 0.0001f64);
-        assert!(t.lines[0][3]
-            .distance(&Point::new(0.0f64, -100.0f64)) < 0.0001f64);
-        assert!(t.lines[0][4]
-            .distance(&Point::new(0.0f64, 0.0f64)) < 0.0001f64);
+        assert!(t.lines[0][0].distance(&Point::new(0.0f64, 0.0f64)) < 0.0001f64);
+        assert!(t.lines[0][1].distance(&Point::new(100.0f64, 0.0f64)) < 0.0001f64);
+        assert!(t.lines[0][2].distance(&Point::new(100.0f64, -100.0f64)) < 0.0001f64);
+        assert!(t.lines[0][3].distance(&Point::new(0.0f64, -100.0f64)) < 0.0001f64);
+        assert!(t.lines[0][4].distance(&Point::new(0.0f64, 0.0f64)) < 0.0001f64);
     }
 }

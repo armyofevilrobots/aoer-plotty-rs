@@ -6,7 +6,7 @@ use crate::prelude::{HatchPattern, TruchetHatch};
 use geo::algorithm::rotate::Rotate;
 use geo::{Coord, MultiLineString, MultiPolygon, Scale, Translate};
 use geo_offset::Offset;
-use geo_types::{coord, point, Geometry, GeometryCollection, LineString, Point, Rect};
+use geo_types::{Geometry, GeometryCollection, LineString, Point, Rect, coord, point};
 use std::collections::HashMap;
 use std::error::Error;
 use std::rc::Rc;

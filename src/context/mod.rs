@@ -6,8 +6,8 @@ use std::error::Error;
 use crate::context::line_filter::LineFilter;
 // use crate::context::geo_filter::GeoFilter;
 use crate::errors::ContextError;
-use crate::geo_types::clip::{try_to_geos_geometry, LineClip};
-use crate::geo_types::{shapes, ToGeos};
+use crate::geo_types::clip::{LineClip, try_to_geos_geometry};
+use crate::geo_types::{ToGeos, shapes};
 use crate::prelude::{Arrangement, HatchPattern, LineHatch, ToSvg};
 use cubic_spline::{Points, SplineOpts};
 use font_kit::font::Font;
@@ -15,8 +15,8 @@ use font_kit::hinting::HintingOptions;
 use geo::map_coords::MapCoords;
 use geo::prelude::BoundingRect;
 use geo_types::{
-    coord, Coord as Coordinate, Geometry, GeometryCollection, LineString, MultiLineString, Point,
-    Polygon, Rect,
+    Coord as Coordinate, Geometry, GeometryCollection, LineString, MultiLineString, Point, Polygon,
+    Rect, coord,
 };
 use geos::{Geom, GeometryTypes};
 pub use kurbo::BezPath;
@@ -1096,12 +1096,14 @@ mod test {
             coord! {x:100.0, y:100.0},
         ));
         let svg = context.to_svg(&arrangement).unwrap();
-        assert_eq!(svg.to_string(),
-                   concat!(
-                   "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
-                   "<path d=\"M30,10 L10,10 L10,30 L20,30 L20,40 L40,40 L40,20 L30,20 L30,10\" fill=\"none\" id=\"outline-0\" ",
-                   "stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>"
-                   ));
+        assert_eq!(
+            svg.to_string(),
+            concat!(
+                "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
+                "<path d=\"M30,10 L10,10 L10,30 L20,30 L20,40 L40,40 L40,20 L30,20 L30,10\" fill=\"none\" id=\"outline-0\" ",
+                "stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>"
+            )
+        );
     }
 
     #[test]
@@ -1208,12 +1210,15 @@ mod test {
             coord! {x:100.0, y:100.0},
         ));
         let svg = context.to_svg(&arrangement).unwrap();
-        assert_eq!(svg.to_string(), concat!(
-        "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
-        "<path d=\"M0,0 L100,0 L100,100 L0,100 L0,0\" fill=\"none\" id=\"outline-0\" stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.8\"/>\n",
-        "<path d=\"M0,0 L100,0 L100,100 L0,0\" fill=\"none\" id=\"outline-0\" stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.8\"/>\n",
-        "</svg>"
-        ));
+        assert_eq!(
+            svg.to_string(),
+            concat!(
+                "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
+                "<path d=\"M0,0 L100,0 L100,100 L0,100 L0,0\" fill=\"none\" id=\"outline-0\" stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.8\"/>\n",
+                "<path d=\"M0,0 L100,0 L100,100 L0,0\" fill=\"none\" id=\"outline-0\" stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.8\"/>\n",
+                "</svg>"
+            )
+        );
     }
 
     #[test]

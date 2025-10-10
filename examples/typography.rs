@@ -1,8 +1,8 @@
-use aoer_plotty_rs::context::typography::{TextAlignment, Typography};
 use aoer_plotty_rs::context::Context;
+use aoer_plotty_rs::context::typography::{TextAlignment, Typography};
 use aoer_plotty_rs::geo_types::svg::Arrangement;
 use aoer_plotty_rs::prelude::NoHatch;
-use geo_types::{coord, Rect};
+use geo_types::{Rect, coord};
 use std::path::Path;
 use std::sync::Arc;
 

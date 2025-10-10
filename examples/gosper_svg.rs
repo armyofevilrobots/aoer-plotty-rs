@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-use geo_types::{coord, Rect};
 use aoer_plotty_rs::geo_types::svg::{Arrangement, ToSvg};
-use aoer_plotty_rs::turtle::{Turtle, TurtleTrait, degrees};
 use aoer_plotty_rs::l_system::LSystem;
-
+use aoer_plotty_rs::turtle::{Turtle, TurtleTrait, degrees};
+use geo_types::{Rect, coord};
+use std::collections::HashMap;
 
 fn main() {
     // First, we create a new Turtle, which is capable of drawing things.
@@ -18,7 +17,8 @@ fn main() {
         axiom: "A".to_string(),
         rules: HashMap::from([
             ('A', "A-B--B+A++AA+B-".to_string()),
-            ('B', "+A-BB--B-A++A+B".to_string())]),
+            ('B', "+A-BB--B-A++A+B".to_string()),
+        ]),
     };
 
     // Create a MultiLineString via the Turtle
@@ -26,14 +26,15 @@ fn main() {
         // Use the turtle's TurtleTrait to walk an LPath, which is given by...
         .walk_lpath(
             // Expanding the gosper system we just created, on the 4th order
-            &gosper.expand(3), degrees(60.0), 8.0)
+            &gosper.expand(3),
+            degrees(60.0),
+            8.0,
+        )
         // And convert to multiline
         .to_multiline();
 
     // Define our viewbox/canvas (in mm)
-    let viewbox = Rect::new(
-        coord! {x:0f64, y:0f64},
-        coord! {x: 300f64, y:400f64});
+    let viewbox = Rect::new(coord! {x:0f64, y:0f64}, coord! {x: 300f64, y:400f64});
 
     // Define an arrangement where we center the Gosper Curve in the center
     // of the page, with the viewbox of 300mmx400mm as the canvas.
@@ -45,7 +46,9 @@ fn main() {
     // do, you should use a set transformation instead of just fit/center
     // which could misalign separate path sets (or just use MultiLineString
     // with several LineStrings inside to consistently draw and align).
-    let svg = arrangement.create_svg_document().unwrap()
+    let svg = arrangement
+        .create_svg_document()
+        .unwrap()
         .add(tlines.to_path(&arrangement))
         .set("fill", "none")
         .set("stroke", "black")
@@ -56,4 +59,3 @@ fn main() {
     // Write it to the images folder, so we can use it as an example!
     svg::save("images/gosper-to-svg-example.svg", &svg).unwrap();
 }
-

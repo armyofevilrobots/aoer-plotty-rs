@@ -3,7 +3,7 @@ use font_kit::hinting::HintingOptions;
 use geo::bounding_rect::BoundingRect;
 use geo::map_coords::MapCoords;
 use geo::translate::Translate;
-use geo_types::{coord, Geometry, GeometryCollection, Rect};
+use geo_types::{Geometry, GeometryCollection, Rect, coord};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;

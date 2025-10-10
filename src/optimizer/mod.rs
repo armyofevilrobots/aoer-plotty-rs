@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use geo::{prelude::EuclideanDistance, HasDimensions};
+use geo::{HasDimensions, prelude::EuclideanDistance};
 use geo_types::{Coord as Coordinate, LineString, MultiLineString};
-use rstar::{PointDistance, RTree, RTreeObject, AABB};
+use rstar::{AABB, PointDistance, RTree, RTreeObject};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum OptimizationStrategy {
@@ -242,7 +242,7 @@ mod tests {
     use crate::prelude::LineHatch;
 
     use super::*;
-    use geo_types::{coord, Polygon};
+    use geo_types::{Polygon, coord};
     use rstar::RTree;
     use wkt::ToWkt;
 

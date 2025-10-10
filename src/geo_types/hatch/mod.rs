@@ -1,8 +1,8 @@
 use crate::geo_types::buffer::Buffer;
 use embed_doc_image::embed_doc_image;
+use geo::Simplify;
 use geo::bounding_rect::BoundingRect;
 use geo::rotate::Rotate;
-use geo::Simplify;
 use geo_offset::Offset;
 use geo_types::{LineString, MultiLineString, MultiPolygon, Polygon, Rect};
 use geos::{Geom, Geometry};

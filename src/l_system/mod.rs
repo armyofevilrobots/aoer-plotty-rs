@@ -2,8 +2,8 @@
 //! plotted line-art. Take a look at the [`crate::l_system::LSystem`] struct for
 //! more details, and examples.
 
-use std::collections::HashMap;
 use embed_doc_image::embed_doc_image;
+use std::collections::HashMap;
 
 /// # LSystem
 ///
@@ -43,26 +43,25 @@ use embed_doc_image::embed_doc_image;
 /// ```
 /// ![gosper-4][gosper-4]
 #[embed_doc_image("gosper-4", "images/gosper-4.png")]
-
 #[derive(Clone, Debug)]
-pub struct LSystem{
+pub struct LSystem {
     pub axiom: String,
     pub rules: HashMap<char, String>,
 }
 
-impl LSystem{
-
-    fn recur(&self, state: String, order: u32)->String{
-        let new_state = state.chars().map(|c|{
-            match self.rules.get(&c){
+impl LSystem {
+    fn recur(&self, state: String, order: u32) -> String {
+        let new_state = state
+            .chars()
+            .map(|c| match self.rules.get(&c) {
                 Some(replacement) => replacement.clone(),
-                None => String::from(c)
-            }
-        }).collect();
-        if order == 0{
+                None => String::from(c),
+            })
+            .collect();
+        if order == 0 {
             state
-        }else{
-            self.recur(new_state, order-1)
+        } else {
+            self.recur(new_state, order - 1)
         }
     }
 
@@ -71,27 +70,22 @@ impl LSystem{
     /// Expands the L-system by the requested "order" of iterations. Returns a string
     /// representing the state of the L-system. Useful with
     /// [`crate::turtle::TurtleTrait::walk_lpath`]
-    pub fn expand(&self, order: u32) -> String{
+    pub fn expand(&self, order: u32) -> String {
         self.recur(self.axiom.clone(), order)
     }
-
 }
 
-
 #[cfg(test)]
-mod test{
+mod test {
     use super::*;
 
     #[test]
-    fn test_expand_simple(){
+    fn test_expand_simple() {
         let system = LSystem {
             axiom: "A".to_string(),
-            rules: HashMap::from([
-                ('A', "AB".to_string()),
-                ('B', "A". to_string())]),
+            rules: HashMap::from([('A', "AB".to_string()), ('B', "A".to_string())]),
         };
         assert!(system.expand(2) == "ABA".to_string());
         assert!(system.expand(5) == "ABAABABAABAAB".to_string());
     }
 }
-

@@ -1,5 +1,5 @@
 use super::HatchPattern;
-use geo_types::{coord, MultiLineString, Rect};
+use geo_types::{MultiLineString, Rect, coord};
 // use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;

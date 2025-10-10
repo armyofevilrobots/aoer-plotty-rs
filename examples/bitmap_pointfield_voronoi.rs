@@ -1,11 +1,11 @@
-use aoer_plotty_rs::context::typography::Typography;
 use aoer_plotty_rs::context::Context;
-use aoer_plotty_rs::elements::{point_field::*, ToVoronoi};
+use aoer_plotty_rs::context::typography::Typography;
+use aoer_plotty_rs::elements::{ToVoronoi, point_field::*};
 use aoer_plotty_rs::geo_types::svg::Arrangement;
 use aoer_plotty_rs::prelude::NoHatch;
 use aoer_plotty_rs::util::AnythingToGeo;
 use geo::{Coord, Point, Scale};
-use geo_types::{coord, Rect};
+use geo_types::{Rect, coord};
 use image::{DynamicImage, GrayImage};
 use std::path::Path;
 // use voronoice::VoronoiBuilder;

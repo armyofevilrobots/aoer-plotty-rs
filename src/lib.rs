@@ -162,10 +162,10 @@ pub mod plotter;
 /// Make your life easy! Just import prelude::* and ignore all the warnings!
 /// One stop shopping at the expense of a slightly more complex dependency graph.
 pub mod prelude {
+    pub use crate::geo_types::PointDistance;
     pub use crate::geo_types::hatch::*;
     pub use crate::geo_types::nannou::NannouDrawer;
     pub use crate::geo_types::svg::*;
-    pub use crate::geo_types::PointDistance;
     pub use crate::l_system::LSystem;
     pub use crate::turtle::{Turtle, TurtleTrait};
 }

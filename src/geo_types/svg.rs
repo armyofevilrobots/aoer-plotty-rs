@@ -5,9 +5,9 @@ use num_traits::real::Real;
 use num_traits::{AsPrimitive, Float, FromPrimitive, ToPrimitive};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::ops::Div;
-use svg::node::element::path::Data;
-use svg::node::element::Path;
 use svg::Document;
+use svg::node::element::Path;
+use svg::node::element::path::Data;
 
 /// Generic error
 #[derive(Debug)]
@@ -334,7 +334,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use geo_types::{coord, LineString, MultiLineString, Polygon};
+    use geo_types::{LineString, MultiLineString, Polygon, coord};
     use nalgebra::{Affine2, Matrix3};
     use std::str::FromStr;
     use wkt::Wkt;

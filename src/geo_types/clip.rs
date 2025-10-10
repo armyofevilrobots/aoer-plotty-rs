@@ -251,7 +251,7 @@ impl LineClip for LineString<f64> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use geo_types::{coord, LineString};
+    use geo_types::{LineString, coord};
     use wkt::TryFromWkt;
     #[test]
     fn test_clip_joydiv() {

@@ -1,5 +1,5 @@
 /// Kinda weird that arc features are missing from geo_types, but ok, here is one.
-use geo_types::{coord, Geometry, LineString, Point, Polygon};
+use geo_types::{Geometry, LineString, Point, Polygon, coord};
 use num_traits::FromPrimitive;
 use std::f64::consts::PI;
 

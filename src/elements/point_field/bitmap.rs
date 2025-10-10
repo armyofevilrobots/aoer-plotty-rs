@@ -2,8 +2,8 @@ use geo::Coord;
 /// Creates a bitfield out of an image.
 ///
 use geo_types::{Point, Rect};
-use image::{imageops::colorops::invert, GrayImage, Luma};
-use rand::{random, rngs::SmallRng, Rng, SeedableRng};
+use image::{GrayImage, Luma, imageops::colorops::invert};
+use rand::{Rng, SeedableRng, random, rngs::SmallRng};
 use std::fmt::{Debug, Formatter};
 
 use super::PointField;
@@ -106,7 +106,7 @@ impl Iterator for BitmapPointField {
         let bounds = self
             .bounds
             .expect("Failed to get bounds. Improperly initialized BitmapPointField?");
-        let img = match (&mut self.scratch) {
+        let img = match &mut self.scratch {
             Some(img) => img,
             None => {
                 self.scratch = Some(*self.bitmap.clone());

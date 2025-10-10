@@ -1,10 +1,10 @@
-use aoer_plotty_rs::context::{typography::Typography, Context};
+use aoer_plotty_rs::context::{Context, typography::Typography};
 use aoer_plotty_rs::elements::point_field::*;
 use aoer_plotty_rs::geo_types::svg::Arrangement;
 use aoer_plotty_rs::prelude::NoHatch;
 use geo::{Coord, Geometry, GeometryCollection};
 use geo_offset::Offset;
-use geo_types::{coord, Rect};
+use geo_types::{Rect, coord};
 use std::path::Path;
 
 fn main() {

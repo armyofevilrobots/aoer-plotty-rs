@@ -1,6 +1,6 @@
 use aoer_plotty_rs::context::Context;
 use aoer_plotty_rs::prelude::{Arrangement, LineHatch, NoHatch};
-use geo_types::{coord, Coord, Geometry, Rect};
+use geo_types::{Coord, Geometry, Rect, coord};
 use rand::prelude::*;
 use std::path::Path;
 use std::sync::Arc;

@@ -1,8 +1,8 @@
 use crate::context::line_filter::LineFilter;
 use crate::prelude::{Hatch, HatchPattern, LineHatch, OutlineFillStroke};
+use geo::Coord;
 use geo::coord;
 use geo::map_coords::MapCoords;
-use geo::Coord;
 use geo_types::{Geometry, MultiLineString, MultiPolygon, Polygon};
 use geos::{Geom, GeometryTypes};
 use std::borrow::BorrowMut;

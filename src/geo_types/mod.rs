@@ -1,5 +1,5 @@
 use geo_types::{
-    coord, CoordNum, Geometry, GeometryCollection, LineString, MultiLineString, Point, Polygon,
+    CoordNum, Geometry, GeometryCollection, LineString, MultiLineString, Point, Polygon, coord,
 };
 use geos::{CoordSeq, Geom};
 use kurbo::PathEl;

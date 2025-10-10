@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
+use geo::Geometry;
 use geo::algorithm::Densify;
 use geo::line_measures::Densifiable;
-use geo::Geometry;
 use geo::{Coord, GeometryCollection, MapCoordsInPlace, MultiLineString};
 use geo::{Euclidean, Polygon};
 // TODO: Switch this to using the parent crate instead.
 use nannou::noise::{NoiseFn, Perlin};
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 
 pub trait LineFilter: std::fmt::Debug {
     fn apply(&self, lines: &MultiLineString<f64>) -> MultiLineString<f64>;

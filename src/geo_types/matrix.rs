@@ -1,6 +1,6 @@
+use geo::Coord;
 use geo::coord;
 use geo::map_coords::MapCoords;
-use geo::Coord;
 use geo_types::CoordNum;
 use geo_types::Geometry;
 use nalgebra::Matrix3;

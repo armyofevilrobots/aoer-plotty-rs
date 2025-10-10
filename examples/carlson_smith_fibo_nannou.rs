@@ -1,9 +1,9 @@
 use aoer_plotty_rs::context::Context;
 // use aoer_plotty_rs::elements::CarlsonSmithTruchet;
 use geo_types::coord; //, Geometry, MultiLineString};
-use nannou::prelude::{Update, PURPLE};
+use nannou::prelude::{PURPLE, Update};
 use nannou::{App, Frame};
-use nannou_egui::{self, egui, Egui};
+use nannou_egui::{self, Egui, egui};
 use num_traits::Pow;
 use std::f64::consts::PI;
 

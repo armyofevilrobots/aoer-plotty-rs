@@ -1,7 +1,6 @@
-use geo_types::{coord, LineString, MultiLineString, Rect};
 use aoer_plotty_rs::geo_types::svg::{Arrangement, ToSvg};
+use geo_types::{LineString, MultiLineString, Rect, coord};
 use std::path::Path;
-
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/tiled-lines/
 fn main() {
@@ -11,11 +10,12 @@ fn main() {
     // Define our viewbox/canvas (in mm)
     let viewbox = Rect::new(
         coord! {
-            x:0f64,
-            y:0f64},
+        x:0f64,
+        y:0f64},
         coord! {
-            x: f64::from(size) * f64::from(tilesize),
-            y: f64::from(size) * f64::from(tilesize)});
+        x: f64::from(size) * f64::from(tilesize),
+        y: f64::from(size) * f64::from(tilesize)},
+    );
 
     // The arrangement chooses the way we "arrange" the SVG on the page.
     // In this case, fit it, center it, and then DON'T flip the coordinate
@@ -52,9 +52,10 @@ fn main() {
         }
     }
 
-
     // Use a shortcut to create an SVG scaffold from our arrangement.
-    let svg = arrangement.create_svg_document().unwrap()
+    let svg = arrangement
+        .create_svg_document()
+        .unwrap()
         .add(lines.to_path(&arrangement))
         .set("fill", "none")
         .set("stroke", "black")

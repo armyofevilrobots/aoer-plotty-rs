@@ -1,11 +1,11 @@
-use aoer_plotty_rs::context::{typography::Typography, Context};
+use aoer_plotty_rs::context::{Context, typography::Typography};
 use aoer_plotty_rs::elements::CarlsonSmithTruchet;
 use aoer_plotty_rs::geo_types::svg::Arrangement;
 use aoer_plotty_rs::prelude::{
     CircleHatch, CrossHatch, FastHexHatch, GotoTenHatch, HatchPattern, LineHatch, NoHatch,
     RadiusHatch, SpiralDirection, SpiralHatch, TruchetHatch,
 };
-use geo_types::{coord, Rect};
+use geo_types::{Rect, coord};
 use std::path::Path;
 use std::sync::Arc;
 

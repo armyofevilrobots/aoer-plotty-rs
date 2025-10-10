@@ -1,7 +1,7 @@
 use aoer_plotty_rs::geo_types::svg::Arrangement;
 use aoer_plotty_rs::prelude::NoHatch;
 use aoer_plotty_rs::{context::Context, prelude::LineHatch};
-use geo_types::{coord, Rect};
+use geo_types::{Rect, coord};
 use std::path::Path;
 use std::sync::Arc;
 

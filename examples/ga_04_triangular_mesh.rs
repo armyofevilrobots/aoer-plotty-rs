@@ -1,5 +1,5 @@
 use aoer_plotty_rs::prelude::{Arrangement, Hatch, LineHatch, ToSvg};
-use geo_types::{coord, Coord, LineString, MultiLineString, MultiPolygon, Polygon, Rect};
+use geo_types::{Coord, LineString, MultiLineString, MultiPolygon, Polygon, Rect, coord};
 use nalgebra::{Affine2, Matrix3};
 use rand::prelude::SmallRng;
 use rand::{Rng, SeedableRng};

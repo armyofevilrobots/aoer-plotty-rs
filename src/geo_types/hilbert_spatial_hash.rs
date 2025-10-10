@@ -105,7 +105,7 @@ pub mod test {
     use std::time;
 
     use geo::{Coord, Rect};
-    use rand::{rngs::SmallRng, Rng, SeedableRng};
+    use rand::{Rng, SeedableRng, rngs::SmallRng};
 
     use crate::geo_types::hilbert_spatial_hash::HilbertSpatialHash;
     #[test]

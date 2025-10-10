@@ -1,7 +1,7 @@
-use std::error::Error;
+use crate::geo_types::flatten::FlattenPolygons;
 use geo_types::{Geometry, MultiPolygon};
 use geos::Geom;
-use crate::geo_types::flatten::FlattenPolygons;
+use std::error::Error;
 
 /// #Buffer
 ///
@@ -20,17 +20,19 @@ impl Buffer for Geometry<f64> {
             Geometry::LineString(line) => geos::Geometry::try_from(line),
             Geometry::Polygon(poly) => geos::Geometry::try_from(poly),
             Geometry::MultiPolygon(polys) => geos::Geometry::try_from(polys),
-            Geometry::MultiLineString(mls) => {
-                geos::Geometry::create_multiline_string(mls.0
+            Geometry::MultiLineString(mls) => geos::Geometry::create_multiline_string(
+                mls.0
                     .clone()
                     .iter()
                     .map(|line| {
                         geos::Geometry::try_from(line)
                             .unwrap_or(geos::Geometry::create_empty_line_string().unwrap())
                     })
-                    .collect())
-            }
-            _ => Err(geos::Error::InvalidGeometry("Wrong type of geometry".into()))
+                    .collect(),
+            ),
+            _ => Err(geos::Error::InvalidGeometry(
+                "Wrong type of geometry".into(),
+            )),
         }?;
         let buffered_self = geo_self.buffer(distance, 6)?;
 

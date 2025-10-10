@@ -1,6 +1,6 @@
+use aoer_plotty_rs::context::Context as AOERCTX;
 use aoer_plotty_rs::context::typography::TextAlignment::Center;
 use aoer_plotty_rs::context::typography::Typography;
-use aoer_plotty_rs::context::Context as AOERCTX;
 use aoer_plotty_rs::elements::CarlsonSmithTruchet;
 use aoer_plotty_rs::geo_types::nannou::NannouDrawer;
 use aoer_plotty_rs::prelude::{LineHatch, NoHatch};
@@ -8,7 +8,7 @@ use geo_types::{Geometry, MultiLineString};
 use nannou::lyon::lyon_tessellation::LineJoin;
 use nannou::lyon::tessellation::LineCap;
 use nannou::prelude::*;
-use nannou_egui::{self, egui, Egui};
+use nannou_egui::{self, Egui, egui};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;

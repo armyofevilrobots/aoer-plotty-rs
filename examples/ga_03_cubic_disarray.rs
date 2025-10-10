@@ -1,9 +1,9 @@
-use geo::{centroid::Centroid, Rotate};
+use geo::{Rotate, centroid::Centroid};
 use std::path::Path;
 // use geo::rotate::RotatePoint;
 use aoer_plotty_rs::prelude::{Arrangement, ToSvg};
 use geo::translate::Translate;
-use geo_types::{coord, LineString, MultiLineString, Polygon, Rect};
+use geo_types::{LineString, MultiLineString, Polygon, Rect, coord};
 use rand::prelude::{Rng, SeedableRng, SmallRng};
 
 /// This is a rusty take on the excellent: https://generativeartistry.com/tutorials/cubic-disarray/
