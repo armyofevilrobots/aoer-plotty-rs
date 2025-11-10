@@ -164,6 +164,7 @@ pub mod plotter;
 pub mod prelude {
     pub use crate::geo_types::PointDistance;
     pub use crate::geo_types::hatch::*;
+    #[cfg(feature = "nannou")]
     pub use crate::geo_types::nannou::NannouDrawer;
     pub use crate::geo_types::svg::*;
     pub use crate::l_system::LSystem;

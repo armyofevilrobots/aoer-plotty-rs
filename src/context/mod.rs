@@ -8,7 +8,9 @@ use crate::context::line_filter::LineFilter;
 use crate::errors::ContextError;
 use crate::geo_types::clip::{LineClip, try_to_geos_geometry};
 use crate::geo_types::{ToGeos, shapes};
+use crate::plotter::pen::PenDetail;
 use crate::prelude::{Arrangement, HatchPattern, LineHatch, ToSvg};
+use csscolorparser::Color as CssColor;
 use cubic_spline::{Points, SplineOpts};
 use font_kit::font::Font;
 use font_kit::hinting::HintingOptions;
@@ -23,8 +25,8 @@ pub use kurbo::BezPath;
 use kurbo::PathEl;
 pub use kurbo::Point as BezPoint;
 use nalgebra::{Affine2, Matrix3};
-use nannou::prelude::PI_F64;
-use std::f64::consts::PI;
+// use nannou::prelude::PI_F64;
+use std::f64::consts::PI as PI_F64;
 use std::sync::Arc;
 use svg::Document;
 
@@ -113,12 +115,15 @@ pub struct Context {
     accuracy: f64,
     font: Option<Font>,
     transformation: Option<Affine2<f64>>,
-    stroke_color: Option<String>,
+    pen_width: f64,
+    hatch_width: f64,
+    // stroke_color: Option<String>,
+    // fill_color: Option<String>,
+    stroke_color: Option<CssColor>,
+    fill_color: Option<CssColor>,
     outline_stroke: Option<f64>,
-    fill_color: Option<String>,
     line_join: String,
     line_cap: String,
-    pen_width: f64,
     mask: Option<Geometry<f64>>,
     clip_previous: bool,
     hatch_pattern: Arc<Box<dyn HatchPattern>>,
@@ -126,11 +131,37 @@ pub struct Context {
     hatch_scale: Option<f64>,
     stroke_filter: Option<Arc<Box<dyn LineFilter>>>,
     hatch_filter: Option<Arc<Box<dyn LineFilter>>>,
+    stroke_pen: Option<PenDetail>,
+    hatch_pen: Option<PenDetail>,
     stack: Vec<Context>,
 }
 
 impl Context {
     /// Stroke filter: Modify the lines of the stroke for subsequent operations.
+    ///
+    ///
+    pub fn set_stroke_pen(&mut self, pen: Option<PenDetail>) -> &mut Self {
+        self.stroke_pen = pen.clone();
+        if let Some(pen) = &pen {
+            self.stroke_color = Some(pen.color.clone());
+            self.pen_width = pen.stroke_width;
+        } else {
+            self.stroke_color = None;
+            self.pen_width = 1.; //Just a default.
+        }
+        self
+    }
+    pub fn set_hatch_pen(&mut self, pen: Option<PenDetail>) -> &mut Self {
+        self.hatch_pen = pen.clone();
+        if let Some(pen) = &pen {
+            self.fill_color = Some(pen.color.clone());
+        } else {
+            self.fill_color = None;
+            self.hatch_width = 1.; //Just a default.
+        }
+        self
+    }
+
     pub fn stroke_filter(
         &mut self,
         filter: Option<Arc<Box<dyn LineFilter>>>, //Option<fn(&MultiLineString<f64>) -> MultiLineString<f64>>,
@@ -197,7 +228,7 @@ impl Context {
     /// Angle is in degrees because I am a terrible person.
     /// Also, compass degrees. For an SVG anyhow. I am a bastard.
     pub fn rotate_matrix(degrees: f64) -> Affine2<f64> {
-        let angle = PI * (degrees / 180.0);
+        let angle = PI_F64 * (degrees / 180.0);
         Affine2::from_matrix_unchecked(Matrix3::new(
             angle.cos(),
             -angle.sin(),
@@ -218,12 +249,13 @@ impl Context {
             accuracy: 0.1, // 0.1mm should be close enough for anybody
             transformation: None,
             font: Some(Context::default_font()),
-            stroke_color: Some("black".to_string()),
+            stroke_color: Some(CssColor::from_rgba8(0, 0, 0, 255)),
             outline_stroke: None,
-            fill_color: Some("black".to_string()),
+            fill_color: Some(CssColor::from_rgba8(0, 0, 0, 255)),
             line_join: "round".to_string(),
             line_cap: "round".to_string(),
             pen_width: 0.5,
+            hatch_width: 0.5,
             mask: None,
             clip_previous: false,
             hatch_pattern: Arc::new(Box::new(LineHatch {})), //Hatches::line(),
@@ -232,6 +264,8 @@ impl Context {
             stroke_filter: None,
             hatch_filter: None,
             stack: vec![],
+            stroke_pen: None,
+            hatch_pen: None,
         }
     }
 
@@ -329,6 +363,9 @@ impl Context {
             stroke_filter: self.stroke_filter.clone(),
             hatch_filter: self.hatch_filter.clone(),
             stack: vec![],
+            stroke_pen: self.stroke_pen.clone(),
+            hatch_pen: self.hatch_pen.clone(),
+            hatch_width: self.hatch_width.clone(),
         });
         self
     }
@@ -740,7 +777,10 @@ impl Context {
 
     /// Sets the stroke color
     pub fn stroke(&mut self, color: &str) -> &mut Self {
-        self.stroke_color = Some(color.to_string());
+        self.stroke_color = Some(match csscolorparser::parse(color) {
+            Ok(css_color) => css_color,
+            Err(_) => CssColor::default(),
+        });
         self
     }
 
@@ -751,7 +791,11 @@ impl Context {
 
     /// Sets the fill color
     pub fn fill(&mut self, color: &str) -> &mut Self {
-        self.fill_color = Some(color.to_string());
+        self.fill_color = Some(match csscolorparser::parse(color) {
+            Ok(css_color) => css_color,
+            Err(_) => CssColor::default(),
+        });
+
         self
     }
 
@@ -940,8 +984,9 @@ impl Context {
                             "stroke",
                             match &oplayer.stroke {
                                 Some(color) => color.clone(),
-                                None => "none".to_string(),
-                            },
+                                None => CssColor::from_rgba8(0, 0, 0, 0),
+                            }
+                            .to_css_hex(),
                         )
                         .set("stroke-width", oplayer.stroke_width)
                         .set("stroke-linejoin", oplayer.stroke_linejoin.clone())
@@ -963,8 +1008,9 @@ impl Context {
                             "stroke",
                             match &oplayer.stroke {
                                 Some(color) => color.clone(),
-                                None => "none".to_string(),
-                            },
+                                None => CssColor::from_rgba8(0, 0, 0, 0),
+                            }
+                            .to_css_hex(),
                         )
                         .set("stroke-width", oplayer.stroke_width)
                         .set("stroke-linejoin", oplayer.stroke_linejoin.clone())
@@ -1101,7 +1147,7 @@ mod test {
             concat!(
                 "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
                 "<path d=\"M30,10 L10,10 L10,30 L20,30 L20,40 L40,40 L40,20 L30,20 L30,10\" fill=\"none\" id=\"outline-0\" ",
-                "stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>"
+                "stroke=\"#ff0000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>"
             )
         );
     }
@@ -1134,12 +1180,12 @@ mod test {
             svg.to_string(),
             concat!(
                 "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
-                "<path d=\"\" fill=\"none\" id=\"outline-0\" stroke=\"black\" ",
-                "stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n<path d=\"\" fill=\"none\" id=\"fill-0\" stroke=\"black\" stroke-linecap=\"round\" ",
+                "<path d=\"\" fill=\"none\" id=\"outline-0\" stroke=\"#000000\" ",
+                "stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n<path d=\"\" fill=\"none\" id=\"fill-0\" stroke=\"#000000\" stroke-linecap=\"round\" ",
                 "stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n<path d=\"M30,10 L10,10 L10,30 L20,30 L20,40 L32,40 L32,48 L48,48 L48,32 L40,32 L40,20 L30,20 L30,10\" ",
-                "fill=\"none\" id=\"outline-1\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n<path d=\"\" fill=\"none\" ",
-                "id=\"fill-1\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n<path d=\"M22,22 L38,22 L38,38 L22,38 L22,22\" ",
-                "fill=\"none\" id=\"outline-2\" stroke=\"black\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>",
+                "fill=\"none\" id=\"outline-1\" stroke=\"#000000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n<path d=\"\" fill=\"none\" ",
+                "id=\"fill-1\" stroke=\"#000000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n<path d=\"M22,22 L38,22 L38,38 L22,38 L22,22\" ",
+                "fill=\"none\" id=\"outline-2\" stroke=\"#000000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.5\"/>\n</svg>",
             )
         );
         // assert_eq!(svg.to_string(),
@@ -1214,8 +1260,8 @@ mod test {
             svg.to_string(),
             concat!(
                 "<svg height=\"100mm\" viewBox=\"0 0 100 100\" width=\"100mm\" xmlns=\"http://www.w3.org/2000/svg\">\n",
-                "<path d=\"M0,0 L100,0 L100,100 L0,100 L0,0\" fill=\"none\" id=\"outline-0\" stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.8\"/>\n",
-                "<path d=\"M0,0 L100,0 L100,100 L0,0\" fill=\"none\" id=\"outline-0\" stroke=\"red\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.8\"/>\n",
+                "<path d=\"M0,0 L100,0 L100,100 L0,100 L0,0\" fill=\"none\" id=\"outline-0\" stroke=\"#ff0000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.8\"/>\n",
+                "<path d=\"M0,0 L100,0 L100,100 L0,0\" fill=\"none\" id=\"outline-0\" stroke=\"#ff0000\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"0.8\"/>\n",
                 "</svg>"
             )
         );

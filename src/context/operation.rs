@@ -1,5 +1,6 @@
 use crate::context::line_filter::LineFilter;
 use crate::prelude::{Hatch, HatchPattern, LineHatch, OutlineFillStroke};
+use csscolorparser::Color as CssColor;
 use geo::Coord;
 use geo::coord;
 use geo::map_coords::MapCoords;
@@ -23,9 +24,9 @@ pub struct Operation {
     pub(crate) content: Geometry<f64>,
     pub(crate) rendered: (MultiLineString<f64>, MultiLineString<f64>),
     pub(crate) transformation: Option<Affine2<f64>>,
-    pub(crate) stroke_color: Option<String>,
+    pub(crate) stroke_color: Option<CssColor>,
+    pub(crate) fill_color: Option<CssColor>,
     pub(crate) outline_stroke: Option<f64>,
-    pub(crate) fill_color: Option<String>,
     pub(crate) line_join: String,
     pub(crate) line_cap: String,
     pub(crate) pen_width: f64,
@@ -315,13 +316,27 @@ impl Operation {
 /// OPLayer is an operation layer, rendered into lines for drawing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OPLayer {
-    pub(crate) stroke_lines: MultiLineString<f64>,
-    pub(crate) fill_lines: MultiLineString<f64>,
-    pub(crate) stroke: Option<String>,
-    pub(crate) fill: Option<String>,
-    pub(crate) stroke_width: f64,
-    pub(crate) stroke_linejoin: String,
-    pub(crate) stroke_linecap: String,
+    pub stroke_lines: MultiLineString<f64>,
+    pub fill_lines: MultiLineString<f64>,
+    pub stroke: Option<CssColor>,
+    pub fill: Option<CssColor>,
+    pub stroke_width: f64,
+    pub stroke_linejoin: String,
+    pub stroke_linecap: String,
+}
+
+impl Default for OPLayer {
+    fn default() -> Self {
+        Self {
+            stroke_lines: MultiLineString::empty(),
+            fill_lines: MultiLineString::empty(),
+            stroke: Default::default(),
+            fill: Default::default(),
+            stroke_width: Default::default(),
+            stroke_linejoin: Default::default(),
+            stroke_linecap: Default::default(),
+        }
+    }
 }
 
 impl OPLayer {
@@ -329,10 +344,10 @@ impl OPLayer {
         (self.stroke_lines.clone(), self.fill_lines.clone())
     }
 
-    pub fn stroke(&self) -> Option<String> {
+    pub fn stroke(&self) -> Option<CssColor> {
         self.stroke.clone()
     }
-    pub fn fill(&self) -> Option<String> {
+    pub fn fill(&self) -> Option<CssColor> {
         self.fill.clone()
     }
 

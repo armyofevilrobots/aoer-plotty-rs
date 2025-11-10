@@ -3,7 +3,8 @@ use geo::Coord;
 ///
 use geo_types::{Point, Rect};
 use image::{GrayImage, Luma, imageops::colorops::invert};
-use rand::{SeedableRng, rngs::SmallRng};
+use rand::SeedableRng;
+use rand::rngs::SmallRng;
 use std::fmt::Debug;
 
 use super::PointField;
@@ -103,9 +104,10 @@ impl Iterator for BitmapPointField {
             self.rng = Some(SmallRng::seed_from_u64(0_u64));
         };
 
+        /*
         let bounds = self
             .bounds
-            .expect("Failed to get bounds. Improperly initialized BitmapPointField?");
+            .expect("Failed to get bounds. Improperly initialized BitmapPointField?");*/
         let img = match &mut self.scratch {
             Some(img) => img,
             None => {

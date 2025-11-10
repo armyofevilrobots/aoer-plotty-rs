@@ -2,8 +2,6 @@ use geo::Coord;
 
 use crate::errors::SplineCreationError;
 
-struct Hobby {}
-
 fn coord_length(c: Coord) -> f64 {
     return (c.x * c.x + c.y * c.y).sqrt();
 }
@@ -50,12 +48,12 @@ pub fn hobby_points(coords: &Vec<Coord>, omega: f64) -> Result<Vec<Coord>, Splin
     let mut d: Vec<f64> = vec![0.; n];
     for i in 0..n {
         chords[i] = coords[i + 1] - coords[i];
-        println!(
-            "Cn+1: {:?}, Cn: {:?} => Chordn:{:?}",
-            coords[i + 1],
-            coords[i],
-            chords[i]
-        );
+        // println!(
+        //     "Cn+1: {:?}, Cn: {:?} => Chordn:{:?}",
+        //     coords[i + 1],
+        //     coords[i],
+        //     chords[i]
+        // );
         d[i] = coord_length(chords[i]); //.magnitude();
         assert!(d[i] > 0.);
     }
@@ -89,7 +87,7 @@ pub fn hobby_points(coords: &Vec<Coord>, omega: f64) -> Result<Vec<Coord>, Splin
     b_vec[n] = 2. + omega;
     d_vec[n] = 0.;
 
-    println!("ABCD: {:?}, {:?}, {:?}, {:?}", a_vec, b_vec, c_vec, d_vec);
+    // println!("ABCD: {:?}, {:?}, {:?}, {:?}", a_vec, b_vec, c_vec, d_vec);
 
     let alpha = thomas(a_vec, b_vec, c_vec, d_vec);
 

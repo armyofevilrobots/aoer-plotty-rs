@@ -111,32 +111,39 @@ impl Model {
         for layer in &layers {
             let (strokes, fills) = layer.to_lines();
             if self.settings.draft {
-                if out.contains_key(&layer.stroke().unwrap()) {
-                    let (mut orig_stroke, _orig_fill) =
-                        out.get_mut(&layer.stroke().unwrap()).unwrap().clone();
+                if out.contains_key(&layer.stroke().unwrap().to_css_hex()) {
+                    let (mut orig_stroke, _orig_fill) = out
+                        .get_mut(&layer.stroke().unwrap().to_css_hex())
+                        .unwrap()
+                        .clone();
                     orig_stroke.0.append(&mut strokes.0.clone());
                     out.insert(
-                        layer.stroke().unwrap().clone(),
+                        layer.stroke().unwrap().to_css_hex().clone(),
                         (orig_stroke.clone(), MultiLineString::new(vec![])),
                     );
                 } else {
                     out.insert(
-                        layer.stroke().unwrap().clone(),
+                        layer.stroke().unwrap().to_css_hex(),
                         (strokes.clone(), MultiLineString::new(vec![])),
                     );
                 }
             } else {
-                if out.contains_key(&layer.stroke().unwrap()) {
-                    let (mut orig_stroke, mut orig_fill) =
-                        out.get_mut(&layer.stroke().unwrap()).unwrap().clone();
+                if out.contains_key(&layer.stroke().unwrap().to_css_hex()) {
+                    let (mut orig_stroke, mut orig_fill) = out
+                        .get_mut(&layer.stroke().unwrap().to_css_hex())
+                        .unwrap()
+                        .clone();
                     orig_stroke.0.append(&mut strokes.0.clone());
                     orig_fill.0.append(&mut fills.0.clone());
                     out.insert(
-                        layer.stroke().unwrap(),
+                        layer.stroke().unwrap().to_css_hex(),
                         (orig_stroke.clone(), orig_fill.clone()),
                     );
                 } else {
-                    out.insert(layer.stroke().unwrap(), (strokes.clone(), fills.clone()));
+                    out.insert(
+                        layer.stroke().unwrap().to_css_hex(),
+                        (strokes.clone(), fills.clone()),
+                    );
                 }
             }
         }

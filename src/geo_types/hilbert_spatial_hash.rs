@@ -35,7 +35,7 @@ impl HilbertSpatialHash {
             return Err(anyhow::anyhow!("No bounds set yet!"));
         };
         let min = self.bounds.unwrap().min();
-        let max = self.bounds.unwrap().max();
+        // let max = self.bounds.unwrap().max();
         // Calculate the span that fits the entire bounds rect into
         // the u32xu32 span 'window'
         let span_mul: f64 = (self.bounds.unwrap().width() / u32::MAX as f64)

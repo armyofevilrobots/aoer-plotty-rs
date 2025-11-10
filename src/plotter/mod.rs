@@ -5,6 +5,7 @@ use std::ops::DerefMut;
 use std::time::Duration;
 
 pub mod error;
+pub mod pen;
 pub use error::PlotterConnectionError;
 
 const DEFAULT_TIMEOUT: u64 = 30000;

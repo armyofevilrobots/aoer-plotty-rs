@@ -8,6 +8,7 @@ use std::error::Error;
 
 /// Helper module for converting geo-types geometry into something useful
 /// in Nannou.
+#[cfg(feature = "nannou")]
 pub mod nannou;
 
 /// Crosshatching! You can fill your polys with lines, which is really useful

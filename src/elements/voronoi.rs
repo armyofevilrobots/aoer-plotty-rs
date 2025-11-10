@@ -1,7 +1,4 @@
-use crate::{
-    elements::ToVoronoi,
-    util::AnythingToGeo,
-};
+use crate::{elements::ToVoronoi, util::AnythingToGeo};
 use geo::{Contains, Coord, MultiPolygon, Polygon, Rect};
 pub use voronoice::*;
 
