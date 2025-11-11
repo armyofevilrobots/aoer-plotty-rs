@@ -1,16 +1,17 @@
 //! Provides the [`crate::context::Context`] struct which gives us a canvas-style drawing
 //! context which provides plotter-ready SVG files. See `Context` for more details, and examples.
 use embed_doc_image::embed_doc_image;
+use geo::HasDimensions;
 use std::error::Error;
 
 use crate::context::line_filter::LineFilter;
+use crate::context::pgf_file::{KeepdownStrategy, PGF, PlotGeometry};
 // use crate::context::geo_filter::GeoFilter;
 use crate::errors::ContextError;
 use crate::geo_types::clip::{LineClip, try_to_geos_geometry};
 use crate::geo_types::{ToGeos, shapes};
-use crate::plotter::pen::PenDetail;
+use crate::plotter::pen::{CssColor, PenDetail};
 use crate::prelude::{Arrangement, HatchPattern, LineHatch, ToSvg};
-use csscolorparser::Color as CssColor;
 use cubic_spline::{Points, SplineOpts};
 use font_kit::font::Font;
 use font_kit::hinting::HintingOptions;
@@ -44,6 +45,8 @@ use crate::geo_types::flatten::FlattenPolygons;
 use typography::Typography;
 
 pub mod line_filter;
+
+pub mod pgf_file;
 
 /// # Context
 ///
@@ -443,6 +446,8 @@ impl Context {
             hatch_scale: self.hatch_scale,
             stroke_filter: self.stroke_filter.clone(),
             hatch_filter: self.hatch_filter.clone(),
+            stroke_pen: self.stroke_pen.clone(),
+            hatch_pen: self.hatch_pen.clone(),
         };
         let op = op.render();
         self.operations.push(op);
@@ -929,6 +934,8 @@ impl Context {
                 stroke_width: op.pen_width,
                 stroke_linejoin: op.line_join.clone(),
                 stroke_linecap: op.line_cap.clone(),
+                stroke_pen: op.stroke_pen.clone(),
+                hatch_pen: op.hatch_pen.clone(),
             });
         }
         assert_eq!(&self.operations.len(), &oplayers.len());
@@ -954,6 +961,30 @@ impl Context {
         oplayers
     }
 
+    pub fn to_pgf(&self) -> PGF {
+        let oplayers = self.to_layers();
+        let mut pgf = PGF::new();
+        for oplayer in oplayers {
+            if !oplayer.stroke_lines.is_empty() {
+                let mut geom = PlotGeometry {
+                    geometry: Geometry::MultiLineString(oplayer.stroke_lines.clone()),
+                    stroke: oplayer.stroke_pen,
+                    keepdown_strategy: KeepdownStrategy::None, // TODO: Make this configurable
+                };
+                pgf.add(geom);
+            }
+            if !oplayer.fill_lines.is_empty() {
+                let mut geom = PlotGeometry {
+                    geometry: Geometry::MultiLineString(oplayer.fill_lines.clone()),
+                    stroke: oplayer.hatch_pen,
+                    keepdown_strategy: KeepdownStrategy::None,
+                };
+                pgf.add(geom);
+            }
+        }
+        pgf
+    }
+
     /// Take this giant complex thing and generate and SVG Document, or an error. Whatever.
     pub fn to_svg(&self, arrangement: &Arrangement<f64>) -> Result<Document, ContextError> {
         let oplayers = self.to_layers();
@@ -976,22 +1007,25 @@ impl Context {
 
                 let slines_opt = optimizer.optimize(&optimizer.merge(&oplayer.stroke_lines));
                 let slines = slines_opt.to_path(&arrangement);
-                svg = svg.add(
-                    slines
-                        .set("id", format!("outline-{}", id))
-                        .set("fill", "none")
-                        .set(
-                            "stroke",
-                            match &oplayer.stroke {
-                                Some(color) => color.clone(),
-                                None => CssColor::from_rgba8(0, 0, 0, 0),
-                            }
-                            .to_css_hex(),
-                        )
-                        .set("stroke-width", oplayer.stroke_width)
-                        .set("stroke-linejoin", oplayer.stroke_linejoin.clone())
-                        .set("stroke-linecap", oplayer.stroke_linecap.clone()),
-                );
+                let mut tmp_el = slines
+                    .set("id", format!("outline-{}", id))
+                    .set("fill", "none")
+                    .set(
+                        "stroke",
+                        match &oplayer.stroke {
+                            Some(color) => color.clone(),
+                            None => CssColor::from_rgba8(0, 0, 0, 0),
+                        }
+                        .to_css_hex(),
+                    )
+                    .set("stroke-width", oplayer.stroke_width)
+                    .set("stroke-linejoin", oplayer.stroke_linejoin.clone())
+                    .set("stroke-linecap", oplayer.stroke_linecap.clone());
+                if let Some(stroke_pen) = oplayer.stroke_pen {
+                    tmp_el = tmp_el.set("x-plotter-pen-id", stroke_pen.tool_id);
+                }
+
+                svg = svg.add(tmp_el);
             }
             if !oplayer.fill_lines.0.is_empty() {
                 let optimizer = crate::optimizer::Optimizer::new(
@@ -1000,22 +1034,24 @@ impl Context {
                 );
                 let fill_opt = optimizer.optimize(&oplayer.fill_lines);
                 let flines = fill_opt.to_path(&arrangement);
-                svg = svg.add(
-                    flines
-                        .set("id", format!("fill-{}", id))
-                        .set("fill", "none")
-                        .set(
-                            "stroke",
-                            match &oplayer.stroke {
-                                Some(color) => color.clone(),
-                                None => CssColor::from_rgba8(0, 0, 0, 0),
-                            }
-                            .to_css_hex(),
-                        )
-                        .set("stroke-width", oplayer.stroke_width)
-                        .set("stroke-linejoin", oplayer.stroke_linejoin.clone())
-                        .set("stroke-linecap", oplayer.stroke_linecap.clone()),
-                );
+                let mut tmp_el = flines
+                    .set("id", format!("fill-{}", id))
+                    .set("fill", "none")
+                    .set(
+                        "stroke",
+                        match &oplayer.stroke {
+                            Some(color) => color.clone(),
+                            None => CssColor::from_rgba8(0, 0, 0, 0),
+                        }
+                        .to_css_hex(),
+                    )
+                    .set("stroke-width", oplayer.stroke_width)
+                    .set("stroke-linejoin", oplayer.stroke_linejoin.clone())
+                    .set("stroke-linecap", oplayer.stroke_linecap.clone());
+                if let Some(hatch_pen) = oplayer.hatch_pen {
+                    tmp_el = tmp_el.set("x-plotter-pen-id", hatch_pen.tool_id);
+                }
+                svg = svg.add(tmp_el);
                 id = id + 1;
             }
         }

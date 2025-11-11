@@ -1,4 +1,5 @@
 use crate::context::line_filter::LineFilter;
+use crate::plotter::pen::PenDetail;
 use crate::prelude::{Hatch, HatchPattern, LineHatch, OutlineFillStroke};
 use csscolorparser::Color as CssColor;
 use geo::Coord;
@@ -32,6 +33,8 @@ pub struct Operation {
     pub(crate) pen_width: f64,
     pub(crate) mask: Option<Geometry<f64>>,
     pub(crate) clip_previous: bool,
+    pub(crate) stroke_pen: Option<PenDetail>,
+    pub(crate) hatch_pen: Option<PenDetail>,
     //pub(crate) hatch_pattern: Hatches,
     pub(crate) hatch_pattern: Arc<Box<dyn HatchPattern>>,
     pub(crate) hatch_angle: f64,
@@ -91,6 +94,8 @@ impl Operation {
             && self.hatch_angle == other.hatch_angle
             && self.hatch_scale == other.hatch_scale
             && self.clip_previous == other.clip_previous
+            && self.stroke_pen == other.stroke_pen
+            && self.hatch_pen == other.hatch_pen
         // &&
         {
             true
@@ -321,6 +326,8 @@ pub struct OPLayer {
     pub stroke: Option<CssColor>,
     pub fill: Option<CssColor>,
     pub stroke_width: f64,
+    pub stroke_pen: Option<PenDetail>,
+    pub hatch_pen: Option<PenDetail>,
     pub stroke_linejoin: String,
     pub stroke_linecap: String,
 }
@@ -335,6 +342,8 @@ impl Default for OPLayer {
             stroke_width: Default::default(),
             stroke_linejoin: Default::default(),
             stroke_linecap: Default::default(),
+            stroke_pen: None,
+            hatch_pen: None,
         }
     }
 }
