@@ -1,14 +1,10 @@
-use std::fmt::Write;
-use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use std::time::{self, Instant};
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use geo::prelude::MapCoords;
-use geo::{Coord, Geometry, LineString, MultiLineString, Point, Rect, Rotate, coord};
+use geo::{Coord, Geometry};
 use nalgebra::{Affine2, Point2};
-use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 
 use crate::plotter::pen::PenDetail;
@@ -65,6 +61,7 @@ impl PlotGeometry {
     }
 }
 
+/// Plotter Geometry Format -> Just lines and pens, that's all.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PGF {
     geometries: Vec<PlotGeometry>,
@@ -93,7 +90,7 @@ impl PGF {
         let path = path.with_extension("pgf");
         let tmp_path = path.with_added_extension(format!("tmp-{}", rand::random::<usize>()));
         // let content = self.to_string();
-        let mut writer = std::fs::File::create(tmp_path.clone())?;
+        let writer = std::fs::File::create(tmp_path.clone())?;
         // ron::ser::to_io_writer_pretty(writer, self, PrettyConfig::default())?;
         // ron::Options::default().to_io_writer_pretty(writer, &self, PrettyConfig::default())?;
         ron::Options::default().to_io_writer(writer, &self)?;

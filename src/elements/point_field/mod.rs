@@ -1,11 +1,11 @@
 pub mod halton;
 use geo::{Point, Rect};
-pub use halton::*;
+pub use halton::{HaltonPointField, HaltonPointFieldBuilder};
 use rand::prelude::*;
-pub mod perlin;
-pub use perlin::*;
 pub mod bitmap;
-pub use bitmap::*;
+pub mod perlin;
+pub use bitmap::BitmapPointField;
+pub use perlin::{PerlinPointField, PerlinPointFieldBuilder};
 use std::fmt::Debug;
 use voronoice::Voronoi;
 

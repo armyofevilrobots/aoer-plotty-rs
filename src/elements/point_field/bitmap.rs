@@ -204,6 +204,6 @@ pub mod test {
         let img = img.decode().expect("Failed to decode image.");
         let img = img.grayscale();
         let pf = BitmapPointField::new(img.grayscale().into(), 1., 1.);
-        let out: Vec<Point> = pf.collect();
+        let _out: Vec<Point> = pf.collect();
     }
 }

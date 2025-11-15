@@ -1,7 +1,6 @@
 pub use csscolorparser::Color as CssColor;
 pub use csscolorparser::parse as parse_css_color;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct PenDetail {

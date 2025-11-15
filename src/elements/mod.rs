@@ -21,4 +21,4 @@ pub use voronoi::*;
 pub mod point_field;
 pub use point_field::*;
 pub mod contours;
-pub use contours::*;
+pub use contours::{ContourField, ContourFieldBuilder};

@@ -159,7 +159,7 @@ pub mod test {
         let now = time::Instant::now();
         let mut h = HilbertSpatialHash::new().with_bounds(rect);
         let mut rng = SmallRng::seed_from_u64(0);
-        for coord in 0..100000 {
+        for _coord in 0..100000 {
             h.add(&Coord {
                 x: rng.gen_range(0.0..100.0),
                 y: rng.gen_range(0.0..100.0),

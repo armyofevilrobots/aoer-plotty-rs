@@ -966,7 +966,7 @@ impl Context {
         let mut pgf = PGF::new();
         for oplayer in oplayers {
             if !oplayer.stroke_lines.is_empty() {
-                let mut geom = PlotGeometry {
+                let geom = PlotGeometry {
                     geometry: Geometry::MultiLineString(oplayer.stroke_lines.clone()),
                     stroke: oplayer.stroke_pen,
                     keepdown_strategy: KeepdownStrategy::None, // TODO: Make this configurable
@@ -974,7 +974,7 @@ impl Context {
                 pgf.add(geom);
             }
             if !oplayer.fill_lines.is_empty() {
-                let mut geom = PlotGeometry {
+                let geom = PlotGeometry {
                     geometry: Geometry::MultiLineString(oplayer.fill_lines.clone()),
                     stroke: oplayer.hatch_pen,
                     keepdown_strategy: KeepdownStrategy::None,

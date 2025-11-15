@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+#[allow(deprecated)]
 use geo::{HasDimensions, prelude::EuclideanDistance};
 use geo_types::{Coord as Coordinate, LineString, MultiLineString};
 use rstar::{AABB, PointDistance, RTree, RTreeObject};
@@ -75,6 +76,7 @@ impl Optimizer {
                 continue;
             } // Skip blank/dot lines
             let source_start = source_line.0.first().unwrap();
+            #[allow(deprecated)]
             if current_line.0.len() == 0 {
                 current_line.0.append(&mut source_line.0.clone());
             } else if current_line

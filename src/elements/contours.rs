@@ -8,7 +8,7 @@ use noise::{NoiseFn, Perlin};
 /// The ContourBuilder from the contour crate provides the contours.
 pub struct ContourField {
     xy_step: f64,
-    seed: u32,
+    _seed: u32,
     bounds: Option<Rect<f64>>,
     thresholds: Vec<f64>,
     // contour_builder: Option<ContourBuilder>,
@@ -24,6 +24,7 @@ impl ContourField {
             .bounds
             .expect("Failed to initialize ContourField bounds.");
         let (minx, miny) = bounds.min().x_y();
+        #[allow(unused_assignments)]
         let (mut x, mut y) = (minx, miny);
         let (xmax, ymax) = bounds.max().x_y();
         let mut values: Vec<f64> = Vec::new();
@@ -120,7 +121,7 @@ impl Default for ContourField {
     fn default() -> Self {
         Self {
             xy_step: 1.,
-            seed: Default::default(),
+            _seed: Default::default(),
             bounds: Default::default(),
             thresholds: vec![],
             noise: Box::new(Perlin::new()),
@@ -157,7 +158,10 @@ impl ContourFieldBuilder {
 
     pub fn seed(self, seed: u32) -> Self {
         Self {
-            field: ContourField { seed, ..self.field },
+            field: ContourField {
+                _seed: seed,
+                ..self.field
+            },
         }
     }
 

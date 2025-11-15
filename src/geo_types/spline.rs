@@ -152,7 +152,7 @@ fn thomas(avec: Vec<f64>, bvec: Vec<f64>, cvec: Vec<f64>, dvec: Vec<f64>) -> Vec
 
 #[cfg(test)]
 pub mod test {
-    use geo::{Coord, Vector2DOps};
+    use geo::Coord;
 
     use crate::geo_types::spline::hobby_points;
 
