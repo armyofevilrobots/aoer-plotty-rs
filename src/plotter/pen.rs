@@ -1,9 +1,12 @@
 pub use csscolorparser::Color as CssColor;
 pub use csscolorparser::parse as parse_css_color;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct PenDetail {
+    #[serde(default)]
+    pub identity: Uuid,
     #[serde(default)]
     pub tool_id: usize,
     #[serde(default)]
@@ -18,6 +21,7 @@ pub struct PenDetail {
 impl Default for PenDetail {
     fn default() -> Self {
         Self {
+            identity: Uuid::new_v4(),
             tool_id: 1,
             name: "Default Pen".to_string(),
             stroke_width: 0.5,

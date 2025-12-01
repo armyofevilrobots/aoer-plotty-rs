@@ -964,22 +964,27 @@ impl Context {
     pub fn to_pgf(&self) -> PGF {
         let oplayers = self.to_layers();
         let mut pgf = PGF::new();
+        // let mut idx = 0;
         for oplayer in oplayers {
             if !oplayer.stroke_lines.is_empty() {
                 let geom = PlotGeometry {
+                    // id: idx,
                     geometry: Geometry::MultiLineString(oplayer.stroke_lines.clone()),
                     stroke: oplayer.stroke_pen,
                     keepdown_strategy: KeepdownStrategy::None, // TODO: Make this configurable
                 };
                 pgf.add(geom);
+                // idx += 1;
             }
             if !oplayer.fill_lines.is_empty() {
                 let geom = PlotGeometry {
+                    // id: idx,
                     geometry: Geometry::MultiLineString(oplayer.fill_lines.clone()),
                     stroke: oplayer.hatch_pen,
                     keepdown_strategy: KeepdownStrategy::None,
                 };
                 pgf.add(geom);
+                // idx += 1;
             }
         }
         pgf

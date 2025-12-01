@@ -1,3 +1,5 @@
+use serde;
+// use std::default;
 use std::io::Read;
 use std::path::PathBuf;
 
@@ -30,6 +32,7 @@ impl KeepdownStrategy {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PlotGeometry {
+    // pub id: u64, // This is gonna be a pain in the ass later :()
     pub geometry: Geometry,
     // pub hatch: Option<HatchDetail>,
     pub stroke: Option<PenDetail>,
@@ -41,6 +44,7 @@ pub struct PlotGeometry {
 impl Default for PlotGeometry {
     fn default() -> Self {
         Self {
+            // id: 0,
             geometry: Geometry::GeometryCollection(geo::GeometryCollection::new_from(vec![])),
             // hatch: Default::default(),
             stroke: Default::default(),
