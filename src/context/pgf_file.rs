@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::plotter::pen::PenDetail;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Copy)]
 pub enum KeepdownStrategy {
     None,
     #[default]
