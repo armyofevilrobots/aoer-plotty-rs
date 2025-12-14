@@ -18,6 +18,12 @@ pub struct PenDetail {
     pub color: CssColor,
 }
 
+impl PenDetail {
+    pub fn random_identity() -> Uuid {
+        Uuid::new_v4()
+    }
+}
+
 impl Default for PenDetail {
     fn default() -> Self {
         Self {

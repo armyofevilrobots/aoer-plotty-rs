@@ -20,7 +20,7 @@ voronoice="0.2.0"
 serialport = "4.0.1"
 geo-types = { version = "0.7", features = ["serde"] }
 geo = "0.30"
-geos = { version = "8.1", features = ["geo", "json"] }
+geos = { version = "8.3", features = ["geo", "json"] }
 geo-offset = "0.4"
 geo-clipper = "0.7"
 num-traits = "0.2"
