@@ -1,6 +1,7 @@
 use contour::ContourBuilder;
 use geo::{Coord, MultiLineString, MultiPolygon, Rect, Scale, Translate};
-use noise::{NoiseFn, Perlin};
+use noise::NoiseFn;
+use noise::Perlin;
 
 /// A ContourField is an area filled with perlin generated contour lines.
 /// The noise is clamped from 0.0 .. 1.0, and you pass thresholds in as
@@ -8,12 +9,12 @@ use noise::{NoiseFn, Perlin};
 /// The ContourBuilder from the contour crate provides the contours.
 pub struct ContourField {
     xy_step: f64,
-    _seed: u32,
+    seed: u32,
     bounds: Option<Rect<f64>>,
     thresholds: Vec<f64>,
     // contour_builder: Option<ContourBuilder>,
     // perlin: Perlin,
-    noise: Box<dyn NoiseFn<[f64; 2]>>,
+    noise: Box<dyn NoiseFn<f64, 2>>,
     perlin_scale: f64,
 }
 
@@ -121,10 +122,10 @@ impl Default for ContourField {
     fn default() -> Self {
         Self {
             xy_step: 1.,
-            _seed: Default::default(),
+            seed: Default::default(),
             bounds: Default::default(),
             thresholds: vec![],
-            noise: Box::new(Perlin::new()),
+            noise: Box::new(Perlin::new(0)),
             perlin_scale: 1.,
         }
     }
@@ -147,7 +148,7 @@ impl ContourFieldBuilder {
         }
     }
 
-    pub fn noise(self, noise: Box<dyn NoiseFn<[f64; 2]>>) -> Self {
+    pub fn noise(self, noise: Box<dyn NoiseFn<f64, 2>>) -> Self {
         Self {
             field: ContourField {
                 noise,
@@ -159,7 +160,8 @@ impl ContourFieldBuilder {
     pub fn seed(self, seed: u32) -> Self {
         Self {
             field: ContourField {
-                _seed: seed,
+                seed: seed,
+                noise: Box::new(Perlin::new(seed)),
                 ..self.field
             },
         }

@@ -48,6 +48,7 @@ fn main() {
             .fill("black")
             .pen(0.5)
             .pattern(pattern.clone())
+            // .pattern_dyn(pattern.as_ref())
             .hatch_scale(Some(3.))
             .hatch(0.)
             .poly(

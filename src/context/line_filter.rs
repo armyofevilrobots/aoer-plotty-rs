@@ -31,7 +31,7 @@ pub struct PerlinFilter {
 impl PerlinFilter {
     pub fn new(noise_prescale: f64, deviation: f64) -> PerlinFilter {
         PerlinFilter {
-            perlin: Perlin::new(),
+            perlin: Perlin::new(0),
             noise_prescale,
             deviation,
         }
@@ -59,7 +59,7 @@ impl PerlinFilter {
 impl SketchyLineFilter {
     pub fn new(noise_prescale: f64, deviation: f64) -> SketchyLineFilter {
         SketchyLineFilter {
-            perlin: Perlin::new(),
+            perlin: Perlin::new(0),
             noise_prescale,
             deviation,
         }

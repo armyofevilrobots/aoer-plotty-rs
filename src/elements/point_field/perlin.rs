@@ -154,7 +154,7 @@ impl PerlinPointFieldBuilder {
                 0
             },
             */
-            iter_perlin: Some(Perlin::new().set_seed(self.field.seed)),
+            iter_perlin: Some(Perlin::new(self.field.seed)),
             iter_rng: Some(SmallRng::seed_from_u64(self.field.seed as u64)),
             ..*self.field
         }

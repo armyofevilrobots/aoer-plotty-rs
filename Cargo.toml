@@ -26,7 +26,7 @@ geo-clipper = "0.7"
 num-traits = "0.2"
 nannou = {version="0.19", optional=true}
 nannou_egui = {version="0.19", optional=true}
-noise="0.7"
+noise="0.9"
 num = "0.4"
 embed-doc-image = "0.1"
 tera = "1"
