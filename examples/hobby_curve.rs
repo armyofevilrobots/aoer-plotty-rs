@@ -16,8 +16,8 @@ use std::sync::Arc;
 fn main() {
     let mut ctx = Context::new();
 
-    let perlx = Perlin::new().set_seed(0);
-    let perly = Perlin::new().set_seed(2);
+    let perlx = Perlin::new(0);
+    let perly = Perlin::new(2);
     let pscale = 0.005f64;
     let pdisplace = 3.0f64;
 

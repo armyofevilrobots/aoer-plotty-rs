@@ -7,7 +7,9 @@ use aoer_plotty_rs::prelude::NoHatch;
 use aoer_plotty_rs::util::AnythingToGeo;
 use geo::Coord;
 use geo_types::{Rect, coord};
-use noise::{Abs, BasicMulti, Billow, Fbm, OpenSimplex, Perlin, RidgedMulti, Terrace, Worley};
+use noise::{
+    Abs, BasicMulti, Billow, Fbm, OpenSimplex, Perlin, RidgedMulti, Seedable, Terrace, Worley,
+};
 use std::path::Path;
 
 fn main() {
@@ -19,7 +21,7 @@ fn main() {
         .xy_step(1.123)
         .seed(5)
         .perlin_scale(0.001)
-        .noise(Box::new(Billow::new()))
+        .noise(Box::new(Billow::<Perlin>::new(5)))
         .thresholds(
             (-20..20)
                 .map(|x| x as f64 / 20. + 0.001)
@@ -35,7 +37,7 @@ fn main() {
         .xy_step(1.123)
         .seed(5)
         .perlin_scale(0.01)
-        .noise(Box::new(Perlin::new()))
+        .noise(Box::new(Perlin::new(5)))
         .thresholds(
             (-20..20)
                 .map(|x| x as f64 / 20. + 0.001)
@@ -51,7 +53,7 @@ fn main() {
         .xy_step(1.123)
         .seed(5)
         .perlin_scale(0.01)
-        .noise(Box::new(Worley::new()))
+        .noise(Box::new(Worley::new(5)))
         .thresholds(
             (-20..20)
                 .map(|x| x as f64 / 20. + 0.001)
@@ -67,7 +69,7 @@ fn main() {
         .xy_step(1.123)
         .seed(5)
         .perlin_scale(0.01)
-        .noise(Box::new(OpenSimplex::new()))
+        .noise(Box::new(OpenSimplex::new(5)))
         .thresholds(
             (-20..20)
                 .map(|x| x as f64 / 20. + 0.001)
@@ -83,7 +85,7 @@ fn main() {
         .xy_step(1.123)
         .seed(5)
         .perlin_scale(0.01)
-        .noise(Box::new(BasicMulti::new()))
+        .noise(Box::new(BasicMulti::<Perlin>::new(5)))
         .thresholds(
             (-20..20)
                 .map(|x| x as f64 / 20. + 0.001)
@@ -99,7 +101,7 @@ fn main() {
         .xy_step(1.123)
         .seed(5)
         .perlin_scale(0.01)
-        .noise(Box::new(Fbm::new()))
+        .noise(Box::new(Fbm::<Perlin>::new(5)))
         .thresholds(
             (-20..20)
                 .map(|x| x as f64 / 20. + 0.001)
@@ -116,7 +118,7 @@ fn main() {
         .xy_step(1.123)
         .seed(5)
         .perlin_scale(0.01)
-        .noise(Box::new(Abs::new(perlin)))
+        .noise(Box::new(Abs::new(Perlin::new(5))))
         .thresholds(
             (-20..20)
                 .map(|x| x as f64 / 20. + 0.001)
@@ -132,7 +134,7 @@ fn main() {
         .xy_step(1.123)
         .seed(5)
         .perlin_scale(0.01)
-        .noise(Box::new(RidgedMulti::new()))
+        .noise(Box::new(RidgedMulti::<Perlin>::new(5)))
         .thresholds(
             (-20..20)
                 .map(|x| x as f64 / 20. + 0.001)
@@ -150,7 +152,7 @@ fn main() {
         .seed(5)
         .perlin_scale(0.01)
         .noise(Box::new(
-            Terrace::new(perlin)
+            Terrace::new(Perlin::new(5))
                 .add_control_point(-1.0)
                 .add_control_point(-0.5)
                 .add_control_point(0.1)
