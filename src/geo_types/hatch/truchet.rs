@@ -37,7 +37,7 @@ impl TruchetHatch {
     /// This is a very simple diagonal line hatch. Mostly for example/testing
     /// purposes. You should use LineHatch directly instead for better
     /// performance.
-    pub fn minimal_line(scale: f64) -> Arc<Box<dyn HatchPattern>> {
+    pub fn minimal_line(scale: f64) -> Arc<dyn HatchPattern> {
         let tile = LineString::new(vec![Coord { x: 0.0, y: 0.0 }, Coord { x: scale, y: scale }]);
         let tile = MultiLineString::new(vec![tile]);
         let hatch = TruchetHatch {
@@ -46,7 +46,7 @@ impl TruchetHatch {
             tile_size: (scale, scale),
             tiles: vec![(1, tile)],
         };
-        Arc::new(Box::new(hatch))
+        Arc::new(hatch)
     }
 
     /*

@@ -129,7 +129,7 @@ pub struct Context {
     line_cap: String,
     mask: Option<Geometry<f64>>,
     clip_previous: bool,
-    hatch_pattern: Arc<Box<dyn HatchPattern>>,
+    hatch_pattern: Arc<dyn HatchPattern>,
     hatch_angle: f64,
     hatch_scale: Option<f64>,
     stroke_filter: Option<Arc<Box<dyn LineFilter>>>,
@@ -261,7 +261,7 @@ impl Context {
             hatch_width: 0.5,
             mask: None,
             clip_previous: false,
-            hatch_pattern: Arc::new(Box::new(LineHatch {})), //Hatches::line(),
+            hatch_pattern: Arc::new(LineHatch {}), //Hatches::line(),
             hatch_angle: 0.0,
             hatch_scale: None,
             stroke_filter: None,
@@ -825,7 +825,7 @@ impl Context {
 
     /// Set the hatch pattern
     //pub fn pattern(&mut self, pattern: Hatches) -> &mut Self {
-    pub fn pattern(&mut self, pattern: Arc<Box<dyn HatchPattern>>) -> &mut Self {
+    pub fn pattern(&mut self, pattern: Arc<dyn HatchPattern>) -> &mut Self {
         self.hatch_pattern = pattern;
         self
     }
@@ -1173,7 +1173,7 @@ mod test {
         context.stroke("red");
         context.pen(0.5);
         context.fill("blue");
-        context.pattern(Arc::new(Box::new(NoHatch {})));
+        context.pattern(Arc::new(NoHatch {}));
         context.hatch(45.0);
         context.rect(10.0, 10.0, 30.0, 30.0);
         context.rect(20.0, 20.0, 40.0, 40.0);
@@ -1201,7 +1201,7 @@ mod test {
         context.fill("blue");
         // context.hatch(45.0);
         // context.pattern(LineHatch::gen());
-        context.pattern(Arc::new(Box::new(NoHatch {})));
+        context.pattern(Arc::new(NoHatch {}));
         context.rect(10.0, 10.0, 30.0, 30.0);
         context.rect(20.0, 20.0, 40.0, 40.0);
         context.rect(32.0, 32.0, 48.0, 48.0);
@@ -1274,7 +1274,7 @@ mod test {
         context.stroke("red");
         context.pen(0.8);
         context.fill("blue");
-        context.pattern(Arc::new(Box::new(NoHatch {})));
+        context.pattern(Arc::new(NoHatch {}));
         context
             .hatch(45.0)
             .geometry(&Geometry::Polygon(Polygon::new(
@@ -1327,7 +1327,7 @@ mod test {
             .stroke("red")
             .pen(0.8)
             .fill("blue")
-            .pattern(Arc::new(Box::new(LineHatch {})))
+            .pattern(Arc::new(LineHatch {}))
             .hatch(45.0)
             .path(&path);
 
@@ -1347,7 +1347,7 @@ mod test {
             .stroke("red")
             .pen(0.8)
             .fill("blue")
-            .pattern(Arc::new(Box::new(LineHatch {})))
+            .pattern(Arc::new(LineHatch {}))
             .hatch(45.0)
             .glyph('X', false)
             .glyph('O', false);

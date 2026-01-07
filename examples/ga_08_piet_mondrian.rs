@@ -97,9 +97,9 @@ fn main() {
 
         // Don't bother hatching if it's white.
         if color != white {
-            ctx.pattern(Arc::new(Box::new(LineHatch {})));
+            ctx.pattern(LineHatch::gen());
         } else {
-            ctx.pattern(Arc::new(Box::new(NoHatch {})));
+            ctx.pattern(NoHatch::gen());
         }
 
         // And set the fill color.
@@ -111,7 +111,7 @@ fn main() {
         );
 
         // Now we just draw the rest of the outlines, inside to outside, no fill.
-        ctx.pattern(Arc::new(Box::new(NoHatch {})));
+        ctx.pattern(NoHatch::gen());
         let mut remaining_width = square_weight - (pen_width / 2.0);
         let s = squares[i].clone();
         while remaining_width >= 0.0 {

@@ -62,7 +62,7 @@ pub trait OutlineFillStroke {
         &self,
         stroke_weight: f64,
         pen_width: f64,
-        pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
+        pattern: Arc<dyn HatchPattern>,
         angle: f64,
     ) -> Result<MultiLineString<f64>, Box<dyn Error>>;
 }
@@ -72,7 +72,7 @@ impl OutlineFillStroke for MultiLineString<f64> {
         &self,
         stroke_weight: f64,
         pen_width: f64,
-        pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
+        pattern: Arc<dyn HatchPattern>, //Hatches,
         angle: f64,
     ) -> Result<MultiLineString<f64>, Box<dyn Error>> {
         let polys = self.outline_stroke(stroke_weight)?;
@@ -158,7 +158,7 @@ pub trait HatchPattern: Debug + Send + Sync {
 pub trait Hatch {
     fn hatch(
         &self,
-        pattern: Arc<Box<dyn HatchPattern>>,
+        pattern: Arc<dyn HatchPattern>,
         angle: f64,
         scale: f64,
         pen: f64,
@@ -170,8 +170,8 @@ pub trait Hatch {
 pub struct NoHatch {}
 
 impl NoHatch {
-    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
-        Arc::new(Box::new(Self::default()))
+    pub fn gen() -> Arc<dyn HatchPattern> {
+        Arc::new(Self::default())
     }
 }
 
@@ -209,7 +209,7 @@ fn gt_flatten_mlines(
 impl Hatch for MultiPolygon<f64> {
     fn hatch(
         &self,
-        pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
+        pattern: Arc<dyn HatchPattern>, //Hatches,
         angle: f64,
         scale: f64,
         pen: f64,
@@ -286,7 +286,7 @@ pub fn dirty_inset(mls_geo: &mut geo_types::Geometry<f64>, inset: f64) {
 impl Hatch for Polygon<f64> {
     fn hatch(
         &self,
-        pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
+        pattern: Arc<dyn HatchPattern>, //Hatches,
         angle: f64,
         scale: f64,
         pen: f64,
@@ -419,7 +419,7 @@ mod test {
         );
         let hatches = poly
             //.hatch(Hatches::line(), 0.0, 5.0, 0.0)
-            .hatch(Arc::new(Box::new(LineHatch {})), 0.0, 5.0, 0.0)
+            .hatch(Arc::new(LineHatch {}), 0.0, 5.0, 0.0)
             .expect("Failed to Ok the hatches.");
         //println!("Hatched object is: {:?}", hatches);
         assert!(hatches.0.len() == 7);
@@ -438,7 +438,7 @@ mod test {
             vec![],
         );
         let hatches = poly
-            .hatch(Arc::new(Box::new(LineHatch {})), PI / 4.0, 5.0, 0.0)
+            .hatch(Arc::new(LineHatch {}), PI / 4.0, 5.0, 0.0)
             .expect("Failed to Ok the hatches.");
         // println!("Angle-Hatched object is: {:?}", hatches);
         assert_eq!(hatches.0.len(), 8);
@@ -468,7 +468,7 @@ mod test {
         );
         let mpoly = MultiPolygon::<f64>::new(vec![poly1, poly2]);
         let _hatches = mpoly
-            .hatch(Arc::new(Box::new(LineHatch {})), 0.0, 5.0, 0.0)
+            .hatch(Arc::new(LineHatch {}), 0.0, 5.0, 0.0)
             .expect("Disjoint hatch failed");
         // println!("Disjoint hatch {:?}", hatches);
     }
@@ -491,7 +491,7 @@ mod test {
             vec![],
         );
         let hatches = poly
-            .hatch(Arc::new(Box::new(LineHatch {})), 0.0, 5.0, 2.0)
+            .hatch(Arc::new(LineHatch {}), 0.0, 5.0, 2.0)
             .expect("Disjoint hatch failed");
         println!(
             "Got these {} disjointed after inset lines: {:?}",
@@ -519,7 +519,7 @@ mod test {
             vec![],
         );
         let hatches = poly
-            .hatch(Arc::new(Box::new(LineHatch {})), PI / 4.0, 5.0, 2.0)
+            .hatch(Arc::new(LineHatch {}), PI / 4.0, 5.0, 2.0)
             .expect("Disjoint hatch failed");
         // println!(
         //     "Got these {} angled then disjointed after inset lines: {:?}",

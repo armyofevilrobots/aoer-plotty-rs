@@ -1,8 +1,13 @@
 use aoer_plotty_rs::context::Context;
 // use aoer_plotty_rs::elements::CarlsonSmithTruchet;
 use geo_types::coord; //, Geometry, MultiLineString};
-use nannou::prelude::{PURPLE, Update};
-use nannou::{App, Frame};
+
+#[cfg(feature = "nannou")]
+use nannou::{
+    App, Frame,
+    prelude::{PURPLE, Update},
+};
+#[cfg(feature = "nannou")]
 use nannou_egui::{self, Egui, egui};
 use num_traits::Pow;
 use std::f64::consts::PI;
@@ -15,6 +20,7 @@ struct Settings {
     pub scale: f64,
 }
 
+#[cfg(feature = "nannou")]
 struct Model {
     egui: Egui,
     // tiles: HashMap<String, Rc<Geometry<f64>>>,
@@ -22,6 +28,7 @@ struct Model {
     pub settings: Settings,
 }
 
+#[cfg(feature = "nannou")]
 impl Model {
     /// Generates my content
     fn generate(&mut self) {
@@ -55,6 +62,7 @@ impl Model {
     }
 }
 
+#[cfg(feature = "nannou")]
 fn model(app: &App) -> Model {
     // Create window
     let window_id = app
@@ -80,6 +88,7 @@ fn model(app: &App) -> Model {
     model
 }
 
+#[cfg(feature = "nannou")]
 fn update(_app: &App, model: &mut Model, update: Update) {
     // Update the var used to spin the gosper
     let egui = &mut model.egui;
@@ -88,11 +97,13 @@ fn update(_app: &App, model: &mut Model, update: Update) {
     egui::Window::new("Carlson Smith Fibo").show(&ctx, |_ui| {});
 }
 
+#[cfg(feature = "nannou")]
 fn raw_window_event(_app: &App, model: &mut Model, event: &nannou::winit::event::WindowEvent) {
     // Let egui handle things like keyboard and mouse input.
     model.egui.handle_raw_event(event);
 }
 
+#[cfg(feature = "nannou")]
 fn view(app: &App, model: &Model, frame: Frame) {
     // Broilerplate Nannou
     let draw = app.draw();
@@ -107,5 +118,6 @@ fn view(app: &App, model: &Model, frame: Frame) {
 
 fn main() {
     // Basic Nannou setup.
+    #[cfg(feature = "nannou")]
     nannou::app(model).update(update).run();
 }

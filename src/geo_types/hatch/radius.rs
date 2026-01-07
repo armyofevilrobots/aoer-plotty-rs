@@ -14,8 +14,8 @@ pub struct RadiusHatch {
 }
 
 impl RadiusHatch {
-    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
-        Arc::new(Box::new(Self::default()))
+    pub fn gen() -> Arc<dyn HatchPattern> {
+        Arc::new(Self::default())
     }
     pub fn with_octave_diameter(mut self, octave: f64) -> Self {
         self.octave_radius = Some(octave);

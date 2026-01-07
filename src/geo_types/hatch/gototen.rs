@@ -17,8 +17,8 @@ pub struct GotoTenHatch {
 }
 
 impl GotoTenHatch {
-    pub fn gen(seed: u64) -> Arc<Box<dyn HatchPattern>> {
-        Arc::new(Box::new(GotoTenHatch { seed }))
+    pub fn gen(seed: u64) -> Arc<dyn HatchPattern> {
+        Arc::new(GotoTenHatch { seed })
     }
 }
 

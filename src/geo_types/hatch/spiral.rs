@@ -24,8 +24,8 @@ pub struct SpiralHatch {
 }
 
 impl SpiralHatch {
-    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
-        Arc::new(Box::new(Self::default()))
+    pub fn gen() -> Arc<dyn HatchPattern> {
+        Arc::new(Self::default())
     }
 }
 

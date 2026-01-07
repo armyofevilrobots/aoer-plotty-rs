@@ -2,18 +2,22 @@ use aoer_plotty_rs::context::Context as AOERCTX;
 use aoer_plotty_rs::context::typography::TextAlignment::Center;
 use aoer_plotty_rs::context::typography::Typography;
 use aoer_plotty_rs::elements::CarlsonSmithTruchet;
+#[cfg(feature = "nannou")]
 use aoer_plotty_rs::geo_types::nannou::NannouDrawer;
 use aoer_plotty_rs::prelude::{LineHatch, NoHatch};
 use geo_types::{Geometry, MultiLineString};
-use nannou::lyon::lyon_tessellation::LineJoin;
-use nannou::lyon::tessellation::LineCap;
+#[cfg(feature = "nannou")]
+use nannou::lyon::{lyon_tessellation::LineJoin, tessellation::LineCap};
+#[cfg(feature = "nannou")]
 use nannou::prelude::*;
+#[cfg(feature = "nannou")]
 use nannou_egui::{self, Egui, egui};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
 /// All the stuff we want in the egui component
+#[cfg(feature = "nannou")]
 #[derive(Clone, PartialEq)]
 struct Settings {
     rotation: f32,
@@ -21,6 +25,7 @@ struct Settings {
     draft: bool,
 }
 
+#[cfg(feature = "nannou")]
 impl Settings {
     fn changed(&self, other: &Self) -> bool {
         self.draft != other.draft
@@ -32,6 +37,7 @@ type Layers = HashMap<String, (MultiLineString<f64>, MultiLineString<f64>)>;
 
 /// The Model contains just the loop count (number of frames) and the tlines (turtle lines)
 /// MultiLineString that contains the gosper curve.
+#[cfg(feature = "nannou")]
 struct Model {
     loops: u32,
     layers: Layers,
@@ -41,6 +47,7 @@ struct Model {
     full_set: HashMap<String, Rc<Geometry<f64>>>,
 }
 
+#[cfg(feature = "nannou")]
 impl Model {
     /// Generates the actual content
     fn generate(&self) -> AOERCTX {
@@ -50,10 +57,10 @@ impl Model {
         ctx.pen(1.5).accuracy(0.3);
         if self.settings.draft {
             //ctx.pattern(Hatches::none());
-            ctx.pattern(Arc::new(Box::new(NoHatch {})));
+            ctx.pattern(NoHatch::gen());
         } else {
             //ctx.pattern(Hatches::line());
-            ctx.pattern(Arc::new(Box::new(LineHatch {})));
+            ctx.pattern(LineHatch::gen());
         }
         let mut typo = Typography::new();
         typo.size(4.5).align(Center);
@@ -154,6 +161,7 @@ impl Model {
 /// Creates a new turtle, then a new gosper LSystem. Walks the Gosper path after expanding
 /// the LSystem, and then spits out a multiline string which we use to populate the Model.
 /// Also centers the resulting MultiLineString on the 0,0 point in the middle of the screen.
+#[cfg(feature = "nannou")]
 fn model(app: &App) -> Model {
     // Generate the egui stuffs
     // Create window
@@ -183,6 +191,7 @@ fn model(app: &App) -> Model {
     }
 }
 
+#[cfg(feature = "nannou")]
 fn update(_app: &App, model: &mut Model, update: Update) {
     // Update the var used to spin the gosper
     model.loops += 1;
@@ -222,11 +231,13 @@ fn update(_app: &App, model: &mut Model, update: Update) {
     }
 }
 
+#[cfg(feature = "nannou")]
 fn raw_window_event(_app: &App, model: &mut Model, event: &nannou::winit::event::WindowEvent) {
     // Let egui handle things like keyboard and mouse input.
     model.egui.handle_raw_event(event);
 }
 
+#[cfg(feature = "nannou")]
 fn view(app: &App, model: &Model, frame: Frame) {
     // Broilerplate Nannou
     // And slowly spin it
@@ -262,6 +273,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
 
 fn main() {
     // Basic Nannou setup.
+    #[cfg(feature = "nannou")]
     nannou::app(model)
         .update(update)
         // .simple_window(view)

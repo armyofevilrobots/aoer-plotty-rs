@@ -21,7 +21,7 @@ fn main() {
     ctx.stroke("black")
         .hatch(45.0)
         .pen(pen_width)
-        .pattern(Arc::new(Box::new(LineHatch {})))
+        .pattern(LineHatch::gen())
         .fill("black");
 
     for day in 0..days {

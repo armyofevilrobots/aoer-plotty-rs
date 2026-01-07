@@ -36,7 +36,7 @@ pub struct Operation {
     pub(crate) stroke_pen: Option<PenDetail>,
     pub(crate) hatch_pen: Option<PenDetail>,
     //pub(crate) hatch_pattern: Hatches,
-    pub(crate) hatch_pattern: Arc<Box<dyn HatchPattern>>,
+    pub(crate) hatch_pattern: Arc<dyn HatchPattern>,
     pub(crate) hatch_angle: f64,
     pub(crate) hatch_scale: Option<f64>,
     pub(crate) stroke_filter: Option<Arc<Box<dyn LineFilter>>>,
@@ -110,7 +110,7 @@ impl Operation {
         pen_width: f64,
         hatch_angle: f64,
         hatch_scale: Option<f64>,
-        hatch_pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
+        hatch_pattern: Arc<dyn HatchPattern>, //Hatches,
     ) -> (MultiLineString<f64>, MultiLineString<f64>) {
         let mut strokes = MultiLineString::new(vec![]);
         // let mut fills = MultiLineString::new(vec![]);
@@ -142,7 +142,7 @@ impl Operation {
         pen_width: f64,
         hatch_angle: f64,
         hatch_scale: Option<f64>,
-        hatch_pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
+        hatch_pattern: Arc<dyn HatchPattern>, //Hatches,
     ) -> (MultiLineString<f64>, MultiLineString<f64>) {
         let mut strokes = MultiLineString::new(vec![]);
         // let mut fills = MultiLineString::new(vec![]);
@@ -183,7 +183,7 @@ impl Operation {
         pen_width: f64,
         hatch_angle: f64,
         hatch_scale: Option<f64>,
-        hatch_pattern: Arc<Box<dyn HatchPattern>>, //Hatches,
+        hatch_pattern: Arc<dyn HatchPattern>, //Hatches,
     ) -> (MultiLineString<f64>, MultiLineString<f64>) {
         match txgeo {
             Geometry::MultiLineString(mls) => (mls.clone(), MultiLineString::new(vec![])),
@@ -305,7 +305,7 @@ impl Operation {
                     stroke,
                     self.pen_width,
                     //Hatches::line(),
-                    Arc::new(Box::new(LineHatch {})),
+                    Arc::new(LineHatch {}),
                     self.hatch_angle,
                 )
                 .unwrap_or(outlines),

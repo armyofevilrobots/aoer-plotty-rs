@@ -23,7 +23,7 @@ pub enum CarlsonSmithTruchet {
 }
 
 impl CarlsonSmithTruchet {
-    pub fn into_hatch(scale: f64, inset: Option<f64>) -> Arc<Box<dyn HatchPattern>> {
+    pub fn into_hatch(scale: f64, inset: Option<f64>) -> Arc<dyn HatchPattern> {
         fn geometry_to_outlines(geom: &Geometry<f64>, inset: Option<f64>) -> MultiLineString<f64> {
             match geom {
                 Geometry::Line(line) => MultiLineString::new(vec![LineString::new(vec![
@@ -106,12 +106,12 @@ impl CarlsonSmithTruchet {
             .collect();
         println!("Truchets are scaled by {}", scale);
 
-        Arc::new(Box::new(TruchetHatch {
+        Arc::new(TruchetHatch {
             scale: scale / 1., // It's 4 lines per size.
             seed: 0,
             tile_size: (scale, scale),
             tiles: tiles,
-        }))
+        })
     }
 
     pub fn full_set() -> HashMap<String, Rc<Geometry<f64>>> {

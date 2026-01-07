@@ -108,7 +108,7 @@ fn main() {
         .iter()
         .map(|p| {
             p.hatch(
-                Arc::new(Box::new(LineHatch {})),
+                LineHatch::gen(),
                 rng.gen::<f64>() * 90.0,
                 rng.gen::<f64>() * 1.0 + pen_width,
                 pen_width,

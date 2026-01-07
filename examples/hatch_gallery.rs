@@ -12,35 +12,35 @@ use std::sync::Arc;
 fn main() {
     let mut ctx = Context::new();
 
-    let fills: Vec<Arc<Box<dyn HatchPattern>>> = vec![
-        Arc::new(Box::new(LineHatch {})),
-        Arc::new(Box::new(CrossHatch {})),
-        Arc::new(Box::new(RadiusHatch::default().with_center(160., 32.0))),
-        Arc::new(Box::new(CircleHatch {})),
-        Arc::new(Box::new(FastHexHatch {})),
-        Arc::new(Box::new(RadiusHatch {
+    let fills: Vec<Arc<dyn HatchPattern>> = vec![
+        Arc::new(LineHatch {}),
+        Arc::new(CrossHatch {}),
+        Arc::new(RadiusHatch::default().with_center(160., 32.0)),
+        Arc::new(CircleHatch {}),
+        Arc::new(FastHexHatch {}),
+        Arc::new(RadiusHatch {
             x: 160.,
             y: 32.0,
             octave_radius: None,
-        })),
-        Arc::new(Box::new(SpiralHatch {
+        }),
+        Arc::new(SpiralHatch {
             x: 32.0,
             y: 3. * 60.0,
             direction: SpiralDirection::Widdershins,
-        })),
-        Arc::new(Box::new(SpiralHatch {
+        }),
+        Arc::new(SpiralHatch {
             x: 64. + 32.0,
             y: 3. * 60.0,
             direction: SpiralDirection::Deasil,
-        })),
+        }),
         GotoTenHatch::gen(0),
         TruchetHatch::minimal_line(10.),
         CarlsonSmithTruchet::into_hatch(10., Some(0.25)),
-        Arc::new(Box::new(RadiusHatch {
+        Arc::new(RadiusHatch {
             x: 160.,
             y: 240.0,
             octave_radius: Some(30.),
-        })),
+        }),
     ];
 
     for (i, pattern) in fills.iter().enumerate() {
@@ -64,7 +64,7 @@ fn main() {
                 vec![],
             )
             .pen(0.2)
-            .pattern(Arc::new(Box::new(NoHatch {})))
+            .pattern(Arc::new(NoHatch {}))
             .typography(
                 &format!("{:?}", pattern),
                 (i % 3) as f64 * 64. + 4.,

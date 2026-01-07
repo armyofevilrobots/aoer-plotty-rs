@@ -256,7 +256,7 @@ mod tests {
             .fill("#000")
             .hatch(0.)
             .pen(0.5)
-            .pattern(Arc::new(Box::new(LineHatch {})));
+            .pattern(Arc::new(LineHatch {}));
         let outer = LineString::new(vec![
             coord! {x:0., y:10.},
             coord! {x:14., y: 0.},
@@ -285,7 +285,7 @@ mod tests {
             .stroke("#000")
             .fill("#000")
             .hatch(0.)
-            .pattern(Arc::new(Box::new(LineHatch {})))
+            .pattern(Arc::new(LineHatch {}))
             .circle(0., 0., 10.);
         let layers = ctx.to_layers();
         for layer in layers {
@@ -306,7 +306,7 @@ mod tests {
             .stroke("#000")
             .fill("#000")
             .hatch(0.)
-            .pattern(Arc::new(Box::new(LineHatch {})))
+            .pattern(Arc::new(LineHatch {}))
             .circle(0., 0., 10.);
         let layers = ctx.to_layers();
         for layer in layers {

@@ -9,8 +9,8 @@ use std::sync::Arc;
 pub struct LineHatch {}
 
 impl LineHatch {
-    pub fn gen() -> Arc<Box<dyn HatchPattern>> {
-        Arc::new(Box::new(Self::default()))
+    pub fn gen() -> Arc<dyn HatchPattern> {
+        Arc::new(Self::default())
     }
 }
 
