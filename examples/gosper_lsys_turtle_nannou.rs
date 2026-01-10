@@ -1,14 +1,17 @@
 extern crate geos;
 
+#[cfg(feature = "nannou")]
 use aoer_plotty_rs::geo_types::nannou::NannouDrawer;
 use aoer_plotty_rs::l_system::LSystem;
 use aoer_plotty_rs::turtle::{Turtle, TurtleTrait, degrees};
 use geo::prelude::{BoundingRect, Translate};
 use geo_types::MultiLineString;
-use nannou::color;
-use nannou::lyon::lyon_tessellation::LineJoin;
-use nannou::lyon::tessellation::LineCap;
-use nannou::prelude::*;
+#[cfg(feature = "nannou")]
+use nannou::{
+    color,
+    lyon::{lyon_tessellation::LineJoin, tessellation::LineCap},
+    prelude::*,
+};
 use std::collections::HashMap;
 
 /// The Model contains just the loop count (number of frames) and the tlines (turtle lines)
@@ -21,6 +24,7 @@ struct Model {
 /// Creates a new turtle, then a new gosper LSystem. Walks the Gosper path after expanding
 /// the LSystem, and then spits out a multiline string which we use to populate the Model.
 /// Also centers the resulting MultiLineString on the 0,0 point in the middle of the screen.
+#[cfg(feature = "nannou")]
 fn model(_app: &App) -> Model {
     // Create a turtle
     let mut t = Turtle::new();
@@ -59,11 +63,13 @@ fn model(_app: &App) -> Model {
     Model { loops: 0, tlines }
 }
 
+#[cfg(feature = "nannou")]
 fn update(_app: &App, _model: &mut Model, _update: Update) {
     // Update the var used to spin the gosper
     _model.loops += 1;
 }
 
+#[cfg(feature = "nannou")]
 fn view(_app: &App, _model: &Model, frame: Frame) {
     // Broilerplate Nannou
     let draw = _app.draw();
@@ -88,5 +94,6 @@ fn view(_app: &App, _model: &Model, frame: Frame) {
 
 fn main() {
     // Basic Nannou setup.
+    #[cfg(feature = "nannou")]
     nannou::app(model).update(update).simple_window(view).run();
 }

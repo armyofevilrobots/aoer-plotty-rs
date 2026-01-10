@@ -1,5 +1,5 @@
 use geo_types::{Point, Rect};
-use noise::{NoiseFn, Perlin, Seedable};
+use noise::{NoiseFn, Perlin};
 use rand::prelude::*;
 use std::fmt::{Debug, Formatter};
 
