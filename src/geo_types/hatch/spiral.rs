@@ -5,16 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 use std::sync::Arc;
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-pub enum SpiralDirection {
-    #[default]
-    Deasil,
-    Widdershins,
-}
-
-pub const CLOCKWISE: SpiralDirection = SpiralDirection::Deasil;
-pub const COUNTERCLOCKWISE: SpiralDirection = SpiralDirection::Widdershins;
+pub use crate::geo_types::shapes::{CLOCKWISE, COUNTERCLOCKWISE, SpiralDirection};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
 pub struct SpiralHatch {

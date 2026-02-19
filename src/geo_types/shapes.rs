@@ -1,7 +1,50 @@
+use geo::Coord;
 /// Kinda weird that arc features are missing from geo_types, but ok, here is one.
 use geo_types::{Geometry, LineString, Point, Polygon, coord};
 use num_traits::FromPrimitive;
+use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+pub enum SpiralDirection {
+    #[default]
+    Deasil,
+    Widdershins,
+}
+
+pub const CLOCKWISE: SpiralDirection = SpiralDirection::Deasil;
+pub const COUNTERCLOCKWISE: SpiralDirection = SpiralDirection::Widdershins;
+/// Draw a spiral! Moved from the hatching lib.
+pub fn spiral(
+    min_radius: f64,
+    max_radius: f64,
+    scale: f64,
+    direction: SpiralDirection,
+    start_theta: Option<f64>,
+) -> LineString {
+    // println!("Center for bbox is: {:?}", bbox.center());
+    let mut points: Vec<Coord> = vec![];
+    let mut r = min_radius;
+    let mut theta = start_theta.unwrap_or(0.0_f64);
+
+    while r < max_radius {
+        // This keeps segment length around PI mm or less.
+        let ainc = (2. * PI / 16.).min(PI / r);
+        // println!("AINC: {}, YAINC: {}", ainc, ainc.sin() * r);
+        let r1 = r + (ainc / (2. * PI)) * scale;
+        let x = theta.cos() * r;
+        let y = theta.sin() * r;
+        theta = theta
+            + if direction == SpiralDirection::Widdershins {
+                ainc
+            } else {
+                -ainc
+            };
+        points.push(Coord { x: x, y: y });
+        r = r1;
+    }
+    LineString::new(points)
+}
 
 /// Just a regular polygon, but for some reason using compass degrees
 pub fn regular_poly(sides: usize, x: f64, y: f64, radius: f64, rotation: f64) -> Geometry<f64> {
