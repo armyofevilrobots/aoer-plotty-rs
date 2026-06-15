@@ -1,7 +1,7 @@
 use super::HatchPattern;
 use geo_types::{MultiLineString, Rect, coord};
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::sync::Arc;
 
 /// The basic built in parallel LineHatch.
@@ -9,8 +9,14 @@ use std::sync::Arc;
 pub struct LineHatch {}
 
 impl LineHatch {
-    pub fn gen() -> Arc<dyn HatchPattern> {
+    pub fn create() -> Arc<dyn HatchPattern> {
         Arc::new(Self::default())
+    }
+}
+
+impl Display for LineHatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Line Hatch")
     }
 }
 

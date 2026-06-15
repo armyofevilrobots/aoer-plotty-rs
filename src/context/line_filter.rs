@@ -8,7 +8,7 @@ use geo::{Euclidean, Polygon};
 // TODO: Switch this to using the parent crate instead.
 // use nannou::noise::{NoiseFn, Perlin};
 use noise::{NoiseFn, Perlin};
-use rand::{Rng, thread_rng};
+use rand::{Rng, rng as thread_rng};
 
 pub trait LineFilter: std::fmt::Debug {
     fn apply(&self, lines: &MultiLineString<f64>) -> MultiLineString<f64>;
@@ -154,7 +154,7 @@ impl LineFilter for SketchyLineFilter {
         let mut mls = mls.densify(&Euclidean {}, self.noise_prescale / 10.);
         let mut rng = thread_rng();
         for line in &mut mls {
-            let depth = rng.gen_range(0.0f64..100000.0);
+            let depth = rng.random_range(0.0f64..100000.0);
             line.map_coords_in_place(move |coord| {
                 let dx = self.deviation
                     * self.perlin.get([

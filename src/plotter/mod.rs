@@ -51,7 +51,7 @@ impl PlotterConnection {
 impl PlotterTransport for PlotterConnection {
     fn write_line(&mut self, buf: &str) -> std::io::Result<()> {
         match self {
-            PlotterConnection::SerialReadWrite(_, ref mut bwrite) => bwrite
+            PlotterConnection::SerialReadWrite(_, bwrite) => bwrite
                 .deref_mut()
                 .write_all((buf.to_owned() + "\n").as_bytes()),
         }
@@ -59,15 +59,13 @@ impl PlotterTransport for PlotterConnection {
 
     fn read_line(&mut self, buf: &mut String) -> std::io::Result<usize> {
         match self {
-            PlotterConnection::SerialReadWrite(ref mut bread, _) => {
-                bread.deref_mut().read_line(buf)
-            }
+            PlotterConnection::SerialReadWrite(bread, _) => bread.deref_mut().read_line(buf),
         }
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
         match self {
-            PlotterConnection::SerialReadWrite(_, ref mut bwrite) => bwrite.deref_mut().flush(),
+            PlotterConnection::SerialReadWrite(_, bwrite) => bwrite.deref_mut().flush(),
         }
     }
 }

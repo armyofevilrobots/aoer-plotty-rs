@@ -57,7 +57,7 @@ impl Iterator for PerlinPointField {
         let min = self.bounds.unwrap().min();
 
         loop {
-            let (x, y) = self.iter_rng.as_mut().unwrap().gen::<(f64, f64)>();
+            let (x, y) = self.iter_rng.as_mut().unwrap().random::<(f64, f64)>();
             let x = x * self.bounds.unwrap().width() + min.x;
             let y = y * self.bounds.unwrap().height() + min.y;
             let prob = self

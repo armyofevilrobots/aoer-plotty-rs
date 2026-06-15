@@ -33,7 +33,7 @@ fn main() {
             y: 3. * 60.0,
             direction: SpiralDirection::Deasil,
         }),
-        GotoTenHatch::gen(0),
+        GotoTenHatch::create(0),
         TruchetHatch::minimal_line(10.),
         CarlsonSmithTruchet::into_hatch(10., Some(0.25)),
         Arc::new(RadiusHatch {

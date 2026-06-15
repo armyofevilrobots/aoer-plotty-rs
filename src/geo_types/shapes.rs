@@ -12,6 +12,15 @@ pub enum SpiralDirection {
     Widdershins,
 }
 
+impl std::fmt::Display for SpiralDirection {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            SpiralDirection::Deasil => write!(f, "Deasil(CW)"),
+            SpiralDirection::Widdershins => write!(f, "Widdershins(CCW)"),
+        }
+    }
+}
+
 pub const CLOCKWISE: SpiralDirection = SpiralDirection::Deasil;
 pub const COUNTERCLOCKWISE: SpiralDirection = SpiralDirection::Widdershins;
 /// Draw a spiral! Moved from the hatching lib.

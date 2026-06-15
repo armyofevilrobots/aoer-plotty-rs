@@ -124,7 +124,7 @@ impl Error for InvalidHatchGeometry {}
 /// Returns a MultiLineString which draws a hatch pattern which fills the entire
 /// bbox area. Set up as a trait so the developer can add new patterns at their
 /// leisure.
-pub trait HatchPattern: Debug + Send + Sync {
+pub trait HatchPattern: Debug + Send + Sync + Display {
     fn generate(&self, bbox: &Rect<f64>, scale: f64, pen: f64) -> MultiLineString<f64>;
 }
 
@@ -170,8 +170,14 @@ pub trait Hatch {
 pub struct NoHatch {}
 
 impl NoHatch {
-    pub fn gen() -> Arc<dyn HatchPattern> {
+    pub fn create() -> Arc<dyn HatchPattern> {
         Arc::new(Self::default())
+    }
+}
+
+impl Display for NoHatch {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "No Hatch")
     }
 }
 

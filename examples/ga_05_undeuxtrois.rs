@@ -86,7 +86,7 @@ fn main() {
                 .outline_fill_stroke_with_hatch(
                     stroke_mm,
                     pen_width,
-                    LineHatch::gen(),
+                    LineHatch::create(),
                     rot_angle + 90.0,
                 )
                 .unwrap(),

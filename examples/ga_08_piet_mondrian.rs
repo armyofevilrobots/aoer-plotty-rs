@@ -1,4 +1,5 @@
 use aoer_plotty_rs::context::Context;
+use aoer_plotty_rs::geo_types::hatch::FastHexHatch;
 use aoer_plotty_rs::prelude::{Arrangement, LineHatch, NoHatch};
 use geo_types::{Coord, Geometry, Rect, coord};
 use rand::prelude::*;
@@ -43,11 +44,11 @@ fn split_squares_at(
 ) {
     for i in (0..squares.len()).rev() {
         let square = squares[i].clone();
-        if coord.x > square.min().x && coord.x < square.max().x && rng.gen::<f64>() > 0.5 {
+        if coord.x > square.min().x && coord.x < square.max().x && rng.random::<f64>() > 0.5 {
             squares.remove(i);
             squares.append(&mut split_on_x(&square, coord.x));
         }
-        if coord.y > square.min().y && coord.y < square.max().y && rng.gen::<f64>() > 0.5 {
+        if coord.y > square.min().y && coord.y < square.max().y && rng.random::<f64>() > 0.5 {
             squares.remove(i);
             squares.append(&mut split_on_y(&square, coord.y));
         }
@@ -88,7 +89,10 @@ fn main() {
     }
 
     // Set the default stroke/hatch/pen.
-    ctx.stroke("black").hatch(45.0).pen(pen_width);
+    ctx.stroke("black")
+        .hatch(0.0)
+        .pen(pen_width)
+        .hatch_scale(Some(3.));
 
     // for square in squares {
     for i in 0..squares.len() {
@@ -97,9 +101,10 @@ fn main() {
 
         // Don't bother hatching if it's white.
         if color != white {
-            ctx.pattern(LineHatch::gen());
+            // ctx.pattern(LineHatch::create());
+            ctx.pattern(FastHexHatch::create());
         } else {
-            ctx.pattern(NoHatch::gen());
+            ctx.pattern(NoHatch::create());
         }
 
         // And set the fill color.
@@ -111,7 +116,7 @@ fn main() {
         );
 
         // Now we just draw the rest of the outlines, inside to outside, no fill.
-        ctx.pattern(NoHatch::gen());
+        ctx.pattern(NoHatch::create());
         let mut remaining_width = square_weight - (pen_width / 2.0);
         let s = squares[i].clone();
         while remaining_width >= 0.0 {

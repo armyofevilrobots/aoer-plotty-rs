@@ -15,7 +15,7 @@ fn main() {
     ctx.stroke("black")
         .fill("red")
         .pen(0.5)
-        .pattern(NoHatch::gen())
+        .pattern(NoHatch::create())
         // .pattern(LineHatch::gen())
         // .typography(&"i".to_string(), 50.0, 50.0, &typ);
         .typography(&"Left".to_string(), 50.0, 50.0, &typ);

@@ -1,11 +1,10 @@
 use super::HatchPattern;
+pub use crate::geo_types::shapes::{CLOCKWISE, COUNTERCLOCKWISE, SpiralDirection};
 use geo::Coord;
 use geo_types::{LineString, MultiLineString, Rect};
 use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
-use std::fmt::Debug;
-use std::sync::Arc;
-pub use crate::geo_types::shapes::{CLOCKWISE, COUNTERCLOCKWISE, SpiralDirection};
+use std::fmt::{Debug, Formatter};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
 pub struct SpiralHatch {
@@ -15,20 +14,27 @@ pub struct SpiralHatch {
 }
 
 impl SpiralHatch {
-    pub fn gen() -> Arc<dyn HatchPattern> {
+    pub fn create() -> Arc<dyn HatchPattern> {
         Arc::new(Self::default())
     }
 }
 
+use std::{fmt::Display, sync::Arc};
+
+impl Display for SpiralHatch {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SpiralHatch({},{}-{})", self.x, self.y, self.direction)
+    }
+}
+
 impl Debug for SpiralHatch {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // f.debug_struct("SpiralHatch")
         //     .field("x", &self.x)
         //     .field("y", &self.y)
         //     .field("direction", &self.direction)
         //     .finish()
-        write!(f, "SpiralHatch({},{}-{:?})", self.x, self.y, self.direction)?;
-        std::fmt::Result::Ok(())
+        write!(f, "SpiralHatch({},{}-{:?})", self.x, self.y, self.direction)
     }
 }
 

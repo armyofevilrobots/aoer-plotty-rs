@@ -3,7 +3,7 @@ use crate::geo_types::shapes::circle;
 use geo::Geometry as GeoGeometry;
 use geo_types::{LineString, MultiLineString, Rect};
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -14,7 +14,7 @@ pub struct RadiusHatch {
 }
 
 impl RadiusHatch {
-    pub fn gen() -> Arc<dyn HatchPattern> {
+    pub fn create() -> Arc<dyn HatchPattern> {
         Arc::new(Self::default())
     }
     pub fn with_octave_diameter(mut self, octave: f64) -> Self {
@@ -25,6 +25,18 @@ impl RadiusHatch {
         self.x = x;
         self.y = y;
         self
+    }
+}
+
+impl Display for RadiusHatch {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Radius Hatch @x{}, y{} +rad {}",
+            self.x,
+            self.y,
+            self.octave_radius.unwrap_or(0.)
+        )
     }
 }
 

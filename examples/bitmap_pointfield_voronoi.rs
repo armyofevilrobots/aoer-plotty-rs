@@ -41,7 +41,7 @@ fn main() {
         .no_fill()
         .stroke("black")
         .pen(0.2)
-        .pattern(NoHatch::gen())
+        .pattern(NoHatch::create())
         // .typography(
         //     &"Voronoi over Perlin".to_string(),
         //     510.,

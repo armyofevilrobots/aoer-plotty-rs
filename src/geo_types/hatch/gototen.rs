@@ -3,6 +3,7 @@ use geo_types::{MultiLineString, Rect, coord};
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::fmt::Display;
 use std::sync::Arc;
 /// This is a hatch pattern that is reminiscent of the old C64 program
 /// that looked kinda like this:
@@ -16,8 +17,14 @@ pub struct GotoTenHatch {
     seed: u64,
 }
 
+impl Display for GotoTenHatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Goto10 Hatch")
+    }
+}
+
 impl GotoTenHatch {
-    pub fn gen(seed: u64) -> Arc<dyn HatchPattern> {
+    pub fn create(seed: u64) -> Arc<dyn HatchPattern> {
         Arc::new(GotoTenHatch { seed })
     }
 }
@@ -34,7 +41,7 @@ impl HatchPattern for GotoTenHatch {
         while y < max.y + scale {
             let mut x = min.x - scale;
             while x < max.x + scale {
-                if rng.gen_bool(0.5) {
+                if rng.random_bool(0.5) {
                     lines.push(geo_types::LineString::<f64>::new(vec![
                         coord! {x: x, y: y},
                         coord! {x: x+scale, y: y+scale},

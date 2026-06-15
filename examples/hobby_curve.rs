@@ -23,7 +23,7 @@ fn main() {
 
     let rect = Rect::new(Coord { x: 0., y: 0. }, Coord { x: 200., y: 200. });
     let mut h = HilbertSpatialHash::new().with_bounds(rect.clone());
-    let mut rng = SmallRng::from_entropy(); //seed_from_u64(16);
+    let mut rng = SmallRng::from_os_rng(); //from_entropy(); //seed_from_u64(16);
     for _i in 0..8 {
         h.add(&Coord {
             x: rng.gen_range(40.0..160.0),
@@ -40,7 +40,7 @@ fn main() {
             .map(|c| (c.x, c.y))
             .collect();
         ctx.stroke("black")
-            .pattern(NoHatch::gen())
+            .pattern(NoHatch::create())
             .pen(0.35)
             .spline(&curve, 32, 0.5);
         spoints = spoints

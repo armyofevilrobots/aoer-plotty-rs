@@ -1,10 +1,10 @@
 use super::HatchPattern;
 use geo::{Coord, MapCoords, MapCoordsInPlace};
 use geo_types::{LineString, MultiLineString, Rect};
-use rand::distributions::WeightedIndex;
+use rand::distr::weighted::WeightedIndex;
 use rand::prelude::*;
 use serde::Deserialize;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 
 /// A repeating Truchet hatch, optionally with multiple tiles which
@@ -23,6 +23,17 @@ pub struct TruchetHatch {
 }
 
 impl Debug for TruchetHatch {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TruchetHatch")
+            .field("scale", &self.scale)
+            .field("seed", &self.seed)
+            .field("tile_size", &self.tile_size)
+            .field("#tiles", &self.tiles.len())
+            .finish()
+    }
+}
+
+impl Display for TruchetHatch {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TruchetHatch")
             .field("scale", &self.scale)

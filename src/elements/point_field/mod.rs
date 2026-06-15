@@ -69,8 +69,8 @@ impl Iterator for RandomPointField {
 
     fn next(&mut self) -> Option<Self::Item> {
         Some(Point::new(
-            self.rng.gen::<f64>() * self.bounds.width() + self.bounds.min().x,
-            self.rng.gen::<f64>() * self.bounds.height() + self.bounds.min().y,
+            self.rng.random::<f64>() * self.bounds.width() + self.bounds.min().x,
+            self.rng.random::<f64>() * self.bounds.height() + self.bounds.min().y,
         ))
     }
 }

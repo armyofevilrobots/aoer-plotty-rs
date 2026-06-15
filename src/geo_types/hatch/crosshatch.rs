@@ -2,15 +2,21 @@ use super::HatchPattern;
 use geo_types::{MultiLineString, Rect, coord};
 // use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct CrossHatch {}
 
 impl CrossHatch {
-    pub fn gen() -> Arc<dyn HatchPattern> {
+    pub fn create() -> Arc<dyn HatchPattern> {
         Arc::new(Self::default())
+    }
+}
+
+impl Display for CrossHatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Crosshatch")
     }
 }
 

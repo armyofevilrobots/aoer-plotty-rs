@@ -30,7 +30,7 @@ fn main() {
 
     ctx.stroke("black")
         .pen(1.)
-        .pattern(NoHatch::gen())
+        .pattern(NoHatch::create())
         .geometry(&Geometry::Rect(rect))
         .pen(0.2)
         .typography(
@@ -41,7 +41,7 @@ fn main() {
             &Typography::new().size(1.2),
         )
         .fill("black")
-        .pattern(NoHatch::gen())
+        .pattern(NoHatch::create())
         .mask_box(10., 10., 110., 110.)
         .geometry(&circles);
 
@@ -65,7 +65,7 @@ fn main() {
     ctx.set_mask(&None)
         .stroke("black")
         .pen(1.)
-        .pattern(NoHatch::gen())
+        .pattern(NoHatch::create())
         .geometry(&Geometry::Rect(rect).clone())
         .pen(0.2)
         .typography(
@@ -76,7 +76,7 @@ fn main() {
             &Typography::new().size(1.2),
         )
         .fill("black")
-        .pattern(NoHatch::gen())
+        .pattern(NoHatch::create())
         .mask_box(120., 10., 220., 110.)
         .geometry(&circles);
 
@@ -98,7 +98,7 @@ fn main() {
     ctx.set_mask(&None)
         .stroke("black")
         .pen(1.)
-        .pattern(NoHatch::gen())
+        .pattern(NoHatch::create())
         .geometry(&Geometry::Rect(rect).clone())
         .pen(0.2)
         .typography(
@@ -109,7 +109,7 @@ fn main() {
             &Typography::new().size(1.2),
         )
         .fill("black")
-        .pattern(NoHatch::gen())
+        .pattern(NoHatch::create())
         .mask_box(230., 10., 330., 110.)
         .geometry(&circles);
 

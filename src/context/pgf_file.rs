@@ -92,7 +92,7 @@ impl PGF {
 
     pub fn to_file(&self, path: &PathBuf) -> Result<()> {
         let path = path.with_extension("pgf");
-        let tmp_path = path.with_added_extension(format!("tmp-{}", rand::random::<usize>()));
+        let tmp_path = path.with_added_extension(format!("tmp-{}", rand::random::<u64>()));
         // let content = self.to_string();
         let writer = std::fs::File::create(tmp_path.clone())?;
         // ron::ser::to_io_writer_pretty(writer, self, PrettyConfig::default())?;

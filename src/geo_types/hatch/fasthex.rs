@@ -3,14 +3,21 @@ use geo_types::{LineString, MultiLineString, Rect, coord};
 use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
 use std::fmt::Debug;
+use std::fmt::Display;
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct FastHexHatch {}
 
 impl FastHexHatch {
-    pub fn gen() -> Arc<dyn HatchPattern> {
+    pub fn create() -> Arc<dyn HatchPattern> {
         Arc::new(Self::default())
+    }
+}
+
+impl Display for FastHexHatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Fast Hex Hatch")
     }
 }
 

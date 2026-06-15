@@ -17,7 +17,7 @@ fn main() {
             vec![],
         )
         .outline(None)
-        .pattern(LineHatch::gen())
+        .pattern(LineHatch::create())
         .hatch(135.0)
         .stroke("blue")
         .fill("yellow")
@@ -30,7 +30,7 @@ fn main() {
         .pop()
         .unwrap()
         .hatch(0.0)
-        .pattern(LineHatch::gen())
+        .pattern(LineHatch::create())
         .clip(true)
         .circle(7.5, 12.5, 2.5)
         .clip(false)
@@ -70,8 +70,8 @@ fn main() {
         .transform(Some(
             &(Context::translate_matrix(50.0, 50.0) * Context::scale_matrix(0.02, -0.02)),
         ))
-        .pattern(NoHatch::gen())
-        .pattern(LineHatch::gen())
+        .pattern(NoHatch::create())
+        .pattern(LineHatch::create())
         .glyph('Q', false);
 
     let svg = ctx

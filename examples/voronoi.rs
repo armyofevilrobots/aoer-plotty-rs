@@ -37,7 +37,7 @@ fn main() {
         .no_fill()
         .stroke("black")
         .pen(0.2)
-        .pattern(NoHatch::gen())
+        .pattern(NoHatch::create())
         .typography(
             &"Voronoi over Perlin".to_string(),
             510.,
@@ -57,7 +57,7 @@ fn main() {
         .no_fill()
         .stroke("black")
         .pen(0.2)
-        .pattern(NoHatch::gen())
+        .pattern(NoHatch::create())
         .typography(
             &"Voronoi over Halton".to_string(),
             10.,

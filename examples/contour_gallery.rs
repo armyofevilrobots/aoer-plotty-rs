@@ -175,7 +175,7 @@ fn main() {
         ctx.no_fill()
             .stroke("black")
             .pen(1.)
-            .pattern(NoHatch::gen())
+            .pattern(NoHatch::create())
             .no_fill()
             .set_mask(&None)
             .geometry(&rect.into())
